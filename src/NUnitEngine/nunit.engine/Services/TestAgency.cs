@@ -67,7 +67,7 @@ namespace NUnit.Engine.Services
 
         public TestAgency() : this( "TestAgency", 0 ) { }
 
-        public TestAgency(string uri, int port)
+        internal TestAgency(string uri, int port)
         {
             _server = new RemoteServer(uri, port, this);
         }
