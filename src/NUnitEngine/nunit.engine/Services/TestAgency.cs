@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2011 Charlie Poole
+// Copyright (c) 2016 Charlie Poole
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -26,9 +26,8 @@ using System.IO;
 using System.Threading;
 using System.Diagnostics;
 using System.Collections.Generic;
-using System.Reflection;
-using NUnit.Common;
 using NUnit.Engine.Internal;
+using NUnit.Engine.Servers;
 
 namespace NUnit.Engine.Services
 {
@@ -49,54 +48,34 @@ namespace NUnit.Engine.Services
     /// on request and tracks their status. Agents
     /// are wrapped in an instance of the TestAgent
     /// class. Multiple agent types are supported
-    /// but only one, ProcessAgent is implemented
+    /// but only one, RemoteTestAgent is implemented
     /// at this time.
     /// </summary>
-    public class TestAgency : ServerBase, ITestAgency, IService
+    public class TestAgency : MarshalByRefObject, ITestAgency, IService, IDisposable
     {
         static Logger log = InternalTrace.GetLogger(typeof(TestAgency));
 
         #region Private Fields
 
-        private AgentDataBase _agentData = new AgentDataBase();
-
-        private IRuntimeFrameworkService _runtimeService;
+        AgentDataBase _agentData = new AgentDataBase();
+        IRuntimeFrameworkService _runtimeService;
+        RemoteServer _server;
 
         #endregion
 
         #region Constructors
+
         public TestAgency() : this( "TestAgency", 0 ) { }
 
-        public TestAgency( string uri, int port ) : base( uri, port ) { }
-        #endregion
+        public TestAgency(string uri, int port)
+        {
+            _server = new RemoteServer(uri, port, this);
+        }
 
-        #region ServerBase Overrides
-        //public override void Stop()
-        //{
-        //    foreach( KeyValuePair<Guid,AgentRecord> pair in agentData )
-        //    {
-        //        AgentRecord r = pair.Value;
-
-        //        if ( !r.Process.HasExited )
-        //        {
-        //            if ( r.Agent != null )
-        //            {
-        //                r.Agent.Stop();
-        //                r.Process.WaitForExit(10000);
-        //            }
-
-        //            if ( !r.Process.HasExited )
-        //                r.Process.Kill();
-        //        }
-        //    }
-
-        //    agentData.Clear();
-
-        //    base.Stop ();
-        //}
         #endregion
 
         #region Public Methods - Called by Agents
+
         public void Register( ITestAgent agent )
         {
             AgentRecord r = _agentData[agent.Id];
@@ -118,6 +97,7 @@ namespace NUnit.Engine.Services
 
             r.Status = status;
         }
+
         #endregion
 
         #region Public Methods - Called by Clients
@@ -128,7 +108,7 @@ namespace NUnit.Engine.Services
             //AgentRecord r = FindAvailableRemoteAgent(type);
             //if ( r == null )
             //    r = CreateRemoteAgent(type, framework, waitTime);
-            return CreateRemoteAgent(package, waitTime);
+            return CreateAgent(package, waitTime);
         }
 
         public void ReleaseAgent( ITestAgent agent )
@@ -143,131 +123,62 @@ namespace NUnit.Engine.Services
             }
         }
 
-        //public void DestroyAgent( ITestAgent agent )
-        //{
-        //    AgentRecord r = agentData[agent.Id];
-        //    if ( r != null )
-        //    {
-        //        if( !r.Process.HasExited )
-        //            r.Agent.Stop();
-        //        agentData[r.Id] = null;
-        //    }
-        //}
+        #endregion
+        
+        #region InitializeLifetimeService
+
+        public override object InitializeLifetimeService()
+        {
+            return null;
+        }
+
+        #endregion
+
+        #region IDisposable Members
+
+        public void Dispose()
+        {
+            GC.SuppressFinalize(this);
+            Dispose(true);
+        }
+
+        bool _disposed = false;
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposed)
+            {
+                if (disposing)
+                    _server.Dispose();
+
+                _disposed = true;
+            }
+        }
+
         #endregion
 
         #region Helper Methods
-        private Guid LaunchAgentProcess(TestPackage package)
+
+        private ITestAgent CreateAgent(TestPackage package, int waitTime)
         {
-            string runtimeSetting = package.GetSetting(PackageSettings.RuntimeFramework, "");
-            RuntimeFramework targetRuntime = RuntimeFramework.Parse(
-                runtimeSetting != ""
-                    ? runtimeSetting
-                    : _runtimeService.SelectRuntimeFramework(package));
+            string defaultFramework = _runtimeService.SelectRuntimeFramework(package);
 
-            if (targetRuntime.Runtime == RuntimeType.Any)
-                targetRuntime = new RuntimeFramework(RuntimeFramework.CurrentFramework.Runtime, targetRuntime.ClrVersion);
+            AgentRecord agentRecord = _server.LaunchAgentProcess(package, defaultFramework);
+            _agentData.Add(agentRecord);
 
-            bool useX86Agent = package.GetSetting(PackageSettings.RunAsX86, false);
-            bool debugTests = package.GetSetting(PackageSettings.DebugTests, false);
-            bool debugAgent = package.GetSetting(PackageSettings.DebugAgent, false);
-            bool verbose = package.GetSetting("Verbose", false);
-
-            string agentArgs = string.Empty;
-            if (debugAgent) agentArgs += " --debug-agent";
-            if (verbose) agentArgs += " --verbose";
-
-            log.Info("Getting {0} agent for use under {1}", useX86Agent ? "x86" : "standard", targetRuntime);
-
-            if (!targetRuntime.IsAvailable)
-                throw new ArgumentException(
-                    string.Format("The {0} framework is not available", targetRuntime),
-                    "framework");
-
-            string agentExePath = GetTestAgentExePath(targetRuntime.ClrVersion, useX86Agent);
-
-            if (agentExePath == null)
-                throw new ArgumentException(
-                    string.Format("NUnit components for version {0} of the CLR are not installed",
-                    targetRuntime.ClrVersion.ToString()), "targetRuntime");
-
-            log.Debug("Using nunit-agent at " + agentExePath);
-
-            Process p = new Process();
-            p.StartInfo.UseShellExecute = false;
-            Guid agentId = Guid.NewGuid();
-            string arglist = agentId.ToString() + " " + ServerUrl + " " + agentArgs;
-
-            switch( targetRuntime.Runtime )
-            {
-                case RuntimeType.Mono:
-                    p.StartInfo.FileName = NUnitConfiguration.MonoExePath;
-                    string monoOptions = "--runtime=v" + targetRuntime.ClrVersion.ToString(3);
-                    if (debugTests || debugAgent) monoOptions += " --debug";
-                    p.StartInfo.Arguments = string.Format("{0} \"{1}\" {2}", monoOptions, agentExePath, arglist);
-                    break;
-                case RuntimeType.Net:
-                    p.StartInfo.FileName = agentExePath;
-
-                    if (targetRuntime.ClrVersion.Build < 0)
-                        targetRuntime = RuntimeFramework.GetBestAvailableFramework(targetRuntime);
-
-                    string envVar = "v" + targetRuntime.ClrVersion.ToString(3);
-                    p.StartInfo.EnvironmentVariables["COMPLUS_Version"] = envVar;
-
-                    p.StartInfo.Arguments = arglist;
-                    break;
-                default:
-                    p.StartInfo.FileName = agentExePath;
-                    p.StartInfo.Arguments = arglist;
-                    break;
-            }
-            
-            //p.Exited += new EventHandler(OnProcessExit);
-            p.Start();
-            log.Info("Launched Agent process {0} - see nunit-agent_{0}.log", p.Id);
-            log.Info("Command line: \"{0}\" {1}", p.StartInfo.FileName, p.StartInfo.Arguments);
-
-            _agentData.Add( new AgentRecord( agentId, p, null, AgentStatus.Starting ) );
-            return agentId;
-        }
-
-        //private void OnProcessExit(object sender, EventArgs e)
-        //{
-        //    Process p = sender as Process;
-        //    if (p != null)
-        //        agentData.Remove(p.Id);
-        //}
-
-        //private AgentRecord FindAvailableAgent()
-        //{
-        //    foreach( AgentRecord r in agentData )
-        //        if ( r.Status == AgentStatus.Ready)
-        //        {
-        //            log.Debug( "Reusing agent {0}", r.Id );
-        //            r.Status = AgentStatus.Busy;
-        //            return r;
-        //        }
-
-        //    return null;
-        //}
-
-        private ITestAgent CreateRemoteAgent(TestPackage package, int waitTime)
-        {
-            Guid agentId = LaunchAgentProcess(package);
-
-            log.Debug( "Waiting for agent {0} to register", agentId.ToString("B") );
+            log.Debug("Waiting for agent {0} to register", agentRecord.Id.ToString("B"));
 
             int pollTime = 200;
             bool infinite = waitTime == Timeout.Infinite;
 
-            while( infinite || waitTime > 0 )
+            while (infinite || waitTime > 0)
             {
-                Thread.Sleep( pollTime );
-                if ( !infinite ) waitTime -= pollTime;
-                ITestAgent agent = _agentData[agentId].Agent;
-                if ( agent != null )
+                Thread.Sleep(pollTime);
+                if (!infinite) waitTime -= pollTime;
+                ITestAgent agent = _agentData[agentRecord.Id].Agent;
+                if (agent != null)
                 {
-                    log.Debug( "Returning new agent {0}", agentId.ToString("B") );
+                    log.Debug("Returning new agent {0}", agentRecord.Id.ToString("B"));
                     return agent;
                 }
             }
@@ -332,19 +243,6 @@ namespace NUnit.Engine.Services
             return null;
         }
 
-        private static string GetTestAgentExePath(Version v, bool requires32Bit)
-        {
-            string binDir = NUnitConfiguration.NUnitBinDirectory;
-            if (binDir == null) return null;
-
-            string agentName = v.Major > 1 && requires32Bit
-                ? "nunit-agent-x86.exe"
-                : "nunit-agent.exe";
-
-            string agentExePath = Path.Combine(binDir, agentName);
-            return File.Exists(agentExePath) ? agentExePath : null;
-        }
-
         #endregion
 
         #region IService Members
@@ -357,7 +255,7 @@ namespace NUnit.Engine.Services
         {
             try
             {
-                Stop();
+                _server.Stop();
             }
             finally
             {
@@ -377,7 +275,7 @@ namespace NUnit.Engine.Services
                 {
                     try
                     {
-                        Start();
+                        _server.Start();
                         Status = ServiceStatus.Started;
                     }
                     catch
@@ -401,7 +299,8 @@ namespace NUnit.Engine.Services
         #endregion
 
         #region Nested Class - AgentRecord
-        private class AgentRecord
+
+        internal class AgentRecord
         {
             public Guid Id;
             public Process Process;
@@ -415,11 +314,12 @@ namespace NUnit.Engine.Services
                 this.Agent = a;
                 this.Status = s;
             }
-
         }
+
         #endregion
 
         #region Nested Class - AgentDataBase
+
         /// <summary>
         ///  A simple class that tracks data about this
         ///  agencies active and available agents
@@ -469,13 +369,6 @@ namespace NUnit.Engine.Services
             {
                 agentData.Clear();
             }
-
-            //#region IEnumerable Members
-            //public IEnumerator<KeyValuePair<Guid,AgentRecord>> GetEnumerator()
-            //{
-            //    return agentData.GetEnumerator();
-            //}
-            //#endregion
         }
 
         #endregion

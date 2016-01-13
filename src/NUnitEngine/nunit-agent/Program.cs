@@ -29,6 +29,7 @@ using NUnit.Engine;
 using NUnit.Engine.Agents;
 using NUnit.Engine.Internal;
 using NUnit.Engine.Services;
+using NUnit.Engine.Servers;
 
 namespace NUnit.Agent
 {
@@ -107,7 +108,7 @@ namespace NUnit.Agent
             //log.Info("Initializing Services");
             engine.Initialize();
 
-            Channel = ServerUtilities.GetTcpChannel();
+            Channel = RemoteServerUtilities.GetTcpChannel();
 
             //log.Info("Connecting to TestAgency at {0}", AgencyUrl);
             try

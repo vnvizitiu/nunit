@@ -80,7 +80,7 @@ namespace NUnit.Engine.Drivers
             }
             catch (SerializationException ex)
             {
-                throw new NUnitEngineException("The NUnit 3.0 driver does not support the portable version of NUnit. Use a platform specific runner.", ex);
+                throw new NUnitEngineException("NUnit does not support running test using the PCL version of NUnit in-process. These tests should be run with the default process options.", ex);
             }
 
             CallbackHandler handler = new CallbackHandler();

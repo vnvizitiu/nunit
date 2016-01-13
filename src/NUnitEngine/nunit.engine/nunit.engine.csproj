@@ -112,8 +112,8 @@
     <Compile Include="Internal\ResultHelper.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Internal\ServerBase.cs" />
-    <Compile Include="Internal\ServerUtilities.cs" />
+    <Compile Include="Servers\RemoteServer.cs" />
+    <Compile Include="Servers\RemoteServerUtilities.cs" />
     <Compile Include="Internal\SettingsGroup.cs" />
     <Compile Include="Internal\SettingsStore.cs" />
     <Compile Include="ITestEngineRunner.cs" />

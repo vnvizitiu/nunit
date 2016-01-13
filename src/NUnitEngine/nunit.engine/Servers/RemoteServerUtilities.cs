@@ -27,16 +27,17 @@ using System.Runtime.Remoting;
 using System.Runtime.Remoting.Channels;
 using System.Runtime.Remoting.Channels.Tcp;
 using System.Reflection;
+using NUnit.Engine.Internal;
 
-namespace NUnit.Engine.Internal
+namespace NUnit.Engine.Servers
 {
     /// <summary>
     /// A collection of utility methods used to create, retrieve
     /// and release <see cref="TcpChannel"/>s.
     /// </summary>
-    public static class ServerUtilities
+    public static class RemoteServerUtilities
     {
-        static Logger log = InternalTrace.GetLogger(typeof(ServerUtilities));
+        static Logger log = InternalTrace.GetLogger(typeof(RemoteServerUtilities));
 
         /// <summary>
         ///  Create a <see cref="TcpChannel"/> with a given name on a given port.
