@@ -42,9 +42,9 @@ namespace NUnit.Engine.Tests.Internal
         [TestCase("Silverlight", TargetPlatform.Silverlight)]
         [TestCase("UniversalWindows", TargetPlatform.UniversalWindows)]
         [TestCase("Win81", TargetPlatform.Win81)]
-        [TestCase("WinPhone80Silverlight", TargetPlatform.WinPhone80)]
+        [TestCase("WinPhone80Silverlight", TargetPlatform.WinPhone80Silverlight)]
         [TestCase("WinPhone81", TargetPlatform.WinPhone81)]
-        [TestCase("WinPhone81Silverlight", TargetPlatform.WinPhone81)]
+        [TestCase("WinPhone81Silverlight", TargetPlatform.WinPhone81Silverlight)]
         public void CanIdentifyTargetPlatform(string platform, TargetPlatform expected)
         {
             var assemblyPath = string.Format("../../mocks/{0}/{0}.dll", platform);

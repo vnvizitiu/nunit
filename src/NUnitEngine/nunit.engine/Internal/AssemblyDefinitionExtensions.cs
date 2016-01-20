@@ -33,19 +33,10 @@ namespace NUnit.Engine.Internal
     {
         public static TargetPlatform GetTargetPlatform(this AssemblyDefinition assemblyDefinition)
         {
-            foreach(var attrib in assemblyDefinition.CustomAttributes)
-            {
-                if (attrib.AttributeType.FullName == "System.Runtime.Versioning.TargetFrameworkAttribute")
-                {
-                    foreach (var prop in attrib.Properties)
-                    {
-                        if (prop.Name == "FrameworkDisplayName")
-                        {
-                            return ParseFrameworkName(prop.Argument.Value as string);
-                        }
-                    }
-                }
-            }
+            var frameworkName = assemblyDefinition.GetFrameworkDisplayName();
+            if (frameworkName != null)
+                return ParseFrameworkName(frameworkName);
+                        
             // .NET Core does not have the TargetFrameworkAttribute, but it does have AssemblyInformationalVersionAttribute
             // TODO: Is there a better way to identify .NET Core assemblies?
             foreach (var attrib in assemblyDefinition.CustomAttributes)
@@ -60,28 +51,45 @@ namespace NUnit.Engine.Internal
             return TargetPlatform.Desktop;
         }
 
+        internal static string GetFrameworkDisplayName(this AssemblyDefinition assemblyDefinition)
+        {
+            foreach (var attrib in assemblyDefinition.CustomAttributes)
+            {
+                if (attrib.AttributeType.FullName == "System.Runtime.Versioning.TargetFrameworkAttribute")
+                {
+                    if(attrib.HasConstructorArguments)
+                    {
+                        return attrib.ConstructorArguments[0].Value as string;
+                    }
+                }
+            }
+            return null;
+        }
+
         static TargetPlatform ParseFrameworkName(string frameworkName)
         {
             if (frameworkName == null)
                 return TargetPlatform.Unknown;
 
-            if (frameworkName.StartsWith("Xamarin.Android", StringComparison.InvariantCultureIgnoreCase))
+            if (frameworkName.StartsWith("MonoAndroid", StringComparison.InvariantCultureIgnoreCase))
                 return TargetPlatform.Android;
             if (frameworkName.StartsWith("Xamarin.iOS", StringComparison.InvariantCultureIgnoreCase))
                 return TargetPlatform.Ios;
-            if (frameworkName.StartsWith(".NET Framework", StringComparison.InvariantCultureIgnoreCase))
+            if (frameworkName.StartsWith(".NETFramework", StringComparison.InvariantCultureIgnoreCase))
                 return TargetPlatform.Desktop;
-            if (frameworkName.StartsWith(".NET Portable", StringComparison.InvariantCultureIgnoreCase))
+            if (frameworkName.StartsWith(".NETPortable", StringComparison.InvariantCultureIgnoreCase))
                 return TargetPlatform.Portable;
             if (frameworkName.StartsWith("Silverlight", StringComparison.InvariantCultureIgnoreCase))
                 return TargetPlatform.Silverlight;
-            if (frameworkName.StartsWith(".NET for Windows Universal", StringComparison.InvariantCultureIgnoreCase))
-                return TargetPlatform.UniversalWindows;
-            if (frameworkName.StartsWith(".NET for Windows Store", StringComparison.InvariantCultureIgnoreCase))
+            if (frameworkName.StartsWith(".NETCore,Version=v4.5", StringComparison.InvariantCultureIgnoreCase))
                 return TargetPlatform.Win81;
-            if (frameworkName.StartsWith("Windows Phone 8.0", StringComparison.InvariantCultureIgnoreCase))
-                return TargetPlatform.WinPhone80;
-            if (frameworkName.StartsWith("Windows Phone 8.1", StringComparison.InvariantCultureIgnoreCase))
+            if (frameworkName.StartsWith(".NETCore", StringComparison.InvariantCultureIgnoreCase))
+                return TargetPlatform.UniversalWindows;
+            if (frameworkName.StartsWith("WindowsPhone,Version=v8.0", StringComparison.InvariantCultureIgnoreCase))
+                return TargetPlatform.WinPhone80Silverlight;
+            if (frameworkName.StartsWith("WindowsPhone,Version=v8.1", StringComparison.InvariantCultureIgnoreCase))
+                return TargetPlatform.WinPhone81Silverlight;
+            if (frameworkName.StartsWith("WindowsPhoneApp,Version=v8.1", StringComparison.InvariantCultureIgnoreCase))
                 return TargetPlatform.WinPhone81;
 
             return TargetPlatform.Unknown;

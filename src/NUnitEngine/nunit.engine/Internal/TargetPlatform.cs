@@ -75,9 +75,14 @@ namespace NUnit.Engine.Internal
         Win81,
 
         /// <summary>
-        /// Windows Phone 8.0
+        /// Windows Phone 8.0 Silverlight
         /// </summary>
-        WinPhone80,
+        WinPhone80Silverlight,
+
+        /// <summary>
+        /// Windows Phone 8.1 Silverlight
+        /// </summary>
+        WinPhone81Silverlight,
 
         /// <summary>
         /// Windows Phone 8.1
