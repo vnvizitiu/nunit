@@ -107,6 +107,9 @@
     <None Include="project.json" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\NetCore\MockAssembly.cs">
+      <Link>MockAssembly.cs</Link>
+    </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <EmbeddedResource Include="Properties\UniversalWindows.rd.xml" />
   </ItemGroup>

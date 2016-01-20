@@ -34,16 +34,54 @@ namespace NUnit.Engine.Internal
     {
         Unknown = 0,
 
+        /// <summary>
+        /// Any desktop platform such as .NET 2.0, 3.5, 4.5, etc.
+        /// </summary>
         Desktop,
 
+        /// <summary>
+        /// PCL assembly
+        /// </summary>
+        Portable,
+
+        /// <summary>
+        /// Xamarin Android
+        /// </summary>
         Android,
         
+        /// <summary>
+        /// Xamarin iOS
+        /// </summary>
         Ios,
         
+        /// <summary>
+        /// .NET Core/DNX
+        /// </summary>
         NetCore,
         
+        /// <summary>
+        /// Silverlight 5.0
+        /// </summary>
         Silverlight,
         
-         
+        /// <summary>
+        /// Universal Windows Platform AKA Windows 10
+        /// </summary>
+        UniversalWindows,
+
+        /// <summary>
+        /// Windows 8.1 RT
+        /// </summary>
+        Win81,
+
+        /// <summary>
+        /// Windows Phone 8.0
+        /// </summary>
+        WinPhone80,
+
+        /// <summary>
+        /// Windows Phone 8.1
+        /// </summary>
+        WinPhone81
     }
 }

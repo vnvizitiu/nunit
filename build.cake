@@ -143,7 +143,7 @@ Task("BuildCppTestFiles")
             .SetVerbosity(Verbosity.Minimal)
             .SetNodeReuse(false)
         );
-	});
+	}); 
     
 //////////////////////////////////////////////////////////////////////
 // TEST
@@ -460,6 +460,92 @@ Task("PackageCF")
 			OutputDirectory = PACKAGE_DIR
 		});
 	});
+
+//////////////////////////////////////////////////////////////////////
+// MULTI-PLATFORM MOCK ASSEMBLIES
+//
+// These tasks are only run when you need to rebuild the multi-platform mock assemblies
+// that are checked into source control and used for testing. They are not normally
+// built because they require Xamarin licenses/framework and numerous other platform targets
+// be installed.
+//////////////////////////////////////////////////////////////////////
+var MockBuildRoot = "src/MockAssemblies/";
+var MockAssemblies = new string[] {
+    MockBuildRoot + "Android/bin/" + configuration + "/*.dll",
+    MockBuildRoot + "iOS/bin/iPhone/" + configuration + "/*.dll",
+    MockBuildRoot + "Net20/bin/" + configuration + "/*.dll",
+    MockBuildRoot + "Net45/bin/" + configuration + "/*.dll",
+    MockBuildRoot + "artifacts/bin/NetCore/" + configuration + "/dnxcore50/*.dll",
+    MockBuildRoot + "Portable/bin/" + configuration + "/*.dll",
+    MockBuildRoot + "Silverlight/Bin/" + configuration + "/*.dll",
+    MockBuildRoot + "UniversalWindows/bin/" + configuration + "/*.dll",
+    MockBuildRoot + "Win81/bin/" + configuration + "/*.dll",
+    MockBuildRoot + "WinPhone80Silverlight/Bin/" + configuration + "/*.dll",
+    MockBuildRoot + "WinPhone81/bin/" + configuration + "/*.dll",
+    MockBuildRoot + "WinPhone81Silverlight/Bin/" + configuration + "/*.dll"
+};
+
+var MockTargetRoot = "mocks/";
+var MockTargets = new string[] {
+    MockTargetRoot + "Android/",
+    MockTargetRoot + "iOS/",
+    MockTargetRoot + "Net20/",
+    MockTargetRoot + "Net45/",
+    MockTargetRoot + "NetCore/",
+    MockTargetRoot + "Portable/",
+    MockTargetRoot + "Silverlight/",
+    MockTargetRoot + "UniversalWindows/",
+    MockTargetRoot + "Win81/",
+    MockTargetRoot + "WinPhone80Silverlight/",
+    MockTargetRoot + "WinPhone81/",
+    MockTargetRoot + "WinPhone81Silverlight/"
+};
+
+Task("NugetRestoreMockAssemblies")
+    .Does(() =>
+{
+    NuGetRestore("src/MockAssemblies/MockAssemblies.sln");
+});   
+
+Task("BuildMockAssemblies")
+    .IsDependentOn("NugetRestoreMockAssemblies")
+    .Does(() =>
+{
+    if(IsRunningOnUnix())
+    {
+        XBuild("src/MockAssemblies/MockAssemblies.sln", new XBuildSettings()
+            .SetConfiguration("Debug")
+            .WithTarget("AnyCPU")
+            .WithProperty("TreatWarningsAsErrors", "true")
+            .SetVerbosity(Verbosity.Minimal)
+        );
+    }
+    else
+    {
+        MSBuild("src/MockAssemblies/MockAssemblies.sln", new MSBuildSettings()
+            .SetConfiguration(configuration)
+            .SetMSBuildPlatform(MSBuildPlatform.x86)
+            .SetPlatformTarget(PlatformTarget.MSIL)
+            .WithProperty("TreatWarningsAsErrors", "true")
+            .SetVerbosity(Verbosity.Minimal)
+            .SetNodeReuse(false)
+        );
+    }
+});
+    
+Task("PackageMockAssemblies")
+    .IsDependentOn("BuildMockAssemblies")
+    .Does(() =>
+{
+    if(MockAssemblies.Length != MockTargets.Length)
+        throw new Exception("MockAssemblies and MockTargets are no longer in sync. Did you add new projects to one or the other?");
+        
+    for(int i = 0; i < MockAssemblies.Length; i++)
+    {
+        CreateDirectory(MockTargets[i]);
+        CopyFiles(MockAssemblies[i], MockTargets[i]);
+    }
+});
 
 //////////////////////////////////////////////////////////////////////
 // HELPER METHODS

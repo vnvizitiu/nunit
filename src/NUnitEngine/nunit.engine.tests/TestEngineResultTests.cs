@@ -25,8 +25,8 @@ using System.Xml;
 
 namespace NUnit.Engine.Tests
 {
+    using Engine.Internal;
     using Framework;
-    using Internal;
 
     [TestFixture]
     public class TestEngineResultTests

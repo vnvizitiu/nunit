@@ -80,7 +80,7 @@ namespace NUnit.Common
 
 #endregion
 
-#region GetDirectoryName
+        #region GetDirectoryName
 
 #if !SILVERLIGHT && !PORTABLE
         /// <summary>
@@ -94,9 +94,9 @@ namespace NUnit.Common
         }
 #endif
 
-#endregion
+        #endregion
 
-#region GetAssemblyName
+        #region GetAssemblyName
 
         /// <summary>
         /// Gets the AssemblyName of an assembly.
@@ -112,9 +112,9 @@ namespace NUnit.Common
 #endif
         }
 
-#endregion
+        #endregion
 
-#region Load
+        #region Load
 #if PORTABLE
         /// <summary>
         /// Loads an assembly given a string, which is the AssemblyName
@@ -154,9 +154,9 @@ namespace NUnit.Common
             return Assembly.Load(nameOrPath);
         }
 #endif
-#endregion
+        #endregion
 
-#region Helper Methods
+        #region Helper Methods
 
 #if !NETCF && !SILVERLIGHT && !PORTABLE
         private static bool IsFileUri(string uri)
@@ -192,6 +192,6 @@ namespace NUnit.Common
         }
 #endif
 
-#endregion
+        #endregion
     }
 }

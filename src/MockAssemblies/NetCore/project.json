@@ -1,11 +1,10 @@
-﻿{
+{
   "version": "1.0.0-*",
   "description": "NetCore Class Library",
   "authors": [ "Rob" ],
   "tags": [ "" ],
   "projectUrl": "",
   "licenseUrl": "",
-
   "frameworks": {
     "net451": { },
     "dnxcore50": {
@@ -17,5 +16,8 @@
         "System.Threading": "4.0.11-beta-23516"
       }
     }
+  },
+  "dependencies": {
+    "NUnit": "3.0.1"
   }
 }
