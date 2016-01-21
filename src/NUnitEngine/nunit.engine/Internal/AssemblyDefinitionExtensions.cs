@@ -38,6 +38,7 @@ namespace NUnit.Engine.Internal
                 return ParseFrameworkName(frameworkName);
                         
             // .NET Core does not have the TargetFrameworkAttribute, but it does have AssemblyInformationalVersionAttribute
+            // which is only available in .NET 4.5 +. Any other .NET 4.5+ assembly will have a TargetFrameworkAttribute
             // TODO: Is there a better way to identify .NET Core assemblies?
             foreach (var attrib in assemblyDefinition.CustomAttributes)
             {
@@ -73,22 +74,31 @@ namespace NUnit.Engine.Internal
 
             if (frameworkName.StartsWith("MonoAndroid", StringComparison.InvariantCultureIgnoreCase))
                 return TargetPlatform.Android;
+
             if (frameworkName.StartsWith("Xamarin.iOS", StringComparison.InvariantCultureIgnoreCase))
                 return TargetPlatform.Ios;
+
             if (frameworkName.StartsWith(".NETFramework", StringComparison.InvariantCultureIgnoreCase))
                 return TargetPlatform.Desktop;
+
             if (frameworkName.StartsWith(".NETPortable", StringComparison.InvariantCultureIgnoreCase))
                 return TargetPlatform.Portable;
+
             if (frameworkName.StartsWith("Silverlight", StringComparison.InvariantCultureIgnoreCase))
                 return TargetPlatform.Silverlight;
+
             if (frameworkName.StartsWith(".NETCore,Version=v4.5", StringComparison.InvariantCultureIgnoreCase))
                 return TargetPlatform.Win81;
+
             if (frameworkName.StartsWith(".NETCore", StringComparison.InvariantCultureIgnoreCase))
                 return TargetPlatform.UniversalWindows;
+
             if (frameworkName.StartsWith("WindowsPhone,Version=v8.0", StringComparison.InvariantCultureIgnoreCase))
                 return TargetPlatform.WinPhone80Silverlight;
+
             if (frameworkName.StartsWith("WindowsPhone,Version=v8.1", StringComparison.InvariantCultureIgnoreCase))
                 return TargetPlatform.WinPhone81Silverlight;
+
             if (frameworkName.StartsWith("WindowsPhoneApp,Version=v8.1", StringComparison.InvariantCultureIgnoreCase))
                 return TargetPlatform.WinPhone81;
 
