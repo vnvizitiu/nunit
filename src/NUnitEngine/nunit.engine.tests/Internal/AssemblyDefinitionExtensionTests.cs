@@ -48,7 +48,7 @@ namespace NUnit.Engine.Tests.Internal
         public void CanIdentifyTargetPlatform(string platform, TargetPlatform expected)
         {
             var assemblyPath = string.Format("../../mocks/{0}/{0}.dll", platform);
-            Assert.That(assemblyPath, Does.Exist);
+            Assume.That(assemblyPath, Does.Exist);
             
             var assembly = AssemblyDefinition.ReadAssembly(assemblyPath);
             Assert.That(assembly, Is.Not.Null);

@@ -147,6 +147,8 @@ namespace NUnit.Engine.Services
             string frameworkName = null;
             bool requiresX86 = false;
             bool requiresAssemblyResolver = false;
+            bool requiresAgent = false;
+            string targetPlatform = TargetPlatform.Unknown.ToString();
 
             // We are doing two jobs here: (1) in the else clause (below)
             // we get information about a single assembly and record it,
@@ -177,6 +179,24 @@ namespace NUnit.Engine.Services
                     if (subPackage.GetSetting(PackageSettings.ImageRequiresX86, false))
                         requiresX86 = true;
 
+                    // If any assembly requires a non-desktop agent, then we must run using agents
+                    if (subPackage.GetSetting(PackageSettings.ImageRequiresAgent, false))
+                        requiresAgent = true;
+
+                    // If any assembly targets a different platform, then we must run in multiple agents.
+                    string currentPlatform = subPackage.GetSetting(PackageSettings.ImageTargetPlatform, TargetPlatform.Unknown.ToString());
+                    if (targetPlatform != TargetPlatform.Unknown.ToString())
+                    {
+                        if (targetPlatform != currentPlatform)
+                            targetPlatform = TargetPlatform.Multiple.ToString();
+                        else
+                            targetPlatform = currentPlatform;
+                    }
+                    else
+                    {
+                        targetPlatform = currentPlatform;
+                    }
+
                     if (subPackage.GetSetting(PackageSettings.ImageRequiresDefaultAppDomainAssemblyResolver, false))
                         requiresAssemblyResolver = true;
                 }
@@ -198,6 +218,7 @@ namespace NUnit.Engine.Services
                 }
 
                 targetVersion = new Version(module.RuntimeVersion.Substring(1));
+                targetPlatform = assemblyDef.GetTargetPlatform().ToString();
                 log.Debug("Assembly {0} uses version {1}", packageName, targetVersion);
 
                 foreach (var attr in assemblyDef.CustomAttributes)
@@ -216,12 +237,16 @@ namespace NUnit.Engine.Services
             if (targetVersion.Major > 0)
                 package.Settings[PackageSettings.ImageRuntimeVersion] = targetVersion;
 
-            if (!string.IsNullOrEmpty(frameworkName))
-                package.Settings[PackageSettings.ImageTargetFrameworkName] = frameworkName;
-
             package.Settings[PackageSettings.ImageRequiresX86] = requiresX86;
             if (requiresX86)
                 package.Settings[PackageSettings.RunAsX86] = true;
+
+            if (!string.IsNullOrEmpty(frameworkName))
+                package.Settings[PackageSettings.ImageTargetFrameworkName] = frameworkName;
+
+            package.Settings[PackageSettings.ImageTargetPlatform] = targetPlatform;
+            if (targetPlatform != TargetPlatform.Desktop.ToString() || requiresAgent)
+                package.Settings[PackageSettings.ImageRequiresAgent] = true;
 
             package.Settings[PackageSettings.ImageRequiresDefaultAppDomainAssemblyResolver] = requiresAssemblyResolver;
         }

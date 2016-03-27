@@ -221,6 +221,18 @@ namespace NUnit.Common
         /// </summary>
         public const string ImageTargetFrameworkName = "ImageTargetFrameworkName";
 
+        /// <summary>
+        /// The platform that the test assembly targets mapping to the TargetPlatform enum. Examples are Desktop, Portable,
+        /// Android, Ios, UniversalWindows, etc. This is used to determine if a non-desktop agent is required to run the
+        /// tests.
+        /// </summary>
+        public const string ImageTargetPlatform = "ImageTargetPlatform";
+
+        /// <summary>
+        /// True if any assembly in the package targets a platform other than desktop.
+        /// </summary>
+        public const string ImageRequiresAgent = "ImageRequiresAgent";
+
         #endregion
     }
 }

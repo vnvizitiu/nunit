@@ -24,6 +24,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using NUnit.Engine.Internal;
 using NUnit.Framework;
 
 namespace NUnit.Engine.Services.Tests
@@ -88,6 +89,105 @@ namespace NUnit.Engine.Services.Tests
             Assert.That(available.Count, Is.GreaterThan(0));
             foreach (var framework in available)
                 Console.WriteLine("Available: {0}", framework.DisplayName);
+        }
+
+        [Test]
+        public void IfAssemblyTargetsDesktopThenAgentNotRequired()
+        {
+            string desktop = GetMockAssemblyForPlatform("Net45");
+            var package = new TestPackage(desktop);
+
+            _runtimeService.SelectRuntimeFramework(package);
+
+            Assert.That(package.GetSetting("ImageRequiresAgent", false), Is.False);
+        }
+
+        [Test]
+        public void IfAssemblyTargetsNonDesktopThenAgentRequired()
+        {
+            string desktop = GetMockAssemblyForPlatform("Android");
+            var package = new TestPackage(desktop);
+
+            _runtimeService.SelectRuntimeFramework(package);
+
+            Assert.That(package.GetSetting("ImageRequiresAgent", false), Is.True);
+        }
+
+        [Test]
+        public void IfAllAssembliesAreDesktopPlatformThenDoesntRequiresAgent()
+        {
+            string desktop = GetMockAssemblyForPlatform("Net45");
+            string android = GetMockAssemblyForPlatform("Net20");
+            var package = new TestPackage(new string[] { desktop, android });
+
+            _runtimeService.SelectRuntimeFramework(package);
+
+            Assert.That(package.GetSetting("ImageRequiresAgent", false), Is.False);
+        }
+
+        [Test]
+        public void IfAnyAssemblyIsNonDesktopPlatformThenRequiresAgent()
+        {
+            string desktop = GetMockAssemblyForPlatform("Net45");
+            string android = GetMockAssemblyForPlatform("Android");
+            var package = new TestPackage(new string[] { desktop, android });
+
+            _runtimeService.SelectRuntimeFramework(package);
+
+            Assert.That(package.GetSetting("ImageRequiresAgent", false), Is.True);
+        }
+
+        [Test]
+        public void IfAllAssembliesTargetSamePlatformThenMultipleAgentsAreNotRequired()
+        {
+            string desktop = GetMockAssemblyForPlatform("Net45");
+            string android = GetMockAssemblyForPlatform("Net20");
+            var package = new TestPackage(new string[] { desktop, android });
+
+            _runtimeService.SelectRuntimeFramework(package);
+
+            Assert.That(package.GetSetting("ImageTargetPlatform", ""), Is.Not.EqualTo(TargetPlatform.Multiple.ToString()));
+        }
+
+        [Test]
+        public void IfAnyAssemblyTargetsDifferentPlatformThenMultipleAgentsAreRequired()
+        {
+            string desktop = GetMockAssemblyForPlatform("Net45");
+            string android = GetMockAssemblyForPlatform("Android");
+            var package = new TestPackage(new string[] { desktop, android });
+
+            _runtimeService.SelectRuntimeFramework(package);
+
+            Assert.That(package.GetSetting("ImageTargetPlatform", ""), Is.EqualTo(TargetPlatform.Multiple.ToString()));
+        }
+
+        [TestCase("Android", TargetPlatform.Android)]
+        [TestCase("iOS", TargetPlatform.Ios)]
+        [TestCase("Net20", TargetPlatform.Desktop)]
+        [TestCase("Net45", TargetPlatform.Desktop)]
+        [TestCase("NetCore", TargetPlatform.NetCore)]
+        [TestCase("Portable", TargetPlatform.Portable)]
+        [TestCase("Silverlight", TargetPlatform.Silverlight)]
+        [TestCase("UniversalWindows", TargetPlatform.UniversalWindows)]
+        [TestCase("Win81", TargetPlatform.Win81)]
+        [TestCase("WinPhone80Silverlight", TargetPlatform.WinPhone80Silverlight)]
+        [TestCase("WinPhone81", TargetPlatform.WinPhone81)]
+        [TestCase("WinPhone81Silverlight", TargetPlatform.WinPhone81Silverlight)]
+        public void SetsTargetPlatform(string platform, TargetPlatform expected)
+        {
+            string asm = GetMockAssemblyForPlatform(platform);
+            var package = new TestPackage(asm);
+
+            _runtimeService.SelectRuntimeFramework(package);
+
+            Assert.That(package.GetSetting("ImageTargetPlatform", ""), Is.EqualTo(expected.ToString()));
+        }
+
+        string GetMockAssemblyForPlatform(string platform)
+        {
+            var assemblyPath = string.Format("../../mocks/{0}/{0}.dll", platform);
+            Assume.That(assemblyPath, Does.Exist);
+            return assemblyPath;
         }
     }
 }

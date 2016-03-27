@@ -35,6 +35,12 @@ namespace NUnit.Engine.Internal
         Unknown = 0,
 
         /// <summary>
+        /// A TestPackage contains multiple assemblies targeting different
+        /// platforms
+        /// </summary>
+        Multiple = 1,
+
+        /// <summary>
         /// Any desktop platform such as .NET 2.0, 3.5, 4.5, etc.
         /// </summary>
         Desktop,

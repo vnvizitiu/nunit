@@ -89,10 +89,21 @@ namespace NUnit.Engine.Runners
             // be used to determine how to run the assembly.
             _runtimeService.SelectRuntimeFramework(TestPackage);
 
-            if (TestPackage.GetSetting(PackageSettings.ProcessModel, "") == "InProcess" &&
-                TestPackage.GetSetting(PackageSettings.RunAsX86, false))
+            bool inProcess = TestPackage.GetSetting(PackageSettings.ProcessModel, "") == "InProcess";
+            if (inProcess && TestPackage.GetSetting(PackageSettings.RunAsX86, false))
             {
                 throw new NUnitEngineException("Cannot run tests in process - a 32 bit process is required.");
+            }
+
+            if (inProcess && TestPackage.GetSetting(PackageSettings.ImageRequiresAgent, false))
+            {
+                throw new NUnitEngineException("Cannot run tests that target portable or non-desktop platforms in process.");
+            }
+
+            if (TestPackage.GetSetting(PackageSettings.ProcessModel, "") == "Separate" &&
+                TestPackage.GetSetting(PackageSettings.ImageTargetPlatform, "") == TargetPlatform.Multiple.ToString())
+            {
+                throw new NUnitEngineException("Test assemblies that target multiple platforms must be run using --process=Multiple");
             }
 
             _realRunner = TestRunnerFactory.MakeTestRunner(TestPackage);
