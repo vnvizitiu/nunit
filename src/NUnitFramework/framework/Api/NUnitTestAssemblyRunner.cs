@@ -46,7 +46,7 @@ namespace NUnit.Framework.Api
         private static Logger log = InternalTrace.GetLogger("DefaultTestAssemblyRunner");
 
         private ITestAssemblyBuilder _builder;
-        private AutoResetEvent _runComplete = new AutoResetEvent(false);
+        private ManualResetEvent _runComplete = new ManualResetEvent(false);
 
 #if !SILVERLIGHT && !NETCF && !PORTABLE
         // Saved Console.Out and Console.Error
@@ -216,6 +216,8 @@ namespace NUnit.Framework.Api
             if (LoadedTest == null)
                 throw new InvalidOperationException("The Run method was called but no test has been loaded");
 
+            _runComplete.Reset();
+
             CreateTestExecutionContext(listener);
 
             TopLevelWorkItem = WorkItem.CreateWorkItem(LoadedTest, filter);
@@ -269,15 +271,13 @@ namespace NUnit.Framework.Api
             if (!System.Diagnostics.Debugger.IsAttached &&
                 Settings.Contains(PackageSettings.DebugTests) &&
                 (bool)Settings[PackageSettings.DebugTests])
-            {
                 System.Diagnostics.Debugger.Launch();
-            }
+
 #if !SILVERLIGHT && !PORTABLE
             if (Settings.Contains(PackageSettings.PauseBeforeRun) &&
                 (bool)Settings[PackageSettings.PauseBeforeRun])
-            {
                 PauseBeforeRun();
-            }
+
 #endif
 #endif
 
@@ -287,7 +287,7 @@ namespace NUnit.Framework.Api
         /// <summary>
         /// Signal any test run that is in process to stop. Return without error if no test is running.
         /// </summary>
-        /// <param name="force">If true, kill any test-running threads</param>
+        /// <param name="force">If true, kill any tests that are currently running</param>
         public void StopRun(bool force)
         {
             if (IsTestRunning)
@@ -296,8 +296,7 @@ namespace NUnit.Framework.Api
                     ? TestExecutionStatus.AbortRequested
                     : TestExecutionStatus.StopRequested;
 
-                if (force)
-                    Context.Dispatcher.CancelRun();
+                Context.Dispatcher.CancelRun(force);
             }
         }
 
@@ -313,6 +312,7 @@ namespace NUnit.Framework.Api
         {
             Context = new TestExecutionContext();
 
+            // Apply package settings to the context
             if (Settings.Contains(PackageSettings.DefaultTimeout))
                 Context.TestCaseTimeout = (int)Settings[PackageSettings.DefaultTimeout];
             if (Settings.Contains(PackageSettings.StopOnError))
@@ -323,26 +323,20 @@ namespace NUnit.Framework.Api
             else
                 Context.WorkDirectory = Env.DefaultWorkDirectory;
 
-            // Overriding runners may replace this
+            // Apply attributes to the context
+
+            // Set the listener - overriding runners may replace this
             Context.Listener = listener;
 
 #if PARALLEL
             int levelOfParallelism = GetLevelOfParallelism();
 
             if (levelOfParallelism > 0)
-            {
                 Context.Dispatcher = new ParallelWorkItemDispatcher(levelOfParallelism);
-                // Assembly does not have IApplyToContext attributes applied
-                // when the test is built, so  we do it here.
-                // TODO: Generalize this
-                if (LoadedTest.Properties.ContainsKey(PropertyNames.ParallelScope))
-                    Context.ParallelScope =
-                        (ParallelScope)LoadedTest.Properties.Get(PropertyNames.ParallelScope) & ~ParallelScope.Self;
-            }
             else
                 Context.Dispatcher = new SimpleWorkItemDispatcher();
 #else
-                Context.Dispatcher = new SimpleWorkItemDispatcher();
+            Context.Dispatcher = new SimpleWorkItemDispatcher();
 #endif
         }
 

@@ -68,9 +68,12 @@
     <Compile Include="Assertions\AssertFailTests.cs" />
     <Compile Include="Assertions\AssertIgnoreTests.cs" />
     <Compile Include="Assertions\AssertInconclusiveTests.cs" />
+    <Compile Include="Assertions\AssertionHelperTests.cs" />
     <Compile Include="Assertions\AssertPassTests.cs" />
     <Compile Include="Assertions\AssertThatTests.cs" />
+    <Compile Include="Assertions\AssertThrowsAsyncTests.cs" />
     <Compile Include="Assertions\AssertThrowsTests.cs" />
+    <Compile Include="Assertions\AssumeEqualsTests.cs" />
     <Compile Include="Assertions\AssumeThatTests.cs" />
     <Compile Include="Assertions\AsyncThrowsTests.cs" />
     <Compile Include="Assertions\CollectionAssertTest.cs" />
@@ -112,10 +115,13 @@
     <Compile Include="Attributes\RetryAttributeTests.cs" />
     <Compile Include="Attributes\SetCultureAttributeTests.cs" />
     <Compile Include="Attributes\SetUpFixtureAttributeTests.cs" />
+    <Compile Include="Attributes\SingleThreadedFixtureTests.cs" />
     <Compile Include="Attributes\TestCaseAttributeTests.cs" />
     <Compile Include="Attributes\TestCaseSourceTests.cs" />
     <Compile Include="Attributes\TestDummy.cs" />
     <Compile Include="Attributes\TestExpectedResult.cs" />
+    <Compile Include="Attributes\TestOrderAttributeTests.cs" />
+    <Compile Include="TestUtilities\AsyncTestDelegates.cs" />
     <Compile Include="Attributes\TestFixtureAttributeTests.cs" />
     <Compile Include="Attributes\TestFixtureSourceTests.cs" />
     <Compile Include="Attributes\TestMethodBuilderTests.cs" />

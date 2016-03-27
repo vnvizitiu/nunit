@@ -197,7 +197,7 @@ namespace NUnit.Engine.Services
         private static string GetNUnitBinDirectory(Version v)
         {
             // Get current bin directory
-            string dir = NUnitConfiguration.NUnitBinDirectory;
+            string dir = NUnitConfiguration.EngineDirectory;
 
             // Return current directory if current and requested
             // versions are both >= 2 or both 1

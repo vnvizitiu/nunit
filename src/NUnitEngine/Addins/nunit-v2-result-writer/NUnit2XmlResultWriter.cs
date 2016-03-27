@@ -214,9 +214,10 @@ namespace NUnit.Engine.Addins
             }
             else
             {
+                var suiteType = result.GetAttribute("type");
                 xmlWriter.WriteStartElement("test-suite");
-                xmlWriter.WriteAttributeString("type", result.GetAttribute("type"));
-                string nameAttr = result.Name == "test-assembly" || result.Name == "test-project" ? "fullname" : "name";
+                xmlWriter.WriteAttributeString("type", suiteType);
+                string nameAttr = suiteType == "Assembly" || suiteType == "Project" ? "fullname" : "name";
                 xmlWriter.WriteAttributeString("name", result.GetAttribute(nameAttr));
             }
 
@@ -242,7 +243,7 @@ namespace NUnit.Engine.Addins
             if (executed == "True")
             {
                 xmlWriter.WriteAttributeString("success", success);
-                xmlWriter.WriteAttributeString("time", duration.ToString("0.000"));
+                xmlWriter.WriteAttributeString("time", duration.ToString("#####0.000", NumberFormatInfo.InvariantInfo));
                 xmlWriter.WriteAttributeString("asserts", asserts);
             }
         }

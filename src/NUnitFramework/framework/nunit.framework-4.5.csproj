@@ -123,6 +123,9 @@
     <Compile Include="Assert.Equality.cs">
       <DependentUpon>Assert.cs</DependentUpon>
     </Compile>
+    <Compile Include="Assert.Exceptions.Async.cs">
+      <DependentUpon>Assert.cs</DependentUpon>
+    </Compile>
     <Compile Include="Assert.Exceptions.cs">
       <DependentUpon>Assert.cs</DependentUpon>
     </Compile>
@@ -148,11 +151,14 @@
     <Compile Include="Attributes\ExplicitAttribute.cs" />
     <Compile Include="Attributes\IgnoreAttribute.cs" />
     <Compile Include="Attributes\IncludeExcludeAttribute.cs" />
+    <Compile Include="Attributes\SingleThreadedAttribute.cs" />
+    <Compile Include="Attributes\TestAssemblyDirectoryResolveAttribute.cs" />
     <Compile Include="Attributes\LevelOfParallelismAttribute.cs" />
     <Compile Include="Attributes\MaxTimeAttribute.cs" />
     <Compile Include="Attributes\NUnitAttribute.cs" />
     <Compile Include="Attributes\OneTimeSetUpAttribute.cs" />
     <Compile Include="Attributes\OneTimeTearDownAttribute.cs" />
+    <Compile Include="Attributes\OrderAttribute.cs" />
     <Compile Include="Attributes\PairwiseAttribute.cs" />
     <Compile Include="Attributes\ParallelizableAttribute.cs" />
     <Compile Include="Attributes\ParallelScope.cs" />
@@ -220,6 +226,7 @@
     <Compile Include="Constraints\EqualConstraint.cs" />
     <Compile Include="Constraints\EqualityAdapter.cs" />
     <Compile Include="Constraints\ExactTypeConstraint.cs" />
+    <Compile Include="Constraints\ExceptionNotThrownConstraint.cs" />
     <Compile Include="Constraints\FalseConstraint.cs" />
     <Compile Include="Constraints\FileExistsConstraint.cs" />
     <Compile Include="Constraints\FileOrDirectoryExistsConstraint.cs" />

@@ -145,9 +145,10 @@ namespace NUnit.Engine.Servers
 
         public TestAgency.AgentRecord LaunchAgentProcess(TestPackage package, string defaultFramework)
         {
+            RuntimeFramework targetRuntime = RuntimeFramework.CurrentFramework;
             string runtimeSetting = package.GetSetting(PackageSettings.RuntimeFramework, "");
-            RuntimeFramework targetRuntime = RuntimeFramework.Parse(
-                runtimeSetting != "" ? runtimeSetting : defaultFramework);
+            if (runtimeSetting != "")
+                targetRuntime = RuntimeFramework.Parse(runtimeSetting);
 
             if (targetRuntime.Runtime == RuntimeType.Any)
                 targetRuntime = new RuntimeFramework(RuntimeFramework.CurrentFramework.Runtime, targetRuntime.ClrVersion);
@@ -155,11 +156,15 @@ namespace NUnit.Engine.Servers
             bool useX86Agent = package.GetSetting(PackageSettings.RunAsX86, false);
             bool debugTests = package.GetSetting(PackageSettings.DebugTests, false);
             bool debugAgent = package.GetSetting(PackageSettings.DebugAgent, false);
-            bool verbose = package.GetSetting("Verbose", false);
+            string traceLevel = package.GetSetting(PackageSettings.InternalTraceLevel, "Off");
 
+            // Set options that need to be in effect before the package
+            // is loaded by using the command line.
             string agentArgs = string.Empty;
-            if (debugAgent) agentArgs += " --debug-agent";
-            if (verbose) agentArgs += " --verbose";
+            if (debugAgent)
+                agentArgs += " --debug-agent";
+            if (traceLevel != "Off")
+                agentArgs += " --trace:" + traceLevel;
 
             _log.Info("Getting {0} agent for use under {1}", useX86Agent ? "x86" : "standard", targetRuntime);
 
@@ -181,6 +186,9 @@ namespace NUnit.Engine.Servers
             p.StartInfo.UseShellExecute = false;
             Guid agentId = Guid.NewGuid();
             string arglist = agentId.ToString() + " " + ServerUrl + " " + agentArgs;
+            
+            if (targetRuntime.ClrVersion.Build < 0)
+                targetRuntime = RuntimeFramework.GetBestAvailableFramework(targetRuntime);
 
             switch (targetRuntime.Runtime)
             {
@@ -190,17 +198,14 @@ namespace NUnit.Engine.Servers
                     if (debugTests || debugAgent) monoOptions += " --debug";
                     p.StartInfo.Arguments = string.Format("{0} \"{1}\" {2}", monoOptions, agentExePath, arglist);
                     break;
+                    
                 case RuntimeType.Net:
                     p.StartInfo.FileName = agentExePath;
-
-                    if (targetRuntime.ClrVersion.Build < 0)
-                        targetRuntime = RuntimeFramework.GetBestAvailableFramework(targetRuntime);
-
                     string envVar = "v" + targetRuntime.ClrVersion.ToString(3);
                     p.StartInfo.EnvironmentVariables["COMPLUS_Version"] = envVar;
-
                     p.StartInfo.Arguments = arglist;
                     break;
+                    
                 default:
                     p.StartInfo.FileName = agentExePath;
                     p.StartInfo.Arguments = arglist;
@@ -217,14 +222,14 @@ namespace NUnit.Engine.Servers
 
         private static string GetTestAgentExePath(Version v, bool requires32Bit)
         {
-            string binDir = NUnitConfiguration.NUnitBinDirectory;
-            if (binDir == null) return null;
+            string engineDir = NUnitConfiguration.EngineDirectory;
+            if (engineDir == null) return null;
 
             string agentName = v.Major > 1 && requires32Bit
                 ? "nunit-agent-x86.exe"
                 : "nunit-agent.exe";
 
-            string agentExePath = Path.Combine(binDir, agentName);
+            string agentExePath = Path.Combine(engineDir, agentName);
             return File.Exists(agentExePath) ? agentExePath : null;
         }
     }
