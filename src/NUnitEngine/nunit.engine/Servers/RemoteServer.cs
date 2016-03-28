@@ -35,9 +35,10 @@ using NUnit.Engine.Services;
 namespace NUnit.Engine.Servers
 {
     /// <summary>
-    /// Summary description for ServerBase.
+    /// A test server that communicates between the agents 
+    /// and the TestAgency over .NET Remoting
     /// </summary>
-    internal class RemoteServer : IDisposable
+    internal class RemoteServer : ITestServer
     {
         static Logger _log = InternalTrace.GetLogger(typeof(RemoteServer));
 
@@ -62,6 +63,12 @@ namespace NUnit.Engine.Servers
             _testAgency = testAgency;
         }
 
+        public bool HandlesPlatform(TargetPlatform platform)
+        {
+            // Remoting was our original remote agent, so fall back on it for unknown
+            return platform == TargetPlatform.Unknown || platform == TargetPlatform.Desktop;
+        }
+
         public string ServerUrl
         {
             get { return string.Format("tcp://127.0.0.1:{0}/{1}", _port, _uri); }
@@ -73,19 +80,19 @@ namespace NUnit.Engine.Servers
             {
                 lock (_lock)
                 {
-                    this._channel = RemoteServerUtilities.GetTcpChannel(_uri + "Channel", _port, 100);
+                    _channel = RemoteServerUtilities.GetTcpChannel(_uri + "Channel", _port, 100);
 
                     RemotingServices.Marshal(_testAgency, _uri);
-                    this._isMarshalled = true;
+                    _isMarshalled = true;
                 }
 
-                if (this._port == 0)
+                if (_port == 0)
                 {
-                    ChannelDataStore store = this._channel.ChannelData as ChannelDataStore;
+                    ChannelDataStore store = _channel.ChannelData as ChannelDataStore;
                     if (store != null)
                     {
                         string channelUri = store.ChannelUris[0];
-                        this._port = int.Parse(channelUri.Substring(channelUri.LastIndexOf(':') + 1));
+                        _port = int.Parse(channelUri.Substring(channelUri.LastIndexOf(':') + 1));
                     }
                 }
             }
@@ -96,16 +103,16 @@ namespace NUnit.Engine.Servers
         {
             lock( _lock )
             {
-                if ( this._isMarshalled )
+                if ( _isMarshalled )
                 {
                     RemotingServices.Disconnect( _testAgency );
-                    this._isMarshalled = false;
+                    _isMarshalled = false;
                 }
 
-                if ( this._channel != null )
+                if ( _channel != null )
                 {
-                    ChannelServices.UnregisterChannel( this._channel );
-                    this._channel = null;
+                    ChannelServices.UnregisterChannel( _channel );
+                    _channel = null;
                 }
 
                 Monitor.PulseAll( _lock );

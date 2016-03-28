@@ -33,7 +33,7 @@ namespace NUnit.Engine.Servers
 {
     /// <summary>
     /// A collection of utility methods used to create, retrieve
-    /// and release <see cref="TcpChannel"/>s.
+    /// and release .NET Remoting <see cref="TcpChannel"/>s.
     /// </summary>
     public static class RemoteServerUtilities
     {

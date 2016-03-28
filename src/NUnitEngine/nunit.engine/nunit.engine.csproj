@@ -116,6 +116,7 @@
     <Compile Include="Internal\ResultHelper.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Servers\ITestServer.cs" />
     <Compile Include="Servers\RemoteServer.cs" />
     <Compile Include="Servers\RemoteServerUtilities.cs" />
     <Compile Include="Internal\SettingsGroup.cs" />

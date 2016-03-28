@@ -25,13 +25,15 @@ using NUnit.Framework;
 
 namespace NUnit.Engine.Services.Tests
 {
+    using Common;
     using Fakes;
-
+    using Internal;
+    using Servers;
     public class TestAgencyTests
     {
         private TestAgency _testAgency;
 
-        [SetUp]
+        [OneTimeSetUp]
         public void CreateServiceContext()
         {
             var services = new ServiceContext();
@@ -46,6 +48,52 @@ namespace NUnit.Engine.Services.Tests
         public void ServiceIsStarted()
         {
             Assert.That(_testAgency.Status, Is.EqualTo(ServiceStatus.Started));
+        }
+
+        [TestCase(TargetPlatform.Desktop)]
+        public void GetTestServerFindsServerForSupportedPlatforms(TargetPlatform platform)
+        {
+            TestPackage package = CreateTestPackage(platform);
+            Assert.That(_testAgency.GetTestServer(package), Is.Not.Null);
+        }
+
+        [Test]
+        public void GetTestServerForUnknownPlatformFallsBackOnRemoting()
+        {
+            TestPackage package = CreateTestPackage(TargetPlatform.Unknown);
+            ITestServer server = _testAgency.GetTestServer(package);
+            Assert.That(server, Is.Not.Null);
+            Assert.That(server is RemoteServer, "Server is not a RemoteServer for Unknown platform");
+        }
+
+        [Test]
+        public void GetTestServerForMultiplePlatformsThrows()
+        {
+            TestPackage package = CreateTestPackage(TargetPlatform.Multiple);
+            Assert.That(() => _testAgency.GetTestServer(package), Throws.InstanceOf<NUnitEngineException>());
+        }
+
+        [TestCase(TargetPlatform.Portable)]
+        [TestCase(TargetPlatform.Android)]
+        [TestCase(TargetPlatform.Ios)]
+        [TestCase(TargetPlatform.NetCore)]
+        [TestCase(TargetPlatform.Silverlight)]
+        [TestCase(TargetPlatform.UniversalWindows)]
+        [TestCase(TargetPlatform.Win81)]
+        [TestCase(TargetPlatform.WinPhone80Silverlight)]
+        [TestCase(TargetPlatform.WinPhone81Silverlight)]
+        [TestCase(TargetPlatform.WinPhone81)]
+        public void GetTestServerThrowsForUnsupportedPlatforms(TargetPlatform platform)
+        {
+            TestPackage package = CreateTestPackage(platform);
+            Assert.That(() => _testAgency.GetTestServer(package), Throws.InstanceOf<NUnitEngineException>());
+        }
+
+        private TestPackage CreateTestPackage(TargetPlatform platform)
+        {
+            var package = new TestPackage(platform.ToString() + ".dll");
+            package.Settings["ImageTargetPlatform"] = platform.ToString();
+            return package;
         }
     }
 }

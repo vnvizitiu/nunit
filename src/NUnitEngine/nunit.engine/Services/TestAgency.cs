@@ -28,6 +28,7 @@ using System.Diagnostics;
 using System.Collections.Generic;
 using NUnit.Engine.Internal;
 using NUnit.Engine.Servers;
+using NUnit.Common;
 
 namespace NUnit.Engine.Services
 {
@@ -59,7 +60,7 @@ namespace NUnit.Engine.Services
 
         AgentDataBase _agentData = new AgentDataBase();
         IRuntimeFrameworkService _runtimeService;
-        RemoteServer _server;
+        IList<ITestServer> _servers = new List<ITestServer>();
 
         #endregion
 
@@ -69,7 +70,7 @@ namespace NUnit.Engine.Services
 
         internal TestAgency(string uri, int port)
         {
-            _server = new RemoteServer(uri, port, this);
+            _servers.Add(new RemoteServer(uri, port, this));
         }
 
         #endregion
@@ -149,8 +150,10 @@ namespace NUnit.Engine.Services
             if (!_disposed)
             {
                 if (disposing)
-                    _server.Dispose();
-
+                {
+                    foreach(var server in _servers)
+                        server.Dispose();
+                }
                 _disposed = true;
             }
         }
@@ -163,7 +166,8 @@ namespace NUnit.Engine.Services
         {
             string defaultFramework = _runtimeService.SelectRuntimeFramework(package);
 
-            AgentRecord agentRecord = _server.LaunchAgentProcess(package, defaultFramework);
+            var server = GetTestServer(package);
+            AgentRecord agentRecord = server.LaunchAgentProcess(package, defaultFramework);
             _agentData.Add(agentRecord);
 
             log.Debug("Waiting for agent {0} to register", agentRecord.Id.ToString("B"));
@@ -182,8 +186,34 @@ namespace NUnit.Engine.Services
                     return agent;
                 }
             }
-
             return null;
+        }
+
+        internal ITestServer GetTestServer(TestPackage package)
+        {
+            TargetPlatform platform = GetTargetPlaform(package);
+            if (platform == TargetPlatform.Multiple)
+                throw new NUnitEngineException(string.Format("TargetPlaform.Multiple is an invalid platform for TestPackage {0}", package.Name));
+
+            foreach(var server in _servers)
+            {
+                if (server.HandlesPlatform(platform))
+                    return server;
+            }
+            throw new NUnitEngineException(string.Format("NUnit does not support platform {0} for TestPackage {1} yet", platform, package.Name));
+        }
+
+        internal TargetPlatform GetTargetPlaform(TestPackage package)
+        {
+            string targetString = package.GetSetting(PackageSettings.ImageTargetPlatform, TargetPlatform.Unknown.ToString());
+            try
+            {
+                return (TargetPlatform)Enum.Parse(typeof(TargetPlatform), targetString);
+            }
+            catch (Exception)
+            {
+                return TargetPlatform.Unknown;
+            }
         }
 
         /// <summary>
@@ -255,7 +285,8 @@ namespace NUnit.Engine.Services
         {
             try
             {
-                _server.Stop();
+                foreach (var server in _servers)
+                    server.Stop();
             }
             finally
             {
@@ -273,20 +304,23 @@ namespace NUnit.Engine.Services
                 // Any object returned from ServiceContext is an IService
                 if (_runtimeService != null && ((IService)_runtimeService).Status == ServiceStatus.Started)
                 {
-                    try
+                    foreach (var server in _servers)
                     {
-                        _server.Start();
-                        Status = ServiceStatus.Started;
-                    }
-                    catch
-                    {
-                        Status = ServiceStatus.Error;
-                        throw;
+                        try
+                        {
+                            server.Start();
+                        }
+                        catch
+                        {
+                            Status = ServiceStatus.Error;
+                            throw;
+                        }
                     }
                 }
                 else
                 {
                     Status = ServiceStatus.Error;
+                    return;
                 }
             }
             catch
@@ -294,6 +328,7 @@ namespace NUnit.Engine.Services
                 Status = ServiceStatus.Error;
                 throw;
             }
+            Status = ServiceStatus.Started;
         }
 
         #endregion
