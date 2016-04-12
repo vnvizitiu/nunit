@@ -71,6 +71,7 @@ namespace NUnit.Engine.Services
         internal TestAgency(string uri, int port)
         {
             _servers.Add(new RemoteServer(uri, port, this));
+            _servers.Add(new ConsoleServer(this));
         }
 
         #endregion
@@ -105,10 +106,6 @@ namespace NUnit.Engine.Services
 
         public ITestAgent GetAgent(TestPackage package, int waitTime)
         {
-            // TODO: Decide if we should reuse agents
-            //AgentRecord r = FindAvailableRemoteAgent(type);
-            //if ( r == null )
-            //    r = CreateRemoteAgent(type, framework, waitTime);
             return CreateAgent(package, waitTime);
         }
 
@@ -203,7 +200,7 @@ namespace NUnit.Engine.Services
             throw new NUnitEngineException(string.Format("NUnit does not support platform {0} for TestPackage {1} yet", platform, package.Name));
         }
 
-        internal TargetPlatform GetTargetPlaform(TestPackage package)
+        internal static TargetPlatform GetTargetPlaform(TestPackage package)
         {
             string targetString = package.GetSetting(PackageSettings.ImageTargetPlatform, TargetPlatform.Unknown.ToString());
             try

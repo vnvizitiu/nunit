@@ -86,6 +86,7 @@
     <Compile Include="..\EngineVersion.cs">
       <Link>Properties\EngineVersion.cs</Link>
     </Compile>
+    <Compile Include="Agents\ConsoleTestAgent.cs" />
     <Compile Include="Drivers\NotRunnableFrameworkDriver.cs" />
     <Compile Include="Drivers\NUnit2DriverFactory.cs">
       <SubType>Code</SubType>
@@ -116,6 +117,7 @@
     <Compile Include="Internal\ResultHelper.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Servers\ConsoleServer.cs" />
     <Compile Include="Servers\ITestServer.cs" />
     <Compile Include="Servers\RemoteServer.cs" />
     <Compile Include="Servers\RemoteServerUtilities.cs" />
