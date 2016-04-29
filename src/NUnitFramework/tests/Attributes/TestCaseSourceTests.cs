@@ -24,6 +24,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Linq;
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
 using NUnit.TestData.TestCaseSourceAttributeFixture;
@@ -32,19 +33,24 @@ using NUnit.TestUtilities;
 namespace NUnit.Framework.Attributes
 {
     [TestFixture]
-    public class TestCaseSourceTests //: TestSourceMayBeInherited
+    public class TestCaseSourceTests : TestSourceMayBeInherited
     {
+        #region Tests With Static and Instance Members as Source
+
         [Test, TestCaseSource("StaticProperty")]
         public void SourceCanBeStaticProperty(string source)
         {
             Assert.AreEqual("StaticProperty", source);
         }
 
-        //[Test, TestCaseSource("InheritedStaticProperty")]
-        //public void TestSourceCanBeInheritedStaticProperty(bool source)
-        //{
-        //    Assert.AreEqual(true, source);
-        //}
+        [Test, TestCaseSource("InheritedStaticProperty")]
+#if !PORTABLE
+        [Platform(Exclude = "netcf", Reason = "Test hangs in CF")]
+#endif
+        public void TestSourceCanBeInheritedStaticProperty(bool source)
+        {
+            Assert.AreEqual(true, source);
+        }
 
         static IEnumerable StaticProperty
         {
@@ -55,7 +61,7 @@ namespace NUnit.Framework.Attributes
         public void SourceUsingInstancePropertyIsNotRunnable()
         {
             var result = TestBuilder.RunParameterizedMethodSuite(typeof(TestCaseSourceAttributeFixture), "MethodWithInstancePropertyAsSource");
-            Assert.AreEqual(result.Children[0].ResultState, ResultState.NotRunnable);
+            Assert.AreEqual(result.Children.ToArray()[0].ResultState, ResultState.NotRunnable);
         }
 
         [Test, TestCaseSource("StaticMethod")]
@@ -73,7 +79,7 @@ namespace NUnit.Framework.Attributes
         public void SourceUsingInstanceMethodIsNotRunnable()
         {
             var result = TestBuilder.RunParameterizedMethodSuite(typeof(TestCaseSourceAttributeFixture), "MethodWithInstanceMethodAsSource");
-            Assert.AreEqual(result.Children[0].ResultState, ResultState.NotRunnable);
+            Assert.AreEqual(result.Children.ToArray()[0].ResultState, ResultState.NotRunnable);
         }
 
         IEnumerable InstanceMethod()
@@ -94,8 +100,12 @@ namespace NUnit.Framework.Attributes
         public void SourceUsingInstanceFieldIsNotRunnable()
         {
             var result = TestBuilder.RunParameterizedMethodSuite(typeof(TestCaseSourceAttributeFixture), "MethodWithInstanceFieldAsSource");
-            Assert.AreEqual(result.Children[0].ResultState, ResultState.NotRunnable);
+            Assert.AreEqual(result.Children.ToArray()[0].ResultState, ResultState.NotRunnable);
         }
+
+        #endregion
+
+        #region Test With IEnumerable Class as Source
 
         [Test, TestCaseSource(typeof(DataSourceClass))]
         public void SourceCanBeInstanceOfIEnumerable(string source)
@@ -114,6 +124,8 @@ namespace NUnit.Framework.Attributes
                 yield return "DataSourceClass";
             }
         }
+
+        #endregion
 
         [Test, TestCaseSource("MyData")]
         public void SourceMayReturnArgumentsAsObjectArray(int n, int d, int q)
@@ -166,7 +178,7 @@ namespace NUnit.Framework.Attributes
         {
             Assert.AreEqual(q, n / d);
         }
-        
+
         [Test, Category("Top"), TestCaseSource(typeof(DivideDataProvider), "HereIsTheDataWithParameters", new object[] { 100, 4, 25 })]
         public void SourceInAnotherClassPassingSomeDataToConstructor(int n, int d, int q)
         {
@@ -221,8 +233,8 @@ namespace NUnit.Framework.Attributes
         [Test]
         public void IgnoreTakesPrecedenceOverExpectedException()
         {
-            ITestResult result = TestBuilder.RunParameterizedMethodSuite(
-                typeof(TestCaseSourceAttributeFixture), "MethodCallsIgnore").Children[0];
+            var result = TestBuilder.RunParameterizedMethodSuite(
+                typeof(TestCaseSourceAttributeFixture), "MethodCallsIgnore").Children.ToArray()[0];
             Assert.AreEqual(ResultState.Ignored, result.ResultState);
             Assert.AreEqual("Ignore this", result.Message);
         }
@@ -288,6 +300,14 @@ namespace NUnit.Framework.Attributes
             Assert.That(a, Is.TypeOf(typeof(string[])));
             Assert.That(b, Is.TypeOf(typeof(string[])));
         }
+
+        [TestCaseSource("SingleMemberArrayAsArgument")]
+        public void Issue1337SingleMemberArrayAsArgument(string[] args)
+        {
+            Assert.That(args.Length == 1 && args[0] == "1");
+        }
+
+        static string[][] SingleMemberArrayAsArgument = { new[] { "1" }  };
 
         #region Sources used by the tests
         static object[] MyData = new object[] {

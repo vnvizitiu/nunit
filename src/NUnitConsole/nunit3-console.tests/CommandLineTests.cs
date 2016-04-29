@@ -21,6 +21,7 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
 
+using System.IO;
 using System.Reflection;
 using NUnit.Common;
 using NUnit.Options;
@@ -518,6 +519,21 @@ namespace NUnit.ConsoleRunner.Tests
 
             // Then
             Assert.AreEqual(actualTeamCity, expectedTeamCity);
+        }
+
+        #endregion
+
+        #region Testlist Option
+
+        [Test]
+        public void ShouldNotFailOnEmptyLine()
+        {
+            var testListPath = Path.Combine(TestContext.CurrentContext.TestDirectory, "TestListWithEmptyLine.tst");
+            // Not copying this test file into releases
+            Assume.That(testListPath, Does.Exist);
+            var options = new ConsoleOptions("--testlist=" + testListPath);
+            Assert.That(options.errorMessages, Is.Empty);
+            Assert.That(options.TestList, Is.EqualTo(new[] {"AmazingTest"}));
         }
 
         #endregion

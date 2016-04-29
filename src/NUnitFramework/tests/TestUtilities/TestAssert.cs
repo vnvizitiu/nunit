@@ -22,6 +22,7 @@
 // ***********************************************************************
 
 using System;
+using System.Linq;
 using NUnit.Framework;
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
@@ -41,7 +42,7 @@ namespace NUnit.TestUtilities
             TestSuite suite = TestBuilder.MakeFixture(type);
             Assert.NotNull(suite, "Unable to construct fixture");
             Assert.AreEqual(RunState.Runnable, suite.RunState);
-            ITestResult result = TestBuilder.RunTestSuite(suite, null);
+            ITestResult result = TestBuilder.RunTest(suite, null);
             Assert.AreEqual(ResultState.Success, result.ResultState);
         }
 
@@ -57,7 +58,7 @@ namespace NUnit.TestUtilities
             object testObject = Reflect.Construct(type);
             ITestResult result = TestBuilder.RunTest(test, testObject);
             if (result.HasChildren) // In case it's a parameterized method
-                result = result.Children[0];
+                result = result.Children.ToArray()[0];
             Assert.That(result.ResultState, Is.EqualTo(resultState));
         }
         #endregion

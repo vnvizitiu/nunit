@@ -27,7 +27,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <DocumentationFile>$(OutputPath)\nunit.framework.xml</DocumentationFile>
-    <NoWarn>1699</NoWarn>
+    <NoWarn>1699,1591</NoWarn>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -122,7 +122,28 @@
     <Compile Include="Attributes\TestActionAttribute.cs" />
     <Compile Include="Attributes\TestFixtureSourceAttribute.cs" />
     <Compile Include="Attributes\TestOfAttribute.cs" />
-    <Compile Include="Compatibility\Net20Compatibility.cs" />
+    <Compile Include="Compatibility\ReaderWriterLockSlim.cs" />
+    <Compile Include="Compatibility\System.Collections.Concurrent\ConcurrentQueue.cs" />
+    <Compile Include="Compatibility\System.Collections.Concurrent\IProducerConsumerCollection.cs" />
+    <Compile Include="Compatibility\System.Linq\Actions.cs" />
+    <Compile Include="Compatibility\System.Linq\Check.cs" />
+    <Compile Include="Compatibility\System.Collections\CollectionDebuggerView.cs" />
+    <Compile Include="Compatibility\System.Linq\Enumerable.cs" />
+    <Compile Include="Compatibility\System.Linq\ExtensionAttribute.cs" />
+    <Compile Include="Compatibility\System.Linq\Funcs.cs" />
+    <Compile Include="Compatibility\System.Linq\Grouping.cs" />
+    <Compile Include="Compatibility\System.Linq\HashPrimeNumbers.cs" />
+    <Compile Include="Compatibility\System.Linq\HashSet.cs" />
+    <Compile Include="Compatibility\System.Linq\IGrouping.cs" />
+    <Compile Include="Compatibility\System.Linq\ILookup_T.cs" />
+    <Compile Include="Compatibility\System.Linq\IOrderedEnumerable_T.cs" />
+    <Compile Include="Compatibility\System.Linq\Lookup.cs" />
+    <Compile Include="Compatibility\System.Linq\OrderedEnumerable.cs" />
+    <Compile Include="Compatibility\System.Linq\OrderedSequence.cs" />
+    <Compile Include="Compatibility\System.Linq\QuickSort.cs" />
+    <Compile Include="Compatibility\System.Linq\SortContext.cs" />
+    <Compile Include="Compatibility\System.Linq\SortDirection.cs" />
+    <Compile Include="Compatibility\System.Linq\SortSequenceContext.cs" />
     <Compile Include="Constraints\CollectionSupersetConstraint.cs" />
     <Compile Include="Constraints\DictionaryContainsValueConstraint.cs" />
     <Compile Include="Constraints\EqualConstraintResult.cs" />
