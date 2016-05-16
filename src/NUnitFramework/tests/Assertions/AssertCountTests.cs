@@ -75,7 +75,9 @@ namespace NUnit.Framework.Assertions
         #if NET_4_0 || NET_4_5 || PORTABLE
         private async Task FakeAsyncMethod()
         {
+            #if !PORTABLE
             Thread.Sleep(1);
+            #endif
         }
         #endif
 
