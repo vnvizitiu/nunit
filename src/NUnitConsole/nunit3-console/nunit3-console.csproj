@@ -23,8 +23,8 @@
     <DefineConstants>TRACE;DEBUG;NUNIT_CONSOLE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <Externalconsole>true</Externalconsole>
     <Commandlineparameters>net-4.5/nunit.framework.tests.dll --inprocess --test NUnit.Framework.Assertions.AssertCountTests</Commandlineparameters>
+    <ConsolePause>false</ConsolePause>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>

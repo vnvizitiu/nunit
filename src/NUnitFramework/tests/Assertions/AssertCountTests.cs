@@ -23,7 +23,6 @@
 
 using System;
 #if NET_4_0 || NET_4_5 || PORTABLE
-using System.Threading;
 using System.Threading.Tasks;
 #endif
 using NUnit.Framework;
@@ -44,14 +43,80 @@ namespace NUnit.Framework.Assertions
             
         #if NET_4_0 || NET_4_5 || PORTABLE
         [Test]
-        public async Task AsyncTaskWithAwait()
+        public async Task AsyncTest_NoAwait()
         {
             DoAsserts(2);
-            await FakeAsyncMethod();
             DoAsserts(3);
 
             CheckAssertCount(5);
         }
+
+        [TestCase(0, 0)]
+        [TestCase(0, 1)]
+        [TestCase(1, 0)]
+        [TestCase(1, 1)]
+        [TestCase(2, 3)]
+        public async Task AsyncTest_AwaitsFakeAsyncMethod(int before, int after)
+        {
+            DoAsserts(before);
+            await FakeAsyncMethod();
+            DoAsserts(after);
+
+            CheckAssertCount(before + after);
+        }   
+
+        [TestCase(0, 0)]
+        [TestCase(0, 1)]
+        [TestCase(1, 0)]
+        [TestCase(1, 1)]
+        [TestCase(2, 3)]
+        public async Task AsyncTest_AwaitsRealAsyncMethod(int before, int after)
+        {
+            DoAsserts(before);
+            await AsyncMethod();
+            DoAsserts(after);
+
+            CheckAssertCount(before + after);
+        }   
+
+        [TestCase(0, 0, 0)]
+        [TestCase(1, 0, 0)]
+        [TestCase(0, 1, 0)]
+        [TestCase(0, 0, 1)]
+        [TestCase(1, 5, 0)]
+        [TestCase(1, 0, 5)]
+        [TestCase(0, 1, 5)]
+        [TestCase(1, 2, 4)]
+        public async Task AsyncTest_AwaitsTwoFakeAsyncMethods(int before, int between, int after)
+        {
+            DoAsserts(before);
+            await FakeAsyncMethod();
+            DoAsserts(between);
+            await FakeAsyncMethod();
+            DoAsserts(after);
+
+            CheckAssertCount(before + between + after);
+        }
+
+        [TestCase(0, 0, 0)]
+        [TestCase(1, 0, 0)]
+        [TestCase(0, 1, 0)]
+        [TestCase(0, 0, 1)]
+        [TestCase(1, 5, 0)]
+        [TestCase(1, 0, 5)]
+        [TestCase(0, 1, 5)]
+        [TestCase(1, 2, 4)]
+        public async Task AsyncTest_AwaitsTwoRealAsyncMethods(int before, int between, int after)
+        {
+            DoAsserts(before);
+            await AsyncMethod();
+            DoAsserts(between);
+            await AsyncMethod();
+            DoAsserts(after);
+
+            CheckAssertCount(before + between + after);
+        }
+
         #endif
 
         #region Helper Methods
@@ -75,9 +140,11 @@ namespace NUnit.Framework.Assertions
         #if NET_4_0 || NET_4_5 || PORTABLE
         private async Task FakeAsyncMethod()
         {
-            #if !PORTABLE
-            Thread.Sleep(1);
-            #endif
+        }
+
+        private async Task AsyncMethod()
+        {
+            await Task.Delay(1);
         }
         #endif
 
