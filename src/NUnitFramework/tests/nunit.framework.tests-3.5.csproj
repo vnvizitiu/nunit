@@ -283,6 +283,7 @@
     <Compile Include="Constraints\ExactCountConstraintTests.cs" />
     <Compile Include="TestUtilities\UniqueValues.cs" />
     <Compile Include="ThrowsTests.cs" />
+    <Compile Include="Assertions\AssertCountTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />

@@ -24,7 +24,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <Externalconsole>true</Externalconsole>
-    <Commandlineparameters>net-4.5/nunit.framework.tests.dll --wait --inprocess</Commandlineparameters>
+    <Commandlineparameters>net-4.5/nunit.framework.tests.dll --inprocess --test NUnit.Framework.Assertions.AssertCountTests</Commandlineparameters>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
