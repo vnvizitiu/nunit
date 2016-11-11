@@ -185,6 +185,7 @@
     <Compile Include="Constraints\GreaterThanOrEqualConstraint.cs" />
     <Compile Include="Constraints\IConstraint.cs" />
     <Compile Include="Constraints\InstanceOfTypeConstraint.cs" />
+    <Compile Include="Constraints\Interval.cs" />
     <Compile Include="Constraints\IResolveConstraint.cs" />
     <Compile Include="Constraints\LessThanConstraint.cs" />
     <Compile Include="Constraints\LessThanOrEqualConstraint.cs" />
@@ -243,13 +244,14 @@
     <Compile Include="Contains.cs" />
     <Compile Include="DirectoryAssert.cs" />
     <Compile Include="Does.cs" />
-    <Compile Include="Env.cs" />
     <Compile Include="Exceptions\AssertionException.cs" />
     <Compile Include="Exceptions\IgnoreException.cs" />
     <Compile Include="Exceptions\InconclusiveException.cs" />
     <Compile Include="Exceptions\ResultStateException.cs" />
     <Compile Include="Exceptions\SuccessException.cs" />
     <Compile Include="Guard.cs" />
+    <Compile Include="Interfaces\AssertionResult.cs" />
+    <Compile Include="Interfaces\AssertionStatus.cs" />
     <Compile Include="Interfaces\IApplyToContext.cs" />
     <Compile Include="Interfaces\IApplyToTest.cs" />
     <Compile Include="Interfaces\ICombiningStrategy.cs" />
@@ -354,7 +356,6 @@
     <Compile Include="Internal\Logging\InternalTraceWriter.cs" />
     <Compile Include="Internal\Logging\Logger.cs" />
     <Compile Include="Internal\MethodWrapper.cs" />
-    <Compile Include="Internal\NetCFExtensions.cs" />
     <Compile Include="Internal\NUnitException.cs" />
     <Compile Include="Internal\OSPlatform.cs" />
     <Compile Include="Internal\ParameterWrapper.cs" />

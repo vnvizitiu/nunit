@@ -57,7 +57,7 @@ namespace NUnit.Framework.Assertions
 
             Assert.IsNotNull(ex, "No ArgumentException thrown");
             Assert.That(ex.Message, Does.StartWith("myMessage"));
-#if !NETCF && !SILVERLIGHT && !PORTABLE
+#if !PORTABLE
             Assert.That(ex.ParamName, Is.EqualTo("myParam"));
 #endif
 
@@ -66,7 +66,7 @@ namespace NUnit.Framework.Assertions
 
             Assert.IsNotNull(ex, "No ArgumentException thrown");
             Assert.That(ex.Message, Does.StartWith("myMessage"));
-#if !NETCF && !SILVERLIGHT && !PORTABLE
+#if !PORTABLE
             Assert.That(ex.ParamName, Is.EqualTo("myParam"));
 #endif
 
@@ -75,7 +75,7 @@ namespace NUnit.Framework.Assertions
 
             Assert.IsNotNull(ex, "No ArgumentException thrown");
             Assert.That(ex.Message, Does.StartWith("myMessage"));
-#if !NETCF && !SILVERLIGHT && !PORTABLE
+#if !PORTABLE
             Assert.That(ex.ParamName, Is.EqualTo("myParam"));
 #endif
 
@@ -83,7 +83,7 @@ namespace NUnit.Framework.Assertions
 
             Assert.IsNotNull(ex, "No ArgumentException thrown");
             Assert.That(ex.Message, Does.StartWith("myMessage"));
-#if !NETCF && !SILVERLIGHT && !PORTABLE
+#if !PORTABLE
             Assert.That(ex.ParamName, Is.EqualTo("myParam"));
 #endif
         }
@@ -96,7 +96,7 @@ namespace NUnit.Framework.Assertions
 
             Assert.IsNotNull(ex, "No ArgumentException thrown");
             Assert.That(ex.Message, Does.StartWith("myMessage"));
-#if !NETCF && !SILVERLIGHT && !PORTABLE
+#if !PORTABLE
             Assert.That(ex.ParamName, Is.EqualTo("myParam"));
 #endif
 
@@ -105,7 +105,7 @@ namespace NUnit.Framework.Assertions
 
             Assert.IsNotNull(ex, "No ArgumentException thrown");
             Assert.That(ex.Message, Does.StartWith("myMessage"));
-#if !NETCF && !SILVERLIGHT && !PORTABLE
+#if !PORTABLE
             Assert.That(ex.ParamName, Is.EqualTo("myParam"));
 #endif
 
@@ -114,7 +114,7 @@ namespace NUnit.Framework.Assertions
 
             Assert.IsNotNull(ex, "No ArgumentException thrown");
             Assert.That(ex.Message, Does.StartWith("myMessage"));
-#if !NETCF && !SILVERLIGHT && !PORTABLE
+#if !PORTABLE
             Assert.That(ex.ParamName, Is.EqualTo("myParam"));
 #endif
 
@@ -122,7 +122,7 @@ namespace NUnit.Framework.Assertions
 
             Assert.IsNotNull(ex, "No ArgumentException thrown");
             Assert.That(ex.Message, Does.StartWith("myMessage"));
-#if !NETCF && !SILVERLIGHT && !PORTABLE
+#if !PORTABLE
             Assert.That(ex.ParamName, Is.EqualTo("myParam"));
 #endif
         }
@@ -133,8 +133,8 @@ namespace NUnit.Framework.Assertions
         {
             var ex = CatchException(() => Assert.ThrowsAsync<ArgumentException>(AsyncTestDelegates.ThrowsNothing));
             Assert.That(ex.Message, Is.EqualTo(
-                "  Expected: <System.ArgumentException>" + Env.NewLine +
-                "  But was:  null" + Env.NewLine));
+                "  Expected: <System.ArgumentException>" + Environment.NewLine +
+                "  But was:  null" + Environment.NewLine));
         }
 
         [Test]
@@ -142,8 +142,8 @@ namespace NUnit.Framework.Assertions
         {
             var ex = CatchException(() => Assert.ThrowsAsync<ArgumentException>(AsyncTestDelegates.ThrowsNullReferenceException));
             Assert.That(ex.Message, Does.StartWith(
-                "  Expected: <System.ArgumentException>" + Env.NewLine +
-                "  But was:  <System.NullReferenceException: my message" + Env.NewLine));
+                "  Expected: <System.ArgumentException>" + Environment.NewLine +
+                "  But was:  <System.NullReferenceException: my message" + Environment.NewLine));
         }
 
         [Test]
@@ -151,8 +151,8 @@ namespace NUnit.Framework.Assertions
         {
             var ex = CatchException(() => Assert.ThrowsAsync<ArgumentException>(AsyncTestDelegates.ThrowsNullReferenceExceptionAsync));
             Assert.That(ex.Message, Does.StartWith(
-                "  Expected: <System.ArgumentException>" + Env.NewLine +
-                "  But was:  <System.NullReferenceException: my message" + Env.NewLine));
+                "  Expected: <System.ArgumentException>" + Environment.NewLine +
+                "  But was:  <System.NullReferenceException: my message" + Environment.NewLine));
         }
 
         [Test]
@@ -160,8 +160,8 @@ namespace NUnit.Framework.Assertions
         {
             var ex = CatchException(() => Assert.ThrowsAsync<ArgumentException>(AsyncTestDelegates.ThrowsSystemException));
             Assert.That(ex.Message, Does.StartWith(
-                "  Expected: <System.ArgumentException>" + Env.NewLine +
-                "  But was:  <System.Exception: my message" + Env.NewLine));
+                "  Expected: <System.ArgumentException>" + Environment.NewLine +
+                "  But was:  <System.Exception: my message" + Environment.NewLine));
         }
 
         [Test]
@@ -169,8 +169,8 @@ namespace NUnit.Framework.Assertions
         {
             var ex = CatchException(() => Assert.ThrowsAsync<ArgumentException>(AsyncTestDelegates.ThrowsSystemExceptionAsync));
             Assert.That(ex.Message, Does.StartWith(
-                "  Expected: <System.ArgumentException>" + Env.NewLine +
-                "  But was:  <System.Exception: my message" + Env.NewLine));
+                "  Expected: <System.ArgumentException>" + Environment.NewLine +
+                "  But was:  <System.Exception: my message" + Environment.NewLine));
         }
 
         [Test]
@@ -178,8 +178,8 @@ namespace NUnit.Framework.Assertions
         {
             var ex = CatchException(() => Assert.ThrowsAsync<Exception>(AsyncTestDelegates.ThrowsArgumentException));
             Assert.That(ex.Message, Does.StartWith(
-                "  Expected: <System.Exception>" + Env.NewLine +
-                "  But was:  <System.ArgumentException: myMessage" + Env.NewLine + "Parameter name: myParam" + Env.NewLine));
+                "  Expected: <System.Exception>" + Environment.NewLine +
+                "  But was:  <System.ArgumentException: myMessage" + Environment.NewLine + "Parameter name: myParam" + Environment.NewLine));
         }
 
         [Test]
@@ -187,8 +187,8 @@ namespace NUnit.Framework.Assertions
         {
             var ex = CatchException(() => Assert.ThrowsAsync<Exception>(AsyncTestDelegates.ThrowsArgumentExceptionAsync));
             Assert.That(ex.Message, Does.StartWith(
-                "  Expected: <System.Exception>" + Env.NewLine +
-                "  But was:  <System.ArgumentException: myMessage" + Env.NewLine + "Parameter name: myParam" + Env.NewLine));
+                "  Expected: <System.Exception>" + Environment.NewLine +
+                "  But was:  <System.ArgumentException: myMessage" + Environment.NewLine + "Parameter name: myParam" + Environment.NewLine));
         }
 
         [Test]

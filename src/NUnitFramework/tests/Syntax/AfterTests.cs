@@ -28,6 +28,10 @@ using System.Collections.Generic;
 
 namespace NUnit.Framework.Syntax
 {
+    // NOTE: The tests in this file ensure that the various
+    // syntactic elements work together to create a 
+    // DelayedConstraint object with the proper values.
+
     public class AfterTest_SimpleConstraint : SyntaxTest
     {
         [SetUp]
@@ -36,6 +40,39 @@ namespace NUnit.Framework.Syntax
             parseTree = "<after 1000 <equal 10>>";
             staticSyntax = Is.EqualTo(10).After(1000);
             builderSyntax = Builder().EqualTo(10).After(1000);
+        }
+    }
+
+    public class AfterMinutesTest_SimpleConstraint : SyntaxTest
+    {
+        [SetUp]
+        public void SetUp()
+        {
+            parseTree = "<after 60000 <equal 10>>";
+            staticSyntax = Is.EqualTo(10).After(1).Minutes;
+            builderSyntax = Builder().EqualTo(10).After(1).Minutes;
+        }
+    }
+
+    public class AfterSecondsTest_SimpleConstraint : SyntaxTest
+    {
+        [SetUp]
+        public void SetUp()
+        {
+            parseTree = "<after 20000 <equal 10>>";
+            staticSyntax = Is.EqualTo(10).After(20).Seconds;
+            builderSyntax = Builder().EqualTo(10).After(20).Seconds;
+        }
+    }
+
+    public class AfterMillisecondsTest_SimpleConstraint : SyntaxTest
+    {
+        [SetUp]
+        public void SetUp()
+        {
+            parseTree = "<after 500 <equal 10>>";
+            staticSyntax = Is.EqualTo(10).After(500).MilliSeconds;
+            builderSyntax = Builder().EqualTo(10).After(500).MilliSeconds;
         }
     }
 

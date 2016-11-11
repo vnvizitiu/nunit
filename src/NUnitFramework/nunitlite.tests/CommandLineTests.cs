@@ -21,7 +21,6 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
 
-#if !SILVERLIGHT
 using System;
 using System.Reflection;
 using System.Globalization;
@@ -32,11 +31,57 @@ using NUnit.Framework;
 namespace NUnitLite.Tests
 {
     using System.Collections.Generic;
+    using System.IO;
+    using System.Linq;
+    using NUnit.TestUtilities;
 
     [TestFixture]
     public class CommandLineTests
     {
-#region General Tests
+        #region @filename Tests
+
+#if !PORTABLE
+        [Test]
+        [TestCase("--arg1 @file1.txt --arg2", "file1.txt", "--filearg1\r\n--filearg2", "--arg1 --filearg1 --filearg2 --arg2", "")]
+        [TestCase("--arg1 @file1.txt --arg2", "file1.txt", "--filearg1 --filearg2", "--arg1 --filearg1 --filearg2 --arg2", "")]
+        [TestCase("--arg1 @file1.txt --arg2", "file1.txt", "--filearg1 --filearg2\r\n--filearg3 --filearg4", "--arg1 --filearg1 --filearg2 --filearg3 --filearg4 --arg2", "")]
+        [TestCase("--arg1 @[,]file1.txt --arg2", "file1.txt", "--filearg1:filearg2\r\nfilearg3\r\nfilearg4", "--arg1 --filearg1:filearg2,filearg3,filearg4 --arg2", "")]
+        [TestCase("--arg1 @file1.txt --arg2", "", "", "--arg1 --arg2", "The file \"file1.txt\" was not found")]
+        [TestCase("--arg1 @ --arg2", "", "", "--arg1 --arg2", "The file name should not be empty")]
+        [TestCase("--arg1 @file1.txt --arg2 @file2.txt", "file1.txt|file2.txt", "--filearg1 --filearg2|--filearg3", "--arg1 --filearg1 --filearg2 --arg2 --filearg3", "")]
+        [TestCase("--arg1 @file1.txt --arg2", "file1.txt", "", "--arg1 --arg2", "")]
+        [TestCase("--arg1 @file1.txt --arg2 @file2.txt", "file1.txt|file2.txt|file3.txt", "--filearg1 --filearg2|--filearg3 @file3.txt|--filearg4", "--arg1 --filearg1 --filearg2 --arg2 --filearg3 --filearg4", "")]
+        public void AtsignFilenameTests(string commandLine, string testFileNames, string testFileContents, string expectedArgs, string expectedErrors)
+        {
+            var ee = expectedErrors.Split(new[] { "\r\n" }, StringSplitOptions.RemoveEmptyEntries);
+            var tfn = testFileNames.Split(new[] { '|' }, StringSplitOptions.RemoveEmptyEntries);
+            var tfc = testFileContents.Split(new[] { '|' });
+            var tfs = new TestFile[tfn.Length];
+
+            for (int ix = 0; ix < tfn.Length; ++ix)
+                tfs[ix] = new TestFile(Path.Combine(TestContext.CurrentContext.TestDirectory, tfn[ix]), tfc[ix], true);
+
+            var options = new NUnitLiteOptions();
+
+            string actualExpectedArgs;
+
+            try
+            {
+                actualExpectedArgs = String.Join(" ", options.PreParse(CommandLineOptions.GetArgs(commandLine)).ToArray());
+            }
+            finally
+            {
+                foreach (var tf in tfs)
+                    tf.Dispose();
+            }
+
+            Assert.AreEqual(expectedArgs, actualExpectedArgs);
+            Assert.AreEqual(options.ErrorMessages, ee);
+        }
+#endif
+        #endregion
+
+        #region General Tests
 
         [Test]
         public void NoInputFiles()
@@ -54,9 +99,7 @@ namespace NUnitLite.Tests
         [TestCase("NoHeader", "noheader|noh")]
         [TestCase("Full", "full")]
 #endif
-#if !SILVERLIGHT && !NETCF
         [TestCase("TeamCity", "teamcity")]
-#endif
         public void CanRecognizeBooleanOptions(string propertyName, string pattern)
         {
             Console.WriteLine("Testing " + propertyName);
@@ -245,9 +288,9 @@ namespace NUnitLite.Tests
             Assert.AreEqual("Invalid argument: -assembly:Tests.dll", options.ErrorMessages[1]);
         }
 
-#endregion
+        #endregion
 
-#region Timeout Option
+        #region Timeout Option
 
         [Test]
         public void TimeoutIsMinusOneIfNoOptionIsProvided()
@@ -279,9 +322,9 @@ namespace NUnitLite.Tests
             Assert.AreEqual(-1, options.DefaultTimeout);
         }
 
-#endregion
+        #endregion
 
-#region EngineResult Option
+        #region EngineResult Option
 
         [Test]
         public void FileNameWithoutResultOptionLooksLikeParameter()
@@ -466,7 +509,6 @@ namespace NUnitLite.Tests
 
 #endif
 
-#if !SILVERLIGHT && !NETCF
         [TestCase(true, null, true)]
         [TestCase(false, null, false)]
         [TestCase(true, false, true)]
@@ -498,7 +540,64 @@ namespace NUnitLite.Tests
             // Then
             Assert.AreEqual(actualTeamCity, expectedTeamCity);
         }
-#endif
+
+        #endregion
+
+        #region Test Parameters
+
+        [Test]
+        public void SingleTestParameter()
+        {
+            var options = new NUnitLiteOptions("--params=X=5");
+            Assert.That(options.errorMessages, Is.Empty);
+            Assert.That(options.TestParameters, Is.EqualTo("X=5"));
+        }
+
+        [Test]
+        public void TwoTestParametersInOneOption()
+        {
+            var options = new NUnitLiteOptions("--params:X=5;Y=7");
+            Assert.That(options.errorMessages, Is.Empty);
+            Assert.That(options.TestParameters, Is.EqualTo("X=5;Y=7"));
+        }
+
+        [Test]
+        public void TwoTestParametersInSeparateOptions()
+        {
+            var options = new NUnitLiteOptions("-p:X=5", "-p:Y=7");
+            Assert.That(options.errorMessages, Is.Empty);
+            Assert.That(options.TestParameters, Is.EqualTo("X=5;Y=7"));
+        }
+
+        [Test]
+        public void ThreeTestParametersInTwoOptions()
+        {
+            var options = new NUnitLiteOptions("--params:X=5;Y=7", "-p:Z=3");
+            Assert.That(options.errorMessages, Is.Empty);
+            Assert.That(options.TestParameters, Is.EqualTo("X=5;Y=7;Z=3"));
+        }
+
+        [Test]
+        public void ParameterWithoutEqualSignIsInvalid()
+        {
+            var options = new NUnitLiteOptions("--params=X5");
+            Assert.That(options.ErrorMessages.Count, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void DisplayTestParameters()
+        {
+            if (TestContext.Parameters.Count == 0)
+            {
+                Console.WriteLine("No Test Parameters were passed");
+                return;
+            }
+
+            Console.WriteLine("Test Parameters---");
+
+            foreach (var name in TestContext.Parameters.Names)
+                Console.WriteLine("   Name: {0} Value: {1}", name, TestContext.Parameters[name]);
+        }
 
         #endregion
 
@@ -518,7 +617,7 @@ namespace NUnitLite.Tests
             return property;
         }
 
-#endregion
+        #endregion
 
         internal sealed class DefaultOptionsProviderStub : IDefaultOptionsProvider
         {
@@ -531,4 +630,3 @@ namespace NUnitLite.Tests
         }
     }
 }
-#endif

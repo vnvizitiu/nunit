@@ -256,7 +256,7 @@ namespace NUnit.Framework.Internal.Execution
                     var child = WorkItem.CreateWorkItem(test, _childFilter);
                     child.WorkerId = this.WorkerId;
 
-#if !PORTABLE && !SILVERLIGHT && !NETCF
+#if !PORTABLE
                     if (child.TargetApartment == ApartmentState.Unknown && TargetApartment != ApartmentState.Unknown)
                         child.TargetApartment = TargetApartment;
 #endif
@@ -310,7 +310,7 @@ namespace NUnit.Framework.Internal.Execution
 
         private void SkipFixture(ResultState resultState, string message, string stackTrace)
         {
-            Result.SetResult(resultState.WithSite(FailureSite.SetUp), message, StackFilter.Filter(stackTrace));
+            Result.SetResult(resultState.WithSite(FailureSite.SetUp), message, StackFilter.DefaultFilter.Filter(stackTrace));
             SkipChildren(_suite, resultState.WithSite(FailureSite.Parent), "OneTimeSetUp: " + message);
         }
 

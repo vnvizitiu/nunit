@@ -33,14 +33,14 @@ namespace NUnit.Framework.Tests
     {
         private const string SOME_TEXT = "Should go to the result";
         private const string ERROR_TEXT = "Written directly to console";
-        private static readonly string NL = NUnit.Env.NewLine;
+        private static readonly string NL = Environment.NewLine;
 
         private string CapturedOutput
         {
             get { return TestExecutionContext.CurrentContext.CurrentResult.Output; }
         }
 
-#if !SILVERLIGHT && !PORTABLE && !NETCF
+#if !PORTABLE
         [Test]
         public void ConsoleWrite_WritesToResult()
         {

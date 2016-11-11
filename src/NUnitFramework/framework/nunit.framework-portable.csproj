@@ -141,10 +141,8 @@
     <Compile Include="Compatibility\AttributeHelper.cs" />
     <Compile Include="Compatibility\BindingFlags.cs" />
     <Compile Include="Compatibility\LongLivedMarshalByRefObject.cs" />
-    <Compile Include="Compatibility\Path.cs" />
     <Compile Include="Compatibility\ReflectionExtensions.cs" />
     <Compile Include="Compatibility\System.Web.UI\ICallbackEventHandler.cs" />
-    <Compile Include="Compatibility\System\SerializableAttribute.cs" />
     <Compile Include="Constraints\AllItemsConstraint.cs" />
     <Compile Include="Constraints\AndConstraint.cs" />
     <Compile Include="Constraints\AssignableFromConstraint.cs" />
@@ -250,7 +248,6 @@
     <Compile Include="Contains.cs" />
     <Compile Include="DirectoryAssert.cs" />
     <Compile Include="Does.cs" />
-    <Compile Include="Env.cs" />
     <Compile Include="Exceptions\AssertionException.cs" />
     <Compile Include="Exceptions\IgnoreException.cs" />
     <Compile Include="Exceptions\InconclusiveException.cs" />
@@ -260,6 +257,8 @@
     <Compile Include="GlobalSettings.cs" />
     <Compile Include="Guard.cs" />
     <Compile Include="Has.cs" />
+    <Compile Include="Interfaces\AssertionResult.cs" />
+    <Compile Include="Interfaces\AssertionStatus.cs" />
     <Compile Include="Interfaces\IApplyToContext.cs" />
     <Compile Include="Interfaces\IApplyToTest.cs" />
     <Compile Include="Interfaces\ICombiningStrategy.cs" />
@@ -361,7 +360,6 @@
     <Compile Include="Internal\Logging\InternalTraceWriter.cs" />
     <Compile Include="Internal\Logging\Logger.cs" />
     <Compile Include="Internal\MethodWrapper.cs" />
-    <Compile Include="Internal\NetCFExtensions.cs" />
     <Compile Include="Internal\NUnitException.cs" />
     <Compile Include="Internal\OSPlatform.cs" />
     <Compile Include="Internal\ParameterWrapper.cs" />
@@ -414,6 +412,9 @@
     <None Include="..\..\nunit.snk">
       <Link>nunit.snk</Link>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Compatibility\System\" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\$(TargetFrameworkVersion)\Microsoft.Portable.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

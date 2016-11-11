@@ -34,7 +34,9 @@ namespace NUnit.Framework.Internal.Filters
     /// based on their properties.
     /// </summary>
     /// 
+#if !PORTABLE
     [Serializable]
+#endif
     public class PropertyFilter : ValueMatchFilter
     {
         private string _propertyName;

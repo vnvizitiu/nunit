@@ -34,6 +34,12 @@ namespace NUnit.Framework.Constraints
     [TestFixture, Parallelizable(ParallelScope.None)]
     public class DelayedConstraintTests : ConstraintTestBase
     {
+        // NOTE: This class tests the functioning of the DelayConstraint,
+        // not the After syntax. The AfterTests class tests our syntax,
+        // assuring that the proper constraint is generated. Here,we
+        // set up constraints in the simplest way possible, often by
+        // constructing the constraint class, and verify that they work.
+
         private const int DELAY = 100;
         private const int AFTER = 300;
         private const int POLLING = 50;
@@ -47,7 +53,7 @@ namespace NUnit.Framework.Constraints
         public void SetUp()
         {
             theConstraint = new DelayedConstraint(new EqualConstraint(true), 500);
-            expectedDescription = "True after 500 millisecond delay";
+            expectedDescription = "True after 500 milliseconds delay";
             stringRepresentation = "<after 500 <equal True>>";
 
             boolValue = false;
@@ -101,6 +107,7 @@ namespace NUnit.Framework.Constraints
             SetValuesAfterDelay(DELAY);
             Assert.That(DelegateReturningValue, new DelayedConstraint(new EqualConstraint(true), AFTER, POLLING));
         }
+
 
         [Test]
         public void SimpleTestUsingBoolean()
@@ -172,8 +179,7 @@ namespace NUnit.Framework.Constraints
             }, Is.True.After(AFTER, POLLING));
 
             watch.Stop();
-            // TODO: This failed intermittently, esp. on .NET 4.0. Find another way to test or wait till we have warning errors.
-            //Assert.That(watch.ElapsedMilliseconds, Is.LessThan(AFTER));
+            Assert.That(watch.ElapsedMilliseconds, Is.InRange(DELAY, AFTER));
         }
 
         [Test]
@@ -254,11 +260,7 @@ namespace NUnit.Framework.Constraints
 
         private static void Delay(int delay)
         {
-#if SILVERLIGHT
-            waitEvent.WaitOne(delay);
-#else
             waitEvent.WaitOne(delay, false);
-#endif
         }
 
         private static void MethodSetsValues()
@@ -269,9 +271,9 @@ namespace NUnit.Framework.Constraints
             statusString = "Finished";
         }
 
-        private void SetValuesAfterDelay(int delay)
+        private void SetValuesAfterDelay(int delayInMilliSeconds)
         {
-            setValuesDelay = delay;
+            setValuesDelay = delayInMilliSeconds;
             Thread thread = new Thread(MethodSetsValues);
             thread.Start();
         }

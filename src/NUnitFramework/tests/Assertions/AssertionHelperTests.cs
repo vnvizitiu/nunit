@@ -318,7 +318,7 @@ namespace NUnit.Framework.Syntax
         public void After()
         {
             var constraint = EqualTo(10).After(1000);
-            Expect(constraint, TypeOf<DelayedConstraint>());
+            Expect(constraint, TypeOf<DelayedConstraint.WithRawDelayInterval>());
             Expect(constraint.ToString(), EqualTo("<after 1000 <equal 10>>"));
         }
 
@@ -326,7 +326,7 @@ namespace NUnit.Framework.Syntax
         public void After_Property()
         {
             var constraint = Property("X").EqualTo(10).After(1000);
-            Expect(constraint, TypeOf<DelayedConstraint>());
+            Expect(constraint, TypeOf<DelayedConstraint.WithRawDelayInterval>());
             Expect(constraint.ToString(), EqualTo("<after 1000 <property X <equal 10>>>"));
         }
 
@@ -334,7 +334,7 @@ namespace NUnit.Framework.Syntax
         public void After_And()
         {
             var constraint = GreaterThan(0).And.LessThan(10).After(1000);
-            Expect(constraint, TypeOf<DelayedConstraint>());
+            Expect(constraint, TypeOf<DelayedConstraint.WithRawDelayInterval>());
             Expect(constraint.ToString(), EqualTo("<after 1000 <and <greaterthan 0> <lessthan 10>>>"));
         }
 #endif
@@ -713,7 +713,7 @@ namespace NUnit.Framework.Syntax
 
         #region BinarySerializable
 
-#if !NETCF && !SILVERLIGHT && !PORTABLE
+#if !PORTABLE
         [Test]
         public void BinarySerializableConstraint()
         {
@@ -727,7 +727,7 @@ namespace NUnit.Framework.Syntax
 
         #region XmlSerializable
 
-#if !SILVERLIGHT && !PORTABLE
+#if !PORTABLE
         [Test]
         public void XmlSerializableConstraint()
         {

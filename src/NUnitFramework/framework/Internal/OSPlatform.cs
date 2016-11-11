@@ -25,12 +25,17 @@
 using Microsoft.Win32;
 using System;
 using System.Runtime.InteropServices;
+using System.Security;
 
 namespace NUnit.Framework.Internal
 {
     /// <summary>
     /// OSPlatform represents a particular operating system platform
     /// </summary>
+    // This class invokes security critical P/Invoke and 'System.Runtime.InteropServices.Marshall' methods. 
+    // Callers of this method have no influence on how these methods are used so we define a 'SecuritySafeCriticalAttribute' 
+    // rather than a 'SecurityCriticalAttribute' to enable use by security transparent callers.
+    [SecuritySafeCritical]
     public class OSPlatform
     {
         readonly PlatformID _platform;
@@ -44,10 +49,6 @@ namespace NUnit.Framework.Internal
 
             OperatingSystem os = Environment.OSVersion;
 
-#if SILVERLIGHT || NETCF
-            // TODO: Runtime silverlight detection?
-            currentPlatform = new OSPlatform(os.Platform, os.Version);
-#else
             if (os.Platform == PlatformID.Win32NT && os.Version.Major >= 5)
             {
                 OSVERSIONINFOEX osvi = new OSVERSIONINFOEX();
@@ -65,7 +66,7 @@ namespace NUnit.Framework.Internal
             }
             else
                 currentPlatform = new OSPlatform(os.Platform, os.Version);
-#endif
+
             return currentPlatform;
         });
 
@@ -81,12 +82,12 @@ namespace NUnit.Framework.Internal
         public static readonly PlatformID UnixPlatformID_Mono = (PlatformID)128;
 
         /// <summary>
-        /// Platform ID for XBox as defined by .NET and Mono, but not CF
+        /// Platform ID for XBox as defined by .NET and Mono
         /// </summary>
         public static readonly PlatformID XBoxPlatformID = (PlatformID)5;
 
         /// <summary>
-        /// Platform ID for MacOSX as defined by .NET and Mono, but not CF
+        /// Platform ID for MacOSX as defined by .NET and Mono
         /// </summary>
         public static readonly PlatformID MacOSXPlatformID = (PlatformID)6;
 
@@ -101,7 +102,6 @@ namespace NUnit.Framework.Internal
             }
         }
 
-#if !SILVERLIGHT && !NETCF
         /// <summary>
         /// Gets the actual OS Version, not the incorrect value that might be 
         /// returned for Win 8.1 and Win 10
@@ -151,7 +151,6 @@ namespace NUnit.Framework.Internal
             }
             return version;
         }
-#endif
         #endregion
 
         #region Members used for Win32NT platform only
@@ -318,7 +317,6 @@ namespace NUnit.Framework.Internal
             get { return _platform == MacOSXPlatformID; }
         }
 
-#if !NETCF && !SILVERLIGHT
         [DllImport("libc")]
         static extern int uname(IntPtr buf);
 
@@ -340,7 +338,6 @@ namespace NUnit.Framework.Internal
             Marshal.FreeHGlobal(buf);
             return isMacOSX;
         }
-#endif
 
         /// <summary>
         /// Return true if the platform is Windows 95

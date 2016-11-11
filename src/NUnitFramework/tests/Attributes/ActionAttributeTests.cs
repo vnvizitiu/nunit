@@ -22,7 +22,7 @@
 // ***********************************************************************
 
 // TODO: Test uses features not available in Silverlight
-#if !SILVERLIGHT && !PORTABLE
+#if !PORTABLE
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -99,16 +99,16 @@ namespace NUnit.Framework.Tests
 
                 if (notFound.Count > 0)
                 {
-                    sb.Append(Env.NewLine + "   Missing:");
+                    sb.Append(Environment.NewLine + "   Missing:");
                     foreach (var item in notFound)
-                        sb.Append(Env.NewLine + "     " + item);
+                        sb.Append(Environment.NewLine + "     " + item);
                 }
 
                 if (notExpected.Count > 0)
                 {
-                    sb.Append(Env.NewLine + "   Extra:");
+                    sb.Append(Environment.NewLine + "   Extra:");
                     foreach (var item in notExpected)
-                        sb.Append(Env.NewLine + "     " + item);
+                        sb.Append(Environment.NewLine + "     " + item);
                 }
 
                 Assert.Fail(sb.ToString());

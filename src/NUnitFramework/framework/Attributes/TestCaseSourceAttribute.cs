@@ -78,6 +78,17 @@ namespace NUnit.Framework
         }
 
         /// <summary>
+        /// Construct with a name
+        /// </summary>
+        /// <param name="sourceName">The name of a static method, property or field that will provide data.</param>
+        /// <param name="methodParams">A set of parameters passed to the method, works only if the Source Name is a method. 
+        ///                     If the source name is a field or property has no effect.</param>
+        public TestCaseSourceAttribute(string sourceName, object[] methodParams)
+        {
+            this.MethodParams = methodParams;
+            this.SourceName = sourceName;
+        }
+        /// <summary>
         /// Construct with a Type
         /// </summary>
         /// <param name="sourceType">The type that will provide data</param>
@@ -169,12 +180,7 @@ namespace NUnit.Framework
                             if (args == null && item is Array)
                             {
                                 Array array = item as Array;
-#if NETCF
-                                bool netcfOpenType = method.IsGenericMethodDefinition;
-#else
-                                bool netcfOpenType = false;
-#endif
-                                int numParameters = netcfOpenType ? array.Length : method.GetParameters().Length;
+                                int numParameters = method.GetParameters().Length;
                                 if (array != null && array.Rank == 1 && array.Length == numParameters)
                                 {
                                     // Array is something like int[] - convert it to
@@ -188,16 +194,6 @@ namespace NUnit.Framework
                             // Check again if we have an object[]
                             if (args != null)
                             {
-#if NETCF
-                                if (method.IsGenericMethodDefinition)
-                                {
-                                    var mi = method.MakeGenericMethodEx(args);
-                                    if (mi == null)
-                                        throw new NotSupportedException("Cannot determine generic Type");
-                                    method = mi;
-                                }
-#endif
-
                                 var parameters = method.GetParameters();
                                 var argsNeeded = parameters.Length;
                                 var argsProvided = args.Length;

@@ -78,9 +78,11 @@
     <Compile Include="Assertions\AssertInconclusiveTests.cs" />
     <Compile Include="Assertions\AssertionHelperTests.cs" />
     <Compile Include="Assertions\AssertPassTests.cs" />
+    <Compile Include="Assertions\AssertPolarityTests.cs" />
     <Compile Include="Assertions\AssertThatTests.cs" />
     <Compile Include="Assertions\AssertThrowsAsyncTests.cs" />
     <Compile Include="Assertions\AssertThrowsTests.cs" />
+    <Compile Include="Assertions\AssertZeroTests.cs" />
     <Compile Include="Assertions\AssumeEqualsTests.cs" />
     <Compile Include="Assertions\AssumeThatTests.cs" />
     <Compile Include="Assertions\AsyncThrowsTests.cs" />
@@ -93,6 +95,7 @@
     <Compile Include="Assertions\LessEqualFixture.cs" />
     <Compile Include="Assertions\LessFixture.cs" />
     <Compile Include="Assertions\ListContentsTests.cs" />
+    <Compile Include="Assertions\LowTrustFixture.cs" />
     <Compile Include="Assertions\NotEqualFixture.cs" />
     <Compile Include="Assertions\NotSameFixture.cs" />
     <Compile Include="Assertions\NullableTypesTests.cs" />
@@ -131,6 +134,17 @@
     <Compile Include="Attributes\TestOrderAttributeTests.cs" />
     <Compile Include="Internal\AssemblyHelperTests.cs" />
     <Compile Include="Internal\Filters\MockTestFilter.cs" />
+    <Compile Include="Internal\Results\AssertionResultTests.cs" />
+    <Compile Include="Internal\Results\TestResultFailureTests.cs" />
+    <Compile Include="Internal\Results\TestResultGeneralTests.cs" />
+    <Compile Include="Internal\Results\TestResultIgnoredTests.cs" />
+    <Compile Include="Internal\Results\TestResultInconclusiveTests.cs" />
+    <Compile Include="Internal\Results\TestResultMixedResultTests.cs" />
+    <Compile Include="Internal\Results\TestResultNotRunnableTests.cs" />
+    <Compile Include="Internal\Results\TestResultOutputTests.cs" />
+    <Compile Include="Internal\Results\TestResultSuccessTests.cs" />
+    <Compile Include="Internal\Results\TestResultTests.cs" />
+    <Compile Include="TestParametersTests.cs" />
     <Compile Include="TestUtilities\AsyncTestDelegates.cs" />
     <Compile Include="Attributes\TestFixtureAttributeTests.cs" />
     <Compile Include="Attributes\TestFixtureSourceTests.cs" />
@@ -232,8 +246,6 @@
     <Compile Include="Internal\TestMethodSignatureTests.cs" />
     <Compile Include="Internal\TestNameGeneratorTests.cs" />
     <Compile Include="Internal\TestNamingTests.cs" />
-    <Compile Include="Internal\TestResultOutputTests.cs" />
-    <Compile Include="Internal\TestResultTests.cs" />
     <Compile Include="Internal\TestWorkerTests.cs" />
     <Compile Include="Internal\TestXmlTests.cs" />
     <Compile Include="Internal\TextMessageWriterTests.cs" />
@@ -270,9 +282,9 @@
     <Compile Include="TestUtilities\Comparers\GenericEqualityComparer.cs" />
     <Compile Include="TestUtilities\Comparers\ObjectComparer.cs" />
     <Compile Include="TestUtilities\Comparers\ObjectEqualityComparer.cs" />
+    <Compile Include="TestUtilities\Comparers\TestComparer.cs" />
     <Compile Include="TestUtilities\ResultSummary.cs" />
     <Compile Include="TestUtilities\TestAssert.cs" />
-    <Compile Include="TestUtilities\TestComparer.cs" />
     <Compile Include="TestUtilities\TestDelegates.cs" />
     <Compile Include="TestUtilities\TestDirectory.cs" />
     <Compile Include="TestUtilities\TestFinder.cs" />
@@ -280,6 +292,7 @@
     <Compile Include="TestUtilities\UniqueValues.cs" />
     <Compile Include="TextOutputTests.cs" />
     <Compile Include="ThrowsTests.cs" />
+    <Compile Include="WorkItemTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Microsoft.Threading.Tasks">

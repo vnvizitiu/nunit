@@ -34,7 +34,7 @@ namespace NUnit.Framework.Internal
     /// </summary>
     public class ExceptionHelper
     {
-#if !NET_4_5 && !PORTABLE && !SILVERLIGHT && !NETCF
+#if !NET_4_5 && !PORTABLE
         private static readonly Action<Exception> PreserveStackTrace;
 
         static ExceptionHelper()
@@ -54,7 +54,6 @@ namespace NUnit.Framework.Internal
         }
 #endif
 
-#if !NETCF && !SILVERLIGHT
         /// <summary>
         /// Rethrows an exception, preserving its stack trace
         /// </summary>
@@ -68,7 +67,6 @@ namespace NUnit.Framework.Internal
             throw exception;
 #endif
         }
-#endif
 
         // TODO: Move to a utility class
         /// <summary>
@@ -84,7 +82,7 @@ namespace NUnit.Framework.Internal
 
             foreach (Exception inner in FlattenExceptionHierarchy(exception))
             {
-                sb.Append(NUnit.Env.NewLine);
+                sb.Append(Environment.NewLine);
                 sb.AppendFormat(CultureInfo.CurrentCulture, "  ----> {0} : {1}", inner.GetType().ToString(), inner.Message);
             }
 
@@ -103,10 +101,10 @@ namespace NUnit.Framework.Internal
 
             foreach (Exception inner in FlattenExceptionHierarchy(exception))
             {
-                sb.Append(NUnit.Env.NewLine);
+                sb.Append(Environment.NewLine);
                 sb.Append("--");
                 sb.Append(inner.GetType().Name);
-                sb.Append(NUnit.Env.NewLine);
+                sb.Append(Environment.NewLine);
                 sb.Append(GetStackTrace(inner));
             }
 
@@ -134,7 +132,7 @@ namespace NUnit.Framework.Internal
         {
             var result = new List<Exception>();
 
-#if NET_4_0 || NET_4_5 || SILVERLIGHT || PORTABLE
+#if NET_4_0 || NET_4_5 || PORTABLE
             if (exception is AggregateException)
             {
                 var aggregateException = (exception as AggregateException);
