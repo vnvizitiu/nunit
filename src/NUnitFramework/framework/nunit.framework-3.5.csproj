@@ -17,6 +17,7 @@
     <OldToolsVersion>3.5</OldToolsVersion>
     <UpgradeBackupLocation />
     <IntermediateOutputPath>obj\$(Configuration)\net-3.5\</IntermediateOutputPath>
+    <LangVersion>6</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -61,6 +62,9 @@
     <Compile Include="Attributes\ApartmentAttribute.cs" />
     <Compile Include="Attributes\AuthorAttribute.cs" />
     <Compile Include="Attributes\CombiningStrategyAttribute.cs" />
+    <Compile Include="Attributes\DefaultFloatingPointToleranceAttribute.cs" />
+    <Compile Include="Attributes\NonParallelizableAttribute.cs" />
+    <Compile Include="Attributes\NonTestAssemblyAttribute.cs" />
     <Compile Include="Attributes\SingleThreadedAttribute.cs" />
     <Compile Include="Attributes\TestAssemblyDirectoryResolveAttribute.cs" />
     <Compile Include="Attributes\OrderAttribute.cs" />
@@ -89,6 +93,7 @@
     <Compile Include="Constraints\FileExistsConstraint.cs" />
     <Compile Include="Constraints\FileOrDirectoryExistsConstraint.cs" />
     <Compile Include="Constraints\IConstraint.cs" />
+    <Compile Include="Constraints\ItemsConstraintExpression.cs" />
     <Compile Include="Constraints\Interval.cs" />
     <Compile Include="Constraints\Operators\AllOperator.cs" />
     <Compile Include="Constraints\Operators\NoneOperator.cs" />
@@ -116,6 +121,7 @@
     <Compile Include="Assert.Conditions.cs">
       <DependentUpon>Assert.cs</DependentUpon>
     </Compile>
+    <Compile Include="Exceptions\MultipleAssertException.cs" />
     <Compile Include="Guard.cs" />
     <Compile Include="Interfaces\AssertionResult.cs" />
     <Compile Include="Interfaces\AssertionStatus.cs" />
@@ -127,6 +133,15 @@
     <Compile Include="Interfaces\TestOutput.cs" />
     <Compile Include="Internal\AssemblyHelper.cs" />
     <Compile Include="Internal\Builders\ParameterDataProvider.cs" />
+    <Compile Include="Internal\Commands\AfterTestActionCommand.cs" />
+    <Compile Include="Internal\Commands\AfterTestCommand.cs" />
+    <Compile Include="Internal\Commands\BeforeAndAfterTestCommand.cs" />
+    <Compile Include="Internal\Commands\BeforeTestActionCommand.cs" />
+    <Compile Include="Internal\Commands\BeforeTestCommand.cs" />
+    <Compile Include="Internal\Commands\ConstructFixtureCommand.cs" />
+    <Compile Include="Internal\Commands\DisposeFixtureCommand.cs" />
+    <Compile Include="Internal\Commands\EmptyTestCommand.cs" />
+    <Compile Include="Internal\Commands\TimeoutCommand.cs" />
     <Compile Include="Internal\Execution\EventListenerTextWriter.cs" />
     <Compile Include="Internal\Filters\CompositeFilter.cs" />
     <Compile Include="Internal\Filters\PropertyFilter.cs" />
@@ -142,6 +157,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Internal\ParameterWrapper.cs" />
+    <Compile Include="Internal\TestCaseTimeoutException.cs" />
     <Compile Include="Internal\TestNameGenerator.cs" />
     <Compile Include="Internal\TypeWrapper.cs" />
     <Compile Include="TestFixtureData.cs" />
@@ -163,12 +179,10 @@
     <Compile Include="Interfaces\ITestFilter.cs" />
     <Compile Include="Interfaces\ITestListener.cs" />
     <Compile Include="Interfaces\ITestResult.cs" />
-    <Compile Include="Internal\ActionsHelper.cs" />
     <Compile Include="Internal\AsyncInvocationRegion.cs" />
     <Compile Include="Internal\Commands\SetUpTearDownItem.cs" />
     <Compile Include="Internal\Commands\TestActionCommand.cs" />
     <Compile Include="Internal\Commands\TestActionItem.cs" />
-    <Compile Include="Internal\Execution\CommandBuilder.cs" />
     <Compile Include="Internal\Execution\IWorkItemDispatcher.cs" />
     <Compile Include="Interfaces\IXmlNodeBuilder.cs" />
     <Compile Include="Interfaces\ResultState.cs" />
@@ -282,7 +296,6 @@
     <Compile Include="Constraints\Constraint.cs" />
     <Compile Include="Constraints\ConstraintBuilder.cs" />
     <Compile Include="Constraints\ConstraintExpression.cs" />
-    <Compile Include="Constraints\ConstraintFactory.cs" />
     <Compile Include="Constraints\ContainsConstraint.cs" />
     <Compile Include="Constraints\DelayedConstraint.cs" />
     <Compile Include="Constraints\DictionaryContainsKeyConstraint.cs" />
@@ -357,7 +370,6 @@
     <Compile Include="Interfaces\ISuiteBuilder.cs" />
     <Compile Include="Interfaces\ITestCaseBuilder.cs" />
     <Compile Include="FileAssert.cs" />
-    <Compile Include="GlobalSettings.cs" />
     <Compile Include="Has.cs" />
     <Compile Include="Internal\Builders\CombinatorialStrategy.cs" />
     <Compile Include="Internal\Builders\DatapointProvider.cs" />
@@ -367,7 +379,6 @@
     <Compile Include="Internal\Builders\ParameterDataSourceProvider.cs" />
     <Compile Include="Internal\Builders\ProviderCache.cs" />
     <Compile Include="Internal\Builders\SequentialStrategy.cs" />
-    <Compile Include="Internal\Commands\CommandStage.cs" />
     <Compile Include="Interfaces\ICommandWrapper.cs" />
     <Compile Include="Internal\CultureDetector.cs" />
     <Compile Include="Api\DefaultTestAssemblyBuilder.cs" />
@@ -415,6 +426,7 @@
     <Compile Include="Constraints\ExactCountConstraint.cs" />
     <Compile Include="Constraints\Operators\ExactCountOperator.cs" />
     <Compile Include="Constraints\ExceptionTypeConstraint.cs" />
+    <Compile Include="Warn.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />
@@ -431,5 +443,6 @@
     <None Include="..\..\nunit.snk">
       <Link>nunit.snk</Link>
     </None>
+    <None Include="nunit.framework-3.5.project.json" />
   </ItemGroup>
 </Project>

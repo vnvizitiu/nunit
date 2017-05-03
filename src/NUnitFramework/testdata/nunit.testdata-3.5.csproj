@@ -15,6 +15,7 @@
     <OldToolsVersion>3.5</OldToolsVersion>
     <UpgradeBackupLocation />
     <IntermediateOutputPath>obj\$(Configuration)\net-3.5\</IntermediateOutputPath>
+    <LangVersion>6</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -54,6 +55,7 @@
       <Link>Properties\FrameworkVersion.cs</Link>
     </Compile>
     <Compile Include="ActionAttributeFixture.cs" />
+    <Compile Include="AssertMultipleData.cs" />
     <Compile Include="AsyncDummyFixture.cs" />
     <Compile Include="AsyncRealFixture.cs" />
     <Compile Include="RepeatingTestsFixtureBase.cs" />
@@ -92,6 +94,7 @@
     <Compile Include="UnexpectedExceptionFixture.cs" />
     <Compile Include="UnhandledExceptions.cs" />
     <Compile Include="SetUpFixtureData.cs" />
+    <Compile Include="WarningFixture.cs" />
   </ItemGroup>
   <ItemGroup>
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
@@ -106,6 +109,7 @@
     <None Include="..\..\nunit.snk">
       <Link>nunit.snk</Link>
     </None>
+    <None Include="nunit.testdata-3.5.project.json" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

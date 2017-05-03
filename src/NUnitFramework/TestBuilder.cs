@@ -25,14 +25,16 @@ using System;
 using System.Reflection;
 using System.Threading;
 using NUnit.Framework;
+#if !NETCOREAPP1_0
 using NUnit.Compatibility;
+#endif
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal.Builders;
 using NUnit.Framework.Internal;
 using NUnit.Framework.Internal.Commands;
 using NUnit.Framework.Internal.Execution;
 
-#if PORTABLE
+#if PORTABLE && !NETSTANDARD1_6 && !NETCOREAPP1_0
 using BindingFlags = NUnit.Compatibility.BindingFlags;
 #endif
 
@@ -43,7 +45,7 @@ namespace NUnit.TestUtilities
     /// </summary>
     public static class TestBuilder
     {
-        #region Build Tests
+#region Build Tests
 
         public static TestSuite MakeFixture(Type type)
         {
@@ -136,6 +138,15 @@ namespace NUnit.TestUtilities
             return RunTest(testMethod, fixture);
         }
 
+#if !PORTABLE && !NETSTANDARD1_6
+        public static ITestResult RunAsTestCase(Action action)
+        {
+            var method = action.Method;
+            var testMethod = MakeTestCase(method.DeclaringType, method.Name);
+            return RunTest(testMethod);
+        }
+#endif
+
         public static ITestResult RunTest(Test test)
         {
             return RunTest(test, null);
@@ -198,6 +209,11 @@ namespace NUnit.TestUtilities
         /// </summary>
         class SuperSimpleDispatcher : IWorkItemDispatcher
         {
+            public void Start(WorkItem topLevelWorkItem)
+            {
+                topLevelWorkItem.Execute();
+            }
+
             public void Dispatch(WorkItem work)
             {
                 work.Execute();

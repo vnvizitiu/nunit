@@ -21,7 +21,7 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
 
-#if !PORTABLE
+#if !PORTABLE && !NETSTANDARD1_6
 using System.Threading;
 
 namespace NUnit.Framework.Attributes
@@ -37,6 +37,8 @@ namespace NUnit.Framework.Attributes
         {
             ParentThread = Thread.CurrentThread;
             ParentThreadApartment = GetApartmentState(ParentThread);
+
+            TestContext.AddFormatter<Thread>((t) => "Thread #" + ((Thread)t).ManagedThreadId);
         }
 
         [SetUp]

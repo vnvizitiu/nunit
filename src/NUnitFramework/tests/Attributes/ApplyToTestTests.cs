@@ -107,8 +107,7 @@ namespace NUnit.Framework.Attributes
         [Test]
         public void IgnoreAttributeDoesNotAffectNonRunnableTest()
         {
-            test.RunState = RunState.NotRunnable;
-            test.Properties.Set(PropertyNames.SkipReason, "UNCHANGED");
+            test.MakeInvalid("UNCHANGED");
             new IgnoreAttribute("BECAUSE").ApplyToTest(test);
             Assert.That(test.RunState, Is.EqualTo(RunState.NotRunnable));
             Assert.That(test.Properties.Get(PropertyNames.SkipReason), Is.EqualTo("UNCHANGED"));
@@ -207,8 +206,7 @@ namespace NUnit.Framework.Attributes
         [Test]
         public void ExplicitAttributeDoesNotAffectNonRunnableTest()
         {
-            test.RunState = RunState.NotRunnable;
-            test.Properties.Set(PropertyNames.SkipReason, "UNCHANGED");
+            test.MakeInvalid("UNCHANGED");
             new ExplicitAttribute("BECAUSE").ApplyToTest(test);
             Assert.That(test.RunState, Is.EqualTo(RunState.NotRunnable));
             Assert.That(test.Properties.Get(PropertyNames.SkipReason), Is.EqualTo("UNCHANGED"));
@@ -353,7 +351,7 @@ namespace NUnit.Framework.Attributes
 
         #region PlatformAttribute
 
-#if !PORTABLE
+#if !PORTABLE && !NETSTANDARD1_6
         [Test]
         public void PlatformAttributeRunsTest()
         {
@@ -411,7 +409,7 @@ namespace NUnit.Framework.Attributes
 
         #endregion
 
-#if !PORTABLE
+#if !PORTABLE && !NETSTANDARD1_6
 
         #region RequiresMTAAttribute
 
@@ -459,7 +457,7 @@ namespace NUnit.Framework.Attributes
 
         #region RequiresThreadAttribute
 
-#if !PORTABLE
+#if !PORTABLE && !NETSTANDARD1_6
         [Test]
         public void RequiresThreadAttributeSetsRequiresThread()
         {
@@ -476,7 +474,7 @@ namespace NUnit.Framework.Attributes
         }
 #endif
 
-#if !PORTABLE
+#if !PORTABLE && !NETSTANDARD1_6
         [Test]
         public void RequiresThreadAttributeMaySetApartmentState()
         {
@@ -508,7 +506,7 @@ namespace NUnit.Framework.Attributes
 
         #endregion
 
-#if !PORTABLE
+#if !PORTABLE && !NETSTANDARD1_6
 
         #region SetCultureAttribute
 

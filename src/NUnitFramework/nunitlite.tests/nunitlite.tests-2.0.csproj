@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -15,6 +15,7 @@
     <OldToolsVersion>3.5</OldToolsVersion>
     <UpgradeBackupLocation />
     <IntermediateOutputPath>obj\$(Configuration)\net-2.0\</IntermediateOutputPath>
+    <LangVersion>6</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <Optimize>true</Optimize>
@@ -75,6 +76,7 @@
     <Compile Include="NUnit2XmlOutputWriterTests.cs" />
     <Compile Include="TestNameParserTests.cs" />
     <Compile Include="TestSelectionParserTests.cs" />
+    <Compile Include="TextUIReportTests.cs" />
     <Compile Include="TextUITests.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -113,6 +115,7 @@
     <None Include="..\..\nunit.snk">
       <Link>nunit.snk</Link>
     </None>
+    <None Include="nunitlite.tests-2.0.project.json" />
   </ItemGroup>
   <ItemGroup />
   <ItemGroup>

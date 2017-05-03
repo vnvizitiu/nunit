@@ -22,6 +22,7 @@
 // ***********************************************************************
 
 using System;
+using System.Reflection;
 using NUnit.Framework;
 using NUnit.Framework.Internal;
 #if !PORTABLE
@@ -74,7 +75,7 @@ namespace NUnit.Tests
 
             public const int TestStartedEvents = Tests - IgnoredFixture.Tests - BadFixture.Tests - ExplicitFixture.Tests;
             public const int TestFinishedEvents = Tests;
-#if PORTABLE
+#if PORTABLE && !NETSTANDARD1_6
             public const int TestOutputEvents = 0;
 #else
             public const int TestOutputEvents = 1;
@@ -85,21 +86,36 @@ namespace NUnit.Tests
             public const int ExplicitFixtures = 1;
             public const int SuitesRun = Suites - ExplicitFixtures;
 
-            public const int Ignored = MockTestFixture.Ignored + IgnoredFixture.Tests;
-            public const int Explicit = MockTestFixture.Explicit + ExplicitFixture.Tests;
-            public const int Skipped = Ignored + Explicit;
-            public const int NotRun = Ignored + Explicit + NotRunnable;
-            public const int TestsRun = Tests - NotRun;
-            public const int ResultCount = Tests - Explicit;
+            public const int Passed = MockTestFixture.Passed
+                        + Singletons.OneTestCase.Tests
+                        + TestAssembly.MockTestFixture.Tests
+                        + FixtureWithTestCases.Tests
+                        + ParameterizedFixture.Tests
+                        + GenericFixtureConstants.Tests;
 
-            public const int Errors = MockTestFixture.Errors;
-            public const int Failures = MockTestFixture.Failures;
-            public const int NotRunnable = MockTestFixture.NotRunnable + BadFixture.Tests;
-            public const int ErrorsAndFailures = Errors + Failures + NotRunnable;
+            public const int Skipped_Ignored = MockTestFixture.Skipped_Ignored + IgnoredFixture.Tests;
+            public const int Skipped_Explicit = MockTestFixture.Skipped_Explicit + ExplicitFixture.Tests;
+            public const int Skipped = Skipped_Ignored + Skipped_Explicit;
+
+            public const int Warnings = MockTestFixture.Warnings;
+
+            public const int Failed_Error = MockTestFixture.Failed_Error;
+            public const int Failed_Other = MockTestFixture.Failed_Other;
+            public const int Failed_NotRunnable = MockTestFixture.Failed_NotRunnable + BadFixture.Tests;
+            public const int Failed = Failed_Error + Failed_Other + Failed_NotRunnable;
+
             public const int Inconclusive = MockTestFixture.Inconclusive;
-            public const int Success = TestsRun - Errors - Failures - Inconclusive;
 
 #if !PORTABLE
+#if NETSTANDARD1_6
+            public static readonly Assembly ThisAssembly = typeof(MockAssembly).GetTypeInfo().Assembly;
+            public static readonly string AssemblyPath = AssemblyHelper.GetAssemblyPath(ThisAssembly);
+
+            public static void Main(string[] args)
+            {
+                new AutoRun(ThisAssembly).Execute(args);
+            }
+#else
             public static readonly string AssemblyPath = AssemblyHelper.GetAssemblyPath(typeof(MockAssembly).Assembly);
 
             public static void Main(string[] args)
@@ -107,26 +123,28 @@ namespace NUnit.Tests
                 new AutoRun().Execute(args);
             }
 #endif
+#endif
         }
 
         [TestFixture(Description="Fake Test Fixture")]
         [Category("FixtureCategory")]
         public class MockTestFixture
         {
-            public const int Tests = 8;
+            public const int Tests = 10;
             public const int Suites = 1;
 
-            public const int Ignored = 1;
-            public const int Explicit = 1;
+            public const int Passed = 2;
 
-            public const int NotRun = Ignored + Explicit;
-            public const int TestsRun = Tests - NotRun;
-            public const int ResultCount = Tests - Explicit;
+            public const int Skipped_Ignored = 1;
+            public const int Skipped_Explicit = 1;
+            public const int Skipped = Skipped_Ignored + Skipped_Explicit;
 
-            public const int Failures = 1;
-            public const int Errors = 1;
-            public const int NotRunnable = 2;
-            public const int ErrorsAndFailures = Errors + Failures + NotRunnable;
+            public const int Failed_Other = 1;
+            public const int Failed_Error = 1;
+            public const int Failed_NotRunnable = 2;
+            public const int Failed = Failed_Error + Failed_Other + Failed_NotRunnable;
+
+            public const int Warnings = 1;
 
             public const int Inconclusive = 1;
 
@@ -147,6 +165,12 @@ namespace NUnit.Tests
                 Assert.Fail("Intentional failure");
             }
 
+            [Test]
+            public void WarningTest()
+            {
+                Assert.Warn("Warning Message");
+            }
+
             [Test, Ignore("Ignore Message")]
             public void IgnoreTest() { }
 
@@ -160,6 +184,15 @@ namespace NUnit.Tests
             public void InconclusiveTest()
             {
                 Assert.Inconclusive("No valid data");
+            }
+
+            [Test]
+            public void DisplayRunParameters()
+            {
+#if !PORTABLE
+                foreach (string name in TestContext.Parameters.Names)
+                    Console.WriteLine("Parameter {0} = {1}", name, TestContext.Parameters[name]);
+#endif
             }
 
             [Test]

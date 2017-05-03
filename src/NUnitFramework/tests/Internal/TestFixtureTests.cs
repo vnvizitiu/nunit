@@ -22,6 +22,7 @@
 // ***********************************************************************
 
 using System;
+using System.Linq;
 using NUnit.Framework.Interfaces;
 using NUnit.TestData.OneTimeSetUpTearDownData;
 using NUnit.TestUtilities;
@@ -109,6 +110,37 @@ namespace NUnit.Framework.Internal
         public void CanRunConstructorWithArgsSupplied()
         {
             TestAssert.IsRunnable(typeof(FixtureWithArgsSupplied));
+        }
+
+        [Test]
+        public void CapturesArgumentsForConstructorWithArgsSupplied()
+        {
+            var fixture = TestBuilder.MakeFixture(typeof(FixtureWithArgsSupplied));
+            Assert.That(fixture.Arguments, Is.EqualTo(new[] { 7, 3 }));
+        }
+
+        [Test]
+        public void CapturesNoArgumentsForConstructorWithoutArgsSupplied()
+        {
+            var fixture = TestBuilder.MakeFixture(typeof(RegularFixtureWithOneTest));
+            Assert.That(fixture.Arguments, Is.EqualTo(new object[0]));
+        }
+
+        [Test]
+        public void CapturesArgumentsForConstructorWithMultipleArgsSupplied()
+        {
+            var fixture = TestBuilder.MakeFixture(typeof(FixtureWithMultipleArgsSupplied));
+            Assert.True(fixture.HasChildren);
+
+            var expectedArgumentSeries = new[]
+            {
+                new object[] {8, 4},
+                new object[] {7, 3}
+            };
+
+            var actualArgumentSeries = fixture.Tests.Select(x => x.Arguments).ToArray();
+
+            Assert.That(actualArgumentSeries, Is.EquivalentTo(expectedArgumentSeries));
         }
 
         [Test]

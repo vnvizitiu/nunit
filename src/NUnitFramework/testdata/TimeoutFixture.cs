@@ -21,7 +21,7 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
 
-#if !PORTABLE
+#if !PORTABLE && !NETSTANDARD1_6
 using System;
 using System.Threading;
 using NUnit.Framework;
@@ -93,8 +93,8 @@ namespace NUnit.TestData
     public class TimeoutTestCaseFixture
     {
         const int TIME_OUT_TIME = 100;
-        const int NOT_TIMEOUTED_TIME = 50;
-        const int TIMEOUTED_TIME = 150;
+        const int NOT_TIMEOUTED_TIME = 10;
+        const int TIMEOUTED_TIME = 500;
 
         [Test]
         [Timeout(TIME_OUT_TIME)]

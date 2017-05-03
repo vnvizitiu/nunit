@@ -66,7 +66,7 @@ namespace NUnit.Framework.Tests.Compatibility
         [TestCase(typeof(string))]
         [TestCase(typeof(double))]
         [TestCase(typeof(int))]
-        public void CanGetContructorWithParams(Type paramType)
+        public void CanGetConstructorWithParams(Type paramType)
         {
             var result = typeof(DerivedTestClass).GetConstructor(new[] { paramType });
             Assert.That(result, Is.Not.Null);
@@ -279,6 +279,15 @@ namespace NUnit.Framework.Tests.Compatibility
             Assert.That(attr, Is.Not.Null);
         }
 #endif
+
+#if PORTABLE || NETSTANDARD1_6
+        [Test]
+        public void CanHandleNoGetterPropertyMember()
+        {
+            var result = typeof(NoGetterPropertyDerivedClass).GetMember("NoGetter", BindingFlags.Default);
+            Assert.That(result, Is.Not.Null);
+        }
+#endif
     }
 
     public class BaseTestClass : IDisposable
@@ -341,4 +350,16 @@ namespace NUnit.Framework.Tests.Compatibility
             PropertyTwo = two;
         }
     }
+
+
+#if PORTABLE || NETSTANDARD1_6
+    public class NoGetterPropertyBaseClass
+    {
+        public string NoGetter { set { } }
+    }
+
+    public class NoGetterPropertyDerivedClass : NoGetterPropertyBaseClass
+    {
+    }
+#endif
 }

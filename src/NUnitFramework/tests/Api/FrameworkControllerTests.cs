@@ -37,11 +37,16 @@ namespace NUnit.Framework.Api
     // Functional tests of the FrameworkController and all subordinate classes
     public class FrameworkControllerTests
     {
+#if NETSTANDARD1_6
+        private const string MOCK_ASSEMBLY_FILE = "mock-assembly.dll";
+#else
         private const string MOCK_ASSEMBLY_FILE = "mock-assembly.exe";
+#endif
         private const string BAD_FILE = "mock-assembly.pdb";
         private const string MISSING_FILE = "junk.dll";
         private const string MISSING_NAME = "junk";
         private const string EMPTY_FILTER = "<filter/>";
+        private const string FIXTURE_CAT_FILTER = "<filter><cat>FixtureCategory</cat></filter>";
 
         private static readonly string MOCK_ASSEMBLY_NAME = typeof(MockAssembly).GetTypeInfo().Assembly.FullName;
 #if PORTABLE
@@ -55,10 +60,24 @@ namespace NUnit.Framework.Api
         private FrameworkController _controller;
         private ICallbackEventHandler _handler;
 
+        public class FixtureCategoryTester
+        {
+            [Category("FixtureCategory")]
+            [Test]
+            public void TestInFixtureCategory()
+            {
+            }
+
+            [Test]
+            public void TestOutOfFixtureCategory()
+            {
+            }
+        }
+
         [SetUp]
         public void CreateController()
         {
-#if PORTABLE
+#if PORTABLE || NETSTANDARD1_6
             _controller = new FrameworkController(typeof(MockAssembly).GetTypeInfo().Assembly, "ID", _settings);
 #else
             _controller = new FrameworkController(MOCK_ASSEMBLY_PATH, "ID", _settings);
@@ -72,7 +91,7 @@ namespace NUnit.Framework.Api
         {
             Assert.That(_controller.Builder, Is.TypeOf<DefaultTestAssemblyBuilder>());
             Assert.That(_controller.Runner, Is.TypeOf<NUnitTestAssemblyRunner>());
-#if PORTABLE
+#if PORTABLE || NETSTANDARD1_6
             Assert.That(_controller.AssemblyNameOrPath, Is.EqualTo(MOCK_ASSEMBLY_NAME));
 #else
             Assert.That(_controller.AssemblyNameOrPath, Is.EqualTo(MOCK_ASSEMBLY_PATH));
@@ -113,7 +132,7 @@ namespace NUnit.Framework.Api
             Assert.That(result.SelectNodes("test-suite").Count, Is.EqualTo(0), "Load result should not have child tests");
         }
 
-#if !PORTABLE
+#if !PORTABLE && !NETSTANDARD1_6
         [Test]
         public void LoadTestsAction_FileNotFound_ReturnsNonRunnableSuite()
         {
@@ -147,6 +166,22 @@ namespace NUnit.Framework.Api
 
         #region ExploreTestsAction
         [Test]
+        public void ExploreTestsAction_FilterCategory_ReturnsTests()
+        {
+            new FrameworkController.LoadTestsAction(_controller, _handler);
+            new FrameworkController.ExploreTestsAction(_controller, FIXTURE_CAT_FILTER, _handler);
+            var result = TNode.FromXml(_handler.GetCallbackResult());
+
+            Assert.That(result.Name.ToString(), Is.EqualTo("test-suite"));
+            Assert.That(result.Attributes["type"], Is.EqualTo("Assembly"));
+            Assert.That(result.Attributes["id"], Is.Not.Null.And.StartWith("ID"));
+            Assert.That(result.Attributes["name"], Is.EqualTo(EXPECTED_NAME));
+            Assert.That(result.Attributes["runstate"], Is.EqualTo("Runnable"));
+            Assert.That(result.Attributes["testcasecount"], Is.EqualTo(MockTestFixture.Tests.ToString()));
+            Assert.That(result.SelectNodes("test-suite").Count, Is.GreaterThan(0), "Explore result should have child tests");
+        }
+
+        [Test]
         public void ExploreTestsAction_AfterLoad_ReturnsRunnableSuite()
         {
             new FrameworkController.LoadTestsAction(_controller, _handler);
@@ -162,6 +197,22 @@ namespace NUnit.Framework.Api
             Assert.That(result.SelectNodes("test-suite").Count, Is.GreaterThan(0), "Explore result should have child tests");
         }
 
+        [TestCase(FIXTURE_CAT_FILTER)]
+        [TestCase(EMPTY_FILTER)]
+        public void ExploreTestsAction_AfterLoad_ReturnsSameCount(string filter)
+        {
+            new FrameworkController.LoadTestsAction(_controller, _handler);
+            new FrameworkController.ExploreTestsAction(_controller, filter, _handler);
+            var exploreResult = TNode.FromXml(_handler.GetCallbackResult());
+
+            var exploreTestCount = exploreResult.Attributes["testcasecount"];
+
+            new FrameworkController.CountTestsAction(_controller, filter, _handler);
+            var countResult = _handler.GetCallbackResult();
+
+            Assert.That(exploreTestCount, Is.EqualTo(countResult));
+        }
+
         [Test]
         public void ExploreTestsAction_WithoutLoad_ThrowsInvalidOperationException()
         {
@@ -170,7 +221,7 @@ namespace NUnit.Framework.Api
             Assert.That(ex.Message, Is.EqualTo("The Explore method was called but no test has been loaded"));
         }
 
-#if !PORTABLE
+#if !PORTABLE && !NETSTANDARD1_6
         [Test]
         public void ExploreTestsAction_FileNotFound_ReturnsNonRunnableSuite()
         {
@@ -224,7 +275,7 @@ namespace NUnit.Framework.Api
             Assert.That(ex.Message, Is.EqualTo("The CountTestCases method was called but no test has been loaded"));
         }
 
-#if !PORTABLE
+#if !PORTABLE && !NETSTANDARD1_6
         [Test]
         public void CountTestsAction_FileNotFound_ReturnsZero()
         {
@@ -253,6 +304,9 @@ namespace NUnit.Framework.Api
             new FrameworkController.RunTestsAction(_controller, EMPTY_FILTER, _handler);
             var result = TNode.FromXml(_handler.GetCallbackResult());
 
+            // TODO: Any failure here throws an exception because the call to RunTestsAction
+            // has destroyed the test context. We need to figure out how to execute the run
+            // in a cleaner way, perhaps on another thread or in a process.
             Assert.That(result.Name.ToString(), Is.EqualTo("test-suite"));
             Assert.That(result.Attributes["id"], Is.Not.Null.And.StartWith("ID"));
             Assert.That(result.Attributes["name"], Is.EqualTo(EXPECTED_NAME));
@@ -260,8 +314,9 @@ namespace NUnit.Framework.Api
             Assert.That(result.Attributes["runstate"], Is.EqualTo("Runnable"));
             Assert.That(result.Attributes["testcasecount"], Is.EqualTo(MockAssembly.Tests.ToString()));
             Assert.That(result.Attributes["result"], Is.EqualTo("Failed"));
-            Assert.That(result.Attributes["passed"], Is.EqualTo(MockAssembly.Success.ToString()));
-            Assert.That(result.Attributes["failed"], Is.EqualTo(MockAssembly.ErrorsAndFailures.ToString()));
+            Assert.That(result.Attributes["passed"], Is.EqualTo(MockAssembly.Passed.ToString()));
+            Assert.That(result.Attributes["failed"], Is.EqualTo(MockAssembly.Failed.ToString()));
+            Assert.That(result.Attributes["warnings"], Is.EqualTo(MockAssembly.Warnings.ToString()));
             Assert.That(result.Attributes["skipped"], Is.EqualTo(MockAssembly.Skipped.ToString()));
             Assert.That(result.Attributes["inconclusive"], Is.EqualTo(MockAssembly.Inconclusive.ToString()));
             Assert.That(result.SelectNodes("test-suite").Count, Is.GreaterThan(0), "Run result should have child tests");
@@ -275,7 +330,7 @@ namespace NUnit.Framework.Api
             Assert.That(ex.Message, Is.EqualTo("The Run method was called but no test has been loaded"));
         }
 
-#if !PORTABLE
+#if !PORTABLE && !NETSTANDARD1_6
         [Test]
         public void RunTestsAction_FileNotFound_ReturnsNonRunnableSuite()
         {
@@ -342,7 +397,7 @@ namespace NUnit.Framework.Api
             Assert.That(ex.Message, Is.EqualTo("The Run method was called but no test has been loaded"));
         }
 
-#if !PORTABLE
+#if !PORTABLE && !NETSTANDARD1_6
         [Test]
         public void RunAsyncAction_FileNotFound_ReturnsNonRunnableSuite()
         {

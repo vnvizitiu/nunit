@@ -23,7 +23,9 @@
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using NUnit.Framework.Constraints;
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
@@ -36,7 +38,7 @@ namespace NUnit.Framework
     /// </summary>
     public delegate void TestDelegate();
 
-#if NET_4_0 || NET_4_5 || PORTABLE
+#if ASYNC
     /// <summary>
     /// Delegate used by tests that execute async code and
     /// capture any thrown exception.
@@ -64,6 +66,7 @@ namespace NUnit.Framework
         #region Equals and ReferenceEquals
 
         /// <summary>
+        /// DO NOT USE! Use Assert.AreEqual(...) instead.
         /// The Equals method throws an InvalidOperationException. This is done 
         /// to make sure there is no mistake by calling this function.
         /// </summary>
@@ -72,19 +75,20 @@ namespace NUnit.Framework
         [EditorBrowsable(EditorBrowsableState.Never)]
         public static new bool Equals(object a, object b)
         {
-            throw new InvalidOperationException("Assert.Equals should not be used for Assertions");
+            throw new InvalidOperationException("Assert.Equals should not be used for Assertions, use Assert.AreEqual(...) instead.");
         }
 
         /// <summary>
-        /// override the default ReferenceEquals to throw an InvalidOperationException. This 
-        /// implementation makes sure there is no mistake in calling this function 
-        /// as part of Assert. 
+        /// DO NOT USE!
+        /// The ReferenceEquals method throws an InvalidOperationException. This is done 
+        /// to make sure there is no mistake by calling this function.
         /// </summary>
         /// <param name="a"></param>
         /// <param name="b"></param>
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public static new void ReferenceEquals(object a, object b)
         {
-            throw new InvalidOperationException("Assert.ReferenceEquals should not be used for Assertions");
+            throw new InvalidOperationException("Assert.ReferenceEquals should not be used for Assertions, use Assert.AreSame(...) instead.");
         }
 
         #endregion
@@ -103,6 +107,10 @@ namespace NUnit.Framework
             if (message == null) message = string.Empty;
             else if (args != null && args.Length > 0)
                 message = string.Format(message, args);
+
+            // If we are in a multiple assert block, this is an error
+            if (TestExecutionContext.CurrentContext.MultipleAssertLevel > 0)
+                throw new Exception("Assert.Pass may not be used in a multiple assertion block.");
 
             throw new SuccessException(message);
         }
@@ -144,7 +152,7 @@ namespace NUnit.Framework
             else if (args != null && args.Length > 0)
                 message = string.Format(message, args);
 
-            throw new AssertionException(message);
+            ReportFailure(message);
         }
 
         /// <summary>
@@ -168,6 +176,33 @@ namespace NUnit.Framework
 
         #endregion
 
+        #region Warn
+
+        /// <summary>
+        /// Issues a warning using the message and arguments provided.
+        /// </summary>
+        /// <param name="message">The message to display.</param>
+        /// <param name="args">Arguments to be used in formatting the message</param>
+        static public void Warn(string message, params object[] args)
+        {
+            if (message == null) message = string.Empty;
+            else if (args != null && args.Length > 0)
+                message = string.Format(message, args);
+
+            IssueWarning(message);
+        }
+
+        /// <summary>
+        /// Issues a warning using the message provided.
+        /// </summary>
+        /// <param name="message">The message to display.</param>
+        static public void Warn(string message)
+        {
+            IssueWarning(message);
+        }
+
+        #endregion
+
         #region Ignore
 
         /// <summary>
@@ -181,6 +216,10 @@ namespace NUnit.Framework
             if (message == null) message = string.Empty;
             else if (args != null && args.Length > 0)
                 message = string.Format(message, args);
+
+            // If we are in a multiple assert block, this is an error
+            if (TestExecutionContext.CurrentContext.MultipleAssertLevel > 0)
+                throw new Exception("Assert.Ignore may not be used in a multiple assertion block.");
 
             throw new IgnoreException(message);
         }
@@ -220,6 +259,10 @@ namespace NUnit.Framework
             else if (args != null && args.Length > 0)
                 message = string.Format(message, args);
 
+            // If we are in a multiple assert block, this is an error
+            if (TestExecutionContext.CurrentContext.MultipleAssertLevel > 0)
+                throw new Exception("Assert.Inconclusive may not be used in a multiple assertion block.");
+
             throw new InconclusiveException(message);
         }
 
@@ -247,10 +290,10 @@ namespace NUnit.Framework
         #region Contains
 
         /// <summary>
-        /// Asserts that an object is contained in a list.
+        /// Asserts that an object is contained in a collection.
         /// </summary>
         /// <param name="expected">The expected object</param>
-        /// <param name="actual">The list to be examined</param>
+        /// <param name="actual">The collection to be examined</param>
         /// <param name="message">The message to display in case of failure</param>
         /// <param name="args">Array of objects to be used in formatting the message</param>
         public static void Contains(object expected, ICollection actual, string message, params object[] args)
@@ -259,10 +302,10 @@ namespace NUnit.Framework
         }
 
         /// <summary>
-        /// Asserts that an object is contained in a list.
+        /// Asserts that an object is contained in a collection.
         /// </summary>
         /// <param name="expected">The expected object</param>
-        /// <param name="actual">The list to be examined</param>
+        /// <param name="actual">The collection to be examined</param>
         public static void Contains(object expected, ICollection actual)
         {
             Assert.That(actual, new CollectionContainsConstraint(expected) ,null, null);
@@ -294,21 +337,8 @@ namespace NUnit.Framework
                 context.MultipleAssertLevel--;
             }
 
-            if (context.MultipleAssertLevel == 0)
-            {
-                int count = context.CurrentResult.AssertionResults.Count;
-
-                if (count > 0)
-                {
-                    var writer = new TextMessageWriter("Multiple Assert block had {0} failure(s).", count);
-
-                    int counter = 0;
-                    foreach (var assertion in context.CurrentResult.AssertionResults)
-                        writer.WriteLine(string.Format("  {0}) {1}", ++counter, assertion.Message));
-
-                    throw new AssertionException(writer.ToString());
-                }
-            }
+            if (context.MultipleAssertLevel == 0 && context.CurrentResult.PendingFailures > 0)
+                throw new MultipleAssertException();
         }
 
         #endregion
@@ -324,26 +354,37 @@ namespace NUnit.Framework
         {
             MessageWriter writer = new TextMessageWriter(message, args);
             result.WriteMessageTo(writer);
-            string formattedMessage = writer.ToString();
-            string stackTrace = GetStackTrace();
 
-            // Failure is recorded in <assertion> element in all cases
-            TestExecutionContext.CurrentContext.CurrentResult.RecordAssertion(
-                AssertionStatus.Failed, formattedMessage, stackTrace);
-
-            // If we are outside any multiple assert block, then throw
-            if (TestExecutionContext.CurrentContext.MultipleAssertLevel == 0)
-                throw new AssertionException(formattedMessage);
+            ReportFailure(writer.ToString());
         }
 
-        // System.Envionment.StackTrace puts extra entries on top of the stack, at least in some environments
+        private static void ReportFailure(string message)
+        {
+            // If we are outside any multiple assert block, then throw
+            if (TestExecutionContext.CurrentContext.MultipleAssertLevel == 0)
+                throw new AssertionException(message);
+
+            // Otherwise, just record the failure in an <assertion> element
+            var result = TestExecutionContext.CurrentContext.CurrentResult;
+            result.RecordAssertion(AssertionStatus.Failed, message, GetStackTrace());
+        }
+
+        private static void IssueWarning(string message)
+        {
+            var result = TestExecutionContext.CurrentContext.CurrentResult;
+            result.RecordAssertion(AssertionStatus.Warning, message, GetStackTrace());
+        }
+
+        // System.Environment.StackTrace puts extra entries on top of the stack, at least in some environments
         private static StackFilter SystemEnvironmentFilter = new StackFilter(@" System\.Environment\.");
 
         private static string GetStackTrace()
         {
             string stackTrace = null;
 
-#if PORTABLE
+#if PORTABLE && !NETSTANDARD1_6
+            // TODO: This isn't actually working! Since we catch it right here,
+            // the stack trace only has one entry.
             try
             {
                 // Throw to get stack trace for recording the assertion
@@ -365,6 +406,6 @@ namespace NUnit.Framework
             TestExecutionContext.CurrentContext.IncrementAssertCount();
         }
 
-#endregion
+        #endregion
     }
 }

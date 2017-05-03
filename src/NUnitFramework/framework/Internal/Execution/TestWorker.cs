@@ -35,12 +35,13 @@ namespace NUnit.Framework.Internal.Execution
     {
         private static Logger log = InternalTrace.GetLogger("TestWorker");
 
-        private WorkItemQueue _readyQueue;
         private Thread _workerThread;
 
         private int _workItemCount = 0;
 
         private bool _running;
+
+        #region Events
 
         /// <summary>
         /// Event signaled immediately before executing a WorkItem
@@ -51,7 +52,11 @@ namespace NUnit.Framework.Internal.Execution
         /// Event signaled immediately after executing a WorkItem
         /// </summary>
         public event EventHandler Idle;
-        
+
+        #endregion
+
+        #region Constructor
+
         /// <summary>
         /// Construct a new TestWorker.
         /// </summary>
@@ -60,20 +65,29 @@ namespace NUnit.Framework.Internal.Execution
         /// <param name="apartmentState">The apartment state to use for running tests</param>
         public TestWorker(WorkItemQueue queue, string name, ApartmentState apartmentState)
         {
-            _readyQueue = queue;
-
-            _workerThread = new Thread(new ThreadStart(TestWorkerThreadProc));
-            _workerThread.Name = name;
-            _workerThread.SetApartmentState(apartmentState);
+            WorkQueue = queue;
+            Name = name;
+            Apartment = apartmentState;
         }
+
+        #endregion
+
+        #region Properties
+
+        /// <summary>
+        /// The WorkItemQueue from which this worker pulls WorkItems
+        /// </summary>
+        public WorkItemQueue WorkQueue { get; private set; }
 
         /// <summary>
         /// The name of this worker - also used for the thread
         /// </summary>
-        public string Name
-        {
-            get { return _workerThread.Name; }
-        }
+        public string Name { get; private set; }
+
+        /// <summary>
+        /// The Apartment in which this worker runs tests
+        /// </summary>
+        public ApartmentState Apartment { get; private set; }
 
         /// <summary>
         /// Indicates whether the worker thread is running
@@ -83,6 +97,8 @@ namespace NUnit.Framework.Internal.Execution
             get { return _workerThread.IsAlive; }
         }
 
+        #endregion
+
         /// <summary>
         /// Our ThreadProc, which pulls and runs tests in a loop
         /// </summary>
@@ -90,35 +106,32 @@ namespace NUnit.Framework.Internal.Execution
 
         private void TestWorkerThreadProc()
         {
-            log.Info("{0} starting ", _workerThread.Name);
-
             _running = true;
 
             try
             {
                 while (_running)
                 {
-                    _currentWorkItem = _readyQueue.Dequeue();
+                    _currentWorkItem = WorkQueue.Dequeue();
                     if (_currentWorkItem == null)
                         break;
 
-                    log.Info("{0} executing {1}", _workerThread.Name, _currentWorkItem.Test.Name);
+                    log.Info("{0} executing {1}", _workerThread.Name, _currentWorkItem.Name);
 
-                    if (Busy != null)
-                        Busy(this, EventArgs.Empty);
+                    Busy(this, EventArgs.Empty);
 
-                    _currentWorkItem.WorkerId = Name;
+                    _currentWorkItem.TestWorker = this;
+
                     _currentWorkItem.Execute();
 
-                    if (Idle != null)
-                        Idle(this, EventArgs.Empty);
+                    Idle(this, EventArgs.Empty);
 
                     ++_workItemCount;
                 }
             }
             finally
             {
-                log.Info("{0} stopping - {1} WorkItems processed.", _workerThread.Name, _workItemCount);
+                log.Info("{0} stopping - {1} WorkItems processed.", Name, _workItemCount);
             }
         }
 
@@ -127,6 +140,11 @@ namespace NUnit.Framework.Internal.Execution
         /// </summary>
         public void Start()
         {
+            log.Info("{0} starting ", Name);
+
+            _workerThread = new Thread(new ThreadStart(TestWorkerThreadProc));
+            _workerThread.Name = Name;
+            _workerThread.SetApartmentState(Apartment);
             _workerThread.Start();
         }
 

@@ -21,12 +21,13 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
 
-// TODO: Test uses features not available in Silverlight
-#if !PORTABLE
+#if !PORTABLE && !NETSTANDARD1_6
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Text;
 using NUnit.Framework;
+using NUnit.Compatibility;
 using NUnit.Framework.Api;
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
@@ -34,8 +35,7 @@ using NUnit.TestData.ActionAttributeTests;
 
 namespace NUnit.Framework.Tests
 {
-    [TestFixture]
-    [Parallelizable(ParallelScope.None)]
+    [TestFixture, NonParallelizable]
     public class ActionAttributeTests
     {
         // NOTE: An earlier version of this fixture attempted to test
@@ -44,7 +44,7 @@ namespace NUnit.Framework.Tests
         // different runtimes, so we now look only at the relative position
         // of before and after actions with respect to the test.
 
-        private static readonly string ASSEMBLY_PATH = AssemblyHelper.GetAssemblyPath(typeof(ActionAttributeFixture).Assembly);
+        private static readonly string ASSEMBLY_PATH = AssemblyHelper.GetAssemblyPath(typeof(ActionAttributeFixture).GetTypeInfo().Assembly);
         private static readonly string ASSEMBLY_NAME = System.IO.Path.GetFileName(ASSEMBLY_PATH);
 
         private ITestResult _result = null;
@@ -154,7 +154,7 @@ namespace NUnit.Framework.Tests
         public void CorrectNumberOfEventsReceived()
         {
             Assert.That(ActionAttributeFixture.Events.Count, Is.EqualTo(
-                NumTestCaseEvents+ 2 * (NumParameterizedTestActions + NumTestFixtureActions + NumSetUpFixtureActions + NumAssemblyActions)));
+                NumTestCaseEvents + 2 * (NumParameterizedTestActions + NumTestFixtureActions + NumSetUpFixtureActions + NumAssemblyActions)));
         }
 
         [TestCase("CaseOne")]
@@ -165,7 +165,7 @@ namespace NUnit.Framework.Tests
             CheckActionsOnTestCase(testName);
         }
 
-#region Helper Methods
+        #region Helper Methods
 
         private void CheckActionsOnSuite(string suiteName, int firstEvent, int lastEvent, params string[] tags)
         {
@@ -174,7 +174,7 @@ namespace NUnit.Framework.Tests
 
             if (firstEvent > 0)
             {
-                var beforeEvent = ActionAttributeFixture.Events[firstEvent-1];
+                var beforeEvent = ActionAttributeFixture.Events[firstEvent - 1];
                 Assert.That(beforeEvent, Does.Not.StartWith(suiteName), "Extra ActionAttribute Before: {0}", beforeEvent);
             }
 
@@ -212,11 +212,11 @@ namespace NUnit.Framework.Tests
             Assert.That(event2, Does.EndWith(target1), "Event mismatch");
         }
 
-#endregion
+        #endregion
 
-#region Expected Attributes and Events
+        #region Expected Attributes and Events
 
-        private static readonly string[] ExpectedAssemblyActions = new string[] { 
+        private static readonly string[] ExpectedAssemblyActions = new string[] {
                         "OnAssembly", "OnAssembly", "OnAssembly" };
 
         private static readonly string[] ExpectedSetUpFixtureActions = new string[] {
@@ -237,6 +237,7 @@ namespace NUnit.Framework.Tests
 
         private static readonly string[] ExpectedTestCaseActions = new string[] {
                         "OnMethod", "OnMethod", "OnMethod",
+                        "SetUpTearDown",
                         "OnFixture", "OnFixture",
                         "OnInterface", "OnInterface",
                         "OnBaseFixture", "OnBaseFixture",
@@ -287,6 +288,7 @@ namespace NUnit.Framework.Tests
                 "CaseOne.OnInterface.Before.Test",
                 "CaseOne.OnFixture.Before.Test, Suite",
                 "CaseOne.OnFixture.Before.Test",
+                "CaseOne.SetUpTearDown.Before.Test",
                 "CaseOne.OnMethod.Before.Test, Suite",
                 "CaseOne.OnMethod.Before.Test",
                 "CaseOne.OnMethod.Before.Default",
@@ -294,6 +296,7 @@ namespace NUnit.Framework.Tests
                 "CaseOne.OnMethod.After.Default",
                 "CaseOne.OnMethod.After.Test",
                 "CaseOne.OnMethod.After.Test, Suite",
+                "CaseOne.SetUpTearDown.After.Test",
                 "CaseOne.OnFixture.After.Test",
                 "CaseOne.OnFixture.After.Test, Suite",
                 "CaseOne.OnInterface.After.Test",
@@ -322,6 +325,7 @@ namespace NUnit.Framework.Tests
                 "CaseTwo.OnInterface.Before.Test",
                 "CaseTwo.OnFixture.Before.Test, Suite",
                 "CaseTwo.OnFixture.Before.Test",
+                "CaseTwo.SetUpTearDown.Before.Test",
                 "CaseTwo.OnMethod.Before.Test, Suite",
                 "CaseTwo.OnMethod.Before.Test",
                 "CaseTwo.OnMethod.Before.Default",
@@ -329,6 +333,7 @@ namespace NUnit.Framework.Tests
                 "CaseTwo.OnMethod.After.Default",
                 "CaseTwo.OnMethod.After.Test",
                 "CaseTwo.OnMethod.After.Test, Suite",
+                "CaseTwo.SetUpTearDown.After.Test",
                 "CaseTwo.OnFixture.After.Test",
                 "CaseTwo.OnFixture.After.Test, Suite",
                 "CaseTwo.OnInterface.After.Test",
@@ -359,6 +364,7 @@ namespace NUnit.Framework.Tests
                 "SimpleTest.OnInterface.Before.Test",
                 "SimpleTest.OnFixture.Before.Test, Suite",
                 "SimpleTest.OnFixture.Before.Test",
+                "SimpleTest.SetUpTearDown.Before.Test",
                 "SimpleTest.OnMethod.Before.Test, Suite",
                 "SimpleTest.OnMethod.Before.Test",
                 "SimpleTest.OnMethod.Before.Default",
@@ -366,6 +372,7 @@ namespace NUnit.Framework.Tests
                 "SimpleTest.OnMethod.After.Default",
                 "SimpleTest.OnMethod.After.Test",
                 "SimpleTest.OnMethod.After.Test, Suite",
+                "SimpleTest.SetUpTearDown.After.Test",
                 "SimpleTest.OnFixture.After.Test",
                 "SimpleTest.OnFixture.After.Test, Suite",
                 "SimpleTest.OnInterface.After.Test",
@@ -411,7 +418,7 @@ namespace NUnit.Framework.Tests
         private static readonly int NumSetUpFixtureActions = ExpectedSetUpFixtureActions.Length;
         private static readonly int NumAssemblyActions = ExpectedAssemblyActions.Length;
 
-#endregion
+        #endregion
     }
 }
 #endif

@@ -39,6 +39,7 @@ namespace NUnit.Framework
         #region Equals and ReferenceEquals
 
         /// <summary>
+        /// DO NOT USE!
         /// The Equals method throws an InvalidOperationException. This is done 
         /// to make sure there is no mistake by calling this function.
         /// </summary>
@@ -48,19 +49,19 @@ namespace NUnit.Framework
         [EditorBrowsable(EditorBrowsableState.Never)]
         public static new bool Equals(object a, object b)
         {
-            throw new InvalidOperationException("Assume.Equals should not be used for Assertions");
+            throw new InvalidOperationException("Assume.Equals should not be used for Assertions.");
         }
 
         /// <summary>
-        /// override the default ReferenceEquals to throw an InvalidOperationException. This 
-        /// implementation makes sure there is no mistake in calling this function 
-        /// as part of Assert. 
+        /// DO NOT USE!
+        /// The ReferenceEquals method throws an InvalidOperationException. This is done 
+        /// to make sure there is no mistake by calling this function.
         /// </summary>
         /// <param name="a">The left object.</param>
         /// <param name="b">The right object.</param>
         public static new void ReferenceEquals(object a, object b)
         {
-            throw new InvalidOperationException("Assume.ReferenceEquals should not be used for Assertions");
+            throw new InvalidOperationException("Assume.ReferenceEquals should not be used for Assertions.");
         }
 
         #endregion
@@ -92,15 +93,20 @@ namespace NUnit.Framework
         /// <param name="args">Arguments to be used in formatting the message</param>
         public static void That<TActual>(ActualValueDelegate<TActual> del, IResolveConstraint expr, string message, params object[] args)
         {
-            var constraint = expr.Resolve();
+            CheckMultipleAssertLevel();
 
+            var constraint = expr.Resolve();
             var result = constraint.ApplyTo(del);
+
             if (!result.IsSuccess)
-            {
-                MessageWriter writer = new TextMessageWriter(message, args);
-                result.WriteMessageTo(writer);
-                throw new InconclusiveException(writer.ToString());
-            }
+                ReportFailure(result, message, args);
+        }
+
+        private static void ReportFailure(ConstraintResult result, string message, object[] args)
+        {
+            MessageWriter writer = new TextMessageWriter(message, args);
+            result.WriteMessageTo(writer);
+            throw new InconclusiveException(writer.ToString());
         }
 
 #if !NET_2_0
@@ -117,6 +123,8 @@ namespace NUnit.Framework
             IResolveConstraint expr,
             Func<string> getExceptionMessage)
         {
+            CheckMultipleAssertLevel();
+
             var constraint = expr.Resolve();
 
             var result = constraint.ApplyTo(del);
@@ -127,7 +135,7 @@ namespace NUnit.Framework
         }
 #endif
 
-#endregion
+        #endregion
 
         #region Boolean
 
@@ -249,6 +257,8 @@ namespace NUnit.Framework
         /// <param name="args">Arguments to be used in formatting the message</param>
         public static void That<TActual>(TActual actual, IResolveConstraint expression, string message, params object[] args)
         {
+            CheckMultipleAssertLevel();
+
             var constraint = expression.Resolve();
 
             var result = constraint.ApplyTo(actual);
@@ -274,6 +284,8 @@ namespace NUnit.Framework
             IResolveConstraint expression,
             Func<string> getExceptionMessage)
         {
+            CheckMultipleAssertLevel();
+
             var constraint = expression.Resolve();
 
             var result = constraint.ApplyTo(actual);
@@ -283,6 +295,16 @@ namespace NUnit.Framework
             }
         }
 #endif
+
+        #endregion
+
+        #region Helper Methods
+
+        private static void CheckMultipleAssertLevel()
+        {
+            if (TestExecutionContext.CurrentContext.MultipleAssertLevel > 0)
+                throw new Exception("Assume.That may not be used in a multiple assertion block.");
+        }
 
         #endregion
     }

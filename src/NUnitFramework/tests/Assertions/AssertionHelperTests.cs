@@ -5,6 +5,7 @@ using NUnit.TestUtilities.Comparers;
 
 namespace NUnit.Framework.Syntax
 {
+    [Obsolete("Test of Obsolete AssertionHelper class")]
     class AssertionHelperTests : AssertionHelper
     {
 #if !PORTABLE
@@ -313,7 +314,7 @@ namespace NUnit.Framework.Syntax
 
         #region After
 
-#if !PORTABLE
+#if !PORTABLE && !NETSTANDARD1_6
         [Test]
         public void After()
         {
@@ -713,7 +714,7 @@ namespace NUnit.Framework.Syntax
 
         #region BinarySerializable
 
-#if !PORTABLE
+#if !PORTABLE && !NETSTANDARD1_6
         [Test]
         public void BinarySerializableConstraint()
         {
@@ -727,7 +728,7 @@ namespace NUnit.Framework.Syntax
 
         #region XmlSerializable
 
-#if !PORTABLE
+#if !PORTABLE && !NETSTANDARD1_6
         [Test]
         public void XmlSerializableConstraint()
         {

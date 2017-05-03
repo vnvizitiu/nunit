@@ -15,6 +15,7 @@
     <OldToolsVersion>3.5</OldToolsVersion>
     <UpgradeBackupLocation />
     <IntermediateOutputPath>obj\$(Configuration)\net-3.5\</IntermediateOutputPath>
+    <LangVersion>6</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <Optimize>true</Optimize>
@@ -70,12 +71,16 @@
     <Compile Include="Api\ResultStateTests.cs" />
     <Compile Include="Api\TestAssemblyRunnerTests.cs" />
     <Compile Include="Assertions\AssertionHelperTests.cs" />
+    <Compile Include="Assertions\AssertMultipleTests.cs" />
     <Compile Include="Assertions\AssertPolarityTests.cs" />
+    <Compile Include="Assertions\AssertWarnTests.cs" />
     <Compile Include="Assertions\AssertZeroTests.cs" />
     <Compile Include="Assertions\AssumeEqualsTests.cs" />
     <Compile Include="Assertions\AsyncThrowsTests.cs" />
     <Compile Include="Assertions\LowTrustFixture.cs" />
+    <Compile Include="Assertions\WarningTests.cs" />
     <Compile Include="Attributes\CommandWrapperTests.cs" />
+    <Compile Include="Attributes\ParallelizableAttributeTests.cs" />
     <Compile Include="Attributes\RetryAttributeTests.cs" />
     <Compile Include="Attributes\RandomAttributeTests.cs" />
     <Compile Include="Attributes\RangeAttributeTests.cs" />
@@ -89,6 +94,7 @@
     <Compile Include="Internal\AssemblyHelperTests.cs" />
     <Compile Include="Internal\AsyncSetupTeardownTests.cs" />
     <Compile Include="Internal\AsyncTestMethodTests.cs" />
+    <Compile Include="Internal\EventListenerTextWriterTests.cs" />
     <Compile Include="Internal\Filters\AndFilterTests.cs" />
     <Compile Include="Internal\Filters\CategoryFilterTests.cs" />
     <Compile Include="Internal\Filters\ClassNameFilterTests.cs" />
@@ -115,6 +121,7 @@
     <Compile Include="Internal\Results\TestResultOutputTests.cs" />
     <Compile Include="Internal\Results\TestResultSuccessTests.cs" />
     <Compile Include="Internal\Results\TestResultTests.cs" />
+    <Compile Include="Internal\TestMethodTests.cs" />
     <Compile Include="Internal\TestNameGeneratorTests.cs" />
     <Compile Include="Internal\TestNamingTests.cs" />
     <Compile Include="Internal\TypeHelperTests.cs" />
@@ -251,6 +258,7 @@
     </Compile>
     <Compile Include="Internal\TestFixtureTests.cs" />
     <Compile Include="Internal\TestMethodSignatureTests.cs" />
+    <Compile Include="Internal\TestProgressReporterTests.cs" />
     <Compile Include="Internal\TestWorkerTests.cs" />
     <Compile Include="Internal\TestXmlTests.cs" />
     <Compile Include="Internal\TextMessageWriterTests.cs" />
@@ -277,6 +285,7 @@
     <Compile Include="Syntax\ThrowsTests.cs" />
     <Compile Include="Syntax\TypeConstraints.cs" />
     <Compile Include="TestContextTests.cs" />
+    <Compile Include="TestUtilities\Collections\SimpleEnumerable.cs" />
     <Compile Include="TestUtilities\Collections\SimpleObjectCollection.cs" />
     <Compile Include="TestUtilities\Collections\SimpleObjectList.cs" />
     <Compile Include="TestUtilities\Comparers\AlwaysEqualComparer.cs" />
@@ -335,6 +344,7 @@
     <None Include="..\..\nunit.snk">
       <Link>nunit.snk</Link>
     </None>
+    <None Include="nunit.framework.tests-3.5.project.json" />
     <None Include="packages.config" />
   </ItemGroup>
 </Project>

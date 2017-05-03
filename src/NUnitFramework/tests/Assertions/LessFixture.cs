@@ -158,19 +158,10 @@ namespace NUnit.Framework.Assertions
         [Test]
         public void FailureMessage()
         {
-            string msg = null;
+            var ex = Assert.Throws<AssertionException>(() => Assert.Less(9, 4));
 
-            try
-            {
-                Assert.Less( 9, 4 );
-            }
-            catch( AssertionException ex )
-            {
-                msg = ex.Message;
-            }
-
-            StringAssert.Contains( TextMessageWriter.Pfx_Expected + "less than 4", msg );
-            StringAssert.Contains( TextMessageWriter.Pfx_Actual + "9", msg );
+            StringAssert.Contains( TextMessageWriter.Pfx_Expected + "less than 4", ex.Message );
+            StringAssert.Contains( TextMessageWriter.Pfx_Actual + "9", ex.Message );
         }
     }
 }

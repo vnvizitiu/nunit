@@ -41,7 +41,7 @@ namespace NUnit.Framework
         {
             Exception caughtException = null;
 
-#if NET_4_0 || NET_4_5 || PORTABLE
+#if ASYNC
             if (AsyncInvocationRegion.IsAsyncOperation(code))
             {
                 using (var region = AsyncInvocationRegion.Create(code))
@@ -60,13 +60,17 @@ namespace NUnit.Framework
             }
             else
 #endif
-            try
+
+            using (new TestExecutionContext.IsolatedContext())
             {
-                code();
-            }
-            catch (Exception ex)
-            {
-                caughtException = ex;
+                try
+                {
+                    code();
+                }
+                catch (Exception ex)
+                {
+                    caughtException = ex;
+                }
             }
 
             Assert.That(caughtException, expression, message, args);

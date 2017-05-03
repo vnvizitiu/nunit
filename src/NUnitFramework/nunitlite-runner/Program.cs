@@ -35,7 +35,8 @@ namespace NUnitLite
     /// be used for test assemblies built against that framework version.
     /// 
     /// In the special case of the portable version of nunitlite-runner,
-    /// the program is a .NET 4.5 console application.
+    /// the program is a .NET 4.5 console application. In that case, we
+    /// create a ColorConsoleWriter, since the portable build can't do it.
     /// </summary>
     class Program
     {

@@ -413,7 +413,7 @@ namespace NUnit.Framework.Internal
         }
 
         /// <summary>
-        /// Returns a random bool based on the probablility a true result
+        /// Returns a random bool based on the probability a true result
         /// </summary>
         public bool NextBool(double probability)
         {
@@ -487,7 +487,7 @@ namespace NUnit.Framework.Internal
         /// </summary>
         public object NextEnum(Type type)
         {
-            Array enums = TypeHelper.GetEnumValues(type);
+            Array enums = Enum.GetValues(type);
             return enums.GetValue(Next(0, enums.Length));
         }
 

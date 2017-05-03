@@ -21,8 +21,12 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
 
+using System;
 using System.IO;
 using System.Collections.Generic;
+#if ASYNC
+using System.Threading.Tasks;
+#endif
 using NUnit.Framework.Interfaces;
 using NUnit.TestData.TestContextData;
 using NUnit.TestUtilities;
@@ -58,6 +62,8 @@ namespace NUnit.Framework.Tests
             _setupContext = TestContext.CurrentContext;
         }
 
+        #region TestDirectory
+
 #if !PORTABLE
         [Test]
         public void ConstructorCanAccessTestDirectory()
@@ -65,17 +71,21 @@ namespace NUnit.Framework.Tests
             Assert.That(_testDirectory, Is.Not.Null);
         }
 
-        [TestCaseSource("MySource")]
+        [TestCaseSource("TestDirectorySource")]
         public void TestCaseSourceCanAccessTestDirectory(string testDirectory)
         {
             Assert.That(testDirectory, Is.EqualTo(_testDirectory));
         }
 
-        static IEnumerable<string> MySource()
+        static IEnumerable<string> TestDirectorySource()
         {
             yield return TestContext.CurrentContext.TestDirectory;
         }
 #endif
+
+        #endregion
+
+        #region WorkDirectory
 
         [Test]
         public void ConstructorAccessWorkDirectory()
@@ -84,15 +94,42 @@ namespace NUnit.Framework.Tests
         }
 
         [Test]
-        public void TestCanAccessItsOwnName()
+        public void TestCanAccessWorkDirectory()
         {
-            Assert.That(TestContext.CurrentContext.Test.Name, Is.EqualTo("TestCanAccessItsOwnName"));
+            string workDirectory = TestContext.CurrentContext.WorkDirectory;
+            Assert.NotNull(workDirectory);
+#if !PORTABLE
+            Assert.That(Directory.Exists(workDirectory), string.Format("Directory {0} does not exist", workDirectory));
+#endif
         }
 
-        [Test]
+        [TestCaseSource("WorkDirectorySource")]
+        public void TestCaseSourceCanAccessWorkDirectory(string workDirectory)
+        {
+            Assert.That(workDirectory, Is.EqualTo(_workDirectory));
+        }
+
+        static IEnumerable<string> WorkDirectorySource()
+        {
+            yield return TestContext.CurrentContext.WorkDirectory;
+        }
+
+    #endregion
+
+    #region Test
+
+    #region Name
+
+    [Test]
         public void ConstructorCanAccessFixtureName()
         {
             Assert.That(_name, Is.EqualTo("TestContextTests"));
+        }
+
+        [Test]
+        public void TestCanAccessItsOwnName()
+        {
+            Assert.That(TestContext.CurrentContext.Test.Name, Is.EqualTo("TestCanAccessItsOwnName"));
         }
 
         [Test]
@@ -106,6 +143,10 @@ namespace NUnit.Framework.Tests
         {
             Assert.That(TestContext.CurrentContext.Test.Name, Is.EqualTo("TestCaseCanAccessItsOwnName(5)"));
         }
+
+        #endregion
+
+        #region FullName
 
         [Test]
         public void SetUpCanAccessTestFullName()
@@ -127,6 +168,10 @@ namespace NUnit.Framework.Tests
                 Is.EqualTo("NUnit.Framework.Tests.TestContextTests.TestCaseCanAccessItsOwnFullName(42)"));
         }
 
+        #endregion
+
+        #region MethodName
+
         [Test]
         public void SetUpCanAccessTestMethodName()
         {
@@ -138,12 +183,16 @@ namespace NUnit.Framework.Tests
         {
             Assert.That(TestContext.CurrentContext.Test.MethodName, Is.EqualTo("TestCanAccessItsOwnMethodName"));
         }
-        
+
         [TestCase(5)]
         public void TestCaseCanAccessItsOwnMethodName(int x)
         {
             Assert.That(TestContext.CurrentContext.Test.MethodName, Is.EqualTo("TestCaseCanAccessItsOwnMethodName"));
         }
+
+        #endregion
+
+        #region Id
 
         [Test]
         public void TestCanAccessItsOwnId()
@@ -157,6 +206,10 @@ namespace NUnit.Framework.Tests
             Assert.That(_setupContext.Test.ID, Is.EqualTo(TestContext.CurrentContext.Test.ID));
         }
 
+        #endregion
+
+        #region Properties
+
         [Test]
         [Property("Answer", 42)]
         public void TestCanAccessItsOwnProperties()
@@ -164,16 +217,27 @@ namespace NUnit.Framework.Tests
             Assert.That(TestContext.CurrentContext.Test.Properties.Get("Answer"), Is.EqualTo(42));
         }
 
-        [Test]
-        public void TestCanAccessWorkDirectory()
+        #endregion
+
+        #region Arguments
+
+        [TestCase(24, "abc")]
+        public void TestCanAccessItsOwnArguments(int x, string s)
         {
-            string workDirectory = TestContext.CurrentContext.WorkDirectory;
-            Assert.NotNull(workDirectory);
-            // SL tests may be running on the desktop
-#if !PORTABLE
-            Assert.That(Directory.Exists(workDirectory), string.Format("Directory {0} does not exist", workDirectory));
-#endif
+            Assert.That(TestContext.CurrentContext.Test.Arguments, Is.EqualTo(new object[] { 24, "abc" }));
         }
+
+        [Test]
+        public void TestCanAccessEmptyArgumentsArrayWhenDoesNotHaveArguments()
+        {
+            Assert.That(TestContext.CurrentContext.Test.Arguments, Is.EqualTo(new object[0]));
+        }
+
+        #endregion
+
+        #endregion
+
+        #region Result
 
         [Test]
         public void TestCanAccessTestState_PassingTest()
@@ -227,11 +291,56 @@ namespace NUnit.Framework.Tests
             TestBuilder.RunTestFixture(fixture);
             Assert.That(fixture.PassCount, Is.EqualTo(2));
             Assert.That(fixture.FailCount, Is.EqualTo(1));
+            Assert.That(fixture.WarningCount, Is.EqualTo(0));
             Assert.That(fixture.SkipCount, Is.EqualTo(3));
             Assert.That(fixture.InconclusiveCount, Is.EqualTo(4));
             Assert.That(fixture.Message, Is.EqualTo(TestResult.CHILD_ERRORS_MESSAGE));
             Assert.That(fixture.StackTrace, Is.Null);
         }
+
+        #endregion
+
+        #region Out
+
+#if ASYNC
+        [Test]
+        public async Task TestContextOut_ShouldFlowWithAsyncExecution()
+        {
+            var expected = TestContext.Out;
+            await YieldAsync();
+            Assert.AreEqual(expected, TestContext.Out);
+        }
+
+        [Test]
+        public async Task TestContextWriteLine_ShouldNotThrow_WhenExecutedFromAsyncMethod()
+        {
+            Assert.DoesNotThrow(TestContext.WriteLine);
+            await YieldAsync();
+            Assert.DoesNotThrow(TestContext.WriteLine);
+        }
+
+        [Test]
+        public void TestContextOut_ShouldBeAvailableFromOtherThreads()
+        {
+            var isTestContextOutAvailable = false;
+            Task.Factory.StartNew(() =>
+            {
+                isTestContextOutAvailable = TestContext.Out != null;
+            }).Wait();
+            Assert.True(isTestContextOutAvailable);
+        }
+
+        private async Task YieldAsync()
+        {
+#if NET_4_0
+            await TaskEx.Yield();
+#else
+            await Task.Yield();
+#endif
+        }
+#endif
+
+        #endregion
     }
 
     [TestFixture]

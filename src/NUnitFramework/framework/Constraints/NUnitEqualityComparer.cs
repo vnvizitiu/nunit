@@ -107,7 +107,7 @@ namespace NUnit.Framework.Constraints
         /// Gets the list of failure points for the last Match performed.
         /// The list consists of objects to be interpreted by the caller.
         /// This generally means that the caller may only make use of
-        /// objects it has placed on the list at a particular depthy.
+        /// objects it has placed on the list at a particular depth.
         /// </summary>
         public IList<FailurePoint> FailurePoints
         {
@@ -175,9 +175,6 @@ namespace NUnit.Framework.Constraints
                 return AreEqual(xKey, yKey, ref keyTolerance) && AreEqual(xValue, yValue, ref tolerance);
             }
 
-            //if (x is ICollection && y is ICollection)
-            //    return CollectionsEqual((ICollection)x, (ICollection)y, ref tolerance);
-
             if (x is string && y is string)
                 return StringsEqual((string)x, (string)y);
 
@@ -202,9 +199,9 @@ namespace NUnit.Framework.Constraints
                 DateTimeOffset xAsOffset = (DateTimeOffset)x;
                 DateTimeOffset yAsOffset = (DateTimeOffset)y;
 
-                if (tolerance != null && tolerance.Value is TimeSpan)
+                if (tolerance != null && tolerance.Amount is TimeSpan)
                 {
-                    TimeSpan amount = (TimeSpan)tolerance.Value;
+                    TimeSpan amount = (TimeSpan)tolerance.Amount;
                     result = (xAsOffset - yAsOffset).Duration() <= amount;
                 }
                 else
@@ -220,9 +217,9 @@ namespace NUnit.Framework.Constraints
                 return result;
             }
 
-            if (tolerance != null && tolerance.Value is TimeSpan)
+            if (tolerance != null && tolerance.Amount is TimeSpan)
             {
-                TimeSpan amount = (TimeSpan)tolerance.Value;
+                TimeSpan amount = (TimeSpan)tolerance.Amount;
 
                 if (x is DateTime && y is DateTime)
                     return ((DateTime)x - (DateTime)y).Duration() <= amount;
@@ -231,11 +228,14 @@ namespace NUnit.Framework.Constraints
                     return ((TimeSpan)x - (TimeSpan)y).Duration() <= amount;
             }
 
-            MethodInfo equals = FirstImplementsIEquatableOfSecond(xType, yType);
-            if (equals != null)
-                return InvokeFirstIEquatableEqualsSecond(x, y, equals);
-            if (xType != yType && (equals = FirstImplementsIEquatableOfSecond(yType, xType)) != null)
-                return InvokeFirstIEquatableEqualsSecond(y, x, equals);
+            if (!compareAsCollection)
+            {
+                MethodInfo equals = FirstImplementsIEquatableOfSecond(xType, yType);
+                if (equals != null)
+                    return InvokeFirstIEquatableEqualsSecond(x, y, equals);
+                if (xType != yType && (equals = FirstImplementsIEquatableOfSecond(yType, xType)) != null)
+                    return InvokeFirstIEquatableEqualsSecond(y, x, equals);
+            }
 
             if (x is IEnumerable && y is IEnumerable)
                 return EnumerablesEqual((IEnumerable) x, (IEnumerable) y, ref tolerance);
@@ -328,51 +328,6 @@ namespace NUnit.Framework.Constraints
         {
             var keyTolerance = Tolerance.Exact;
             return AreEqual(x.Key, y.Key, ref keyTolerance) && AreEqual(x.Value, y.Value, ref tolerance);
-        }
-
-        private bool CollectionsEqual(ICollection x, ICollection y, ref Tolerance tolerance)
-        {
-            IEnumerator expectedEnum = null;
-            IEnumerator actualEnum = null;
-
-            try
-            {
-                expectedEnum = x.GetEnumerator();
-                actualEnum = y.GetEnumerator();
-                int count;
-                for (count = 0; ; count++)
-                {
-                    bool expectedHasData = expectedEnum.MoveNext();
-                    bool actualHasData = actualEnum.MoveNext();
-
-                    if (!expectedHasData && !actualHasData)
-                        return true;
-
-                    if (expectedHasData != actualHasData ||
-                        !AreEqual(expectedEnum.Current, actualEnum.Current, ref tolerance))
-                    {
-                        FailurePoint fp = new FailurePoint();
-                        fp.Position = count;
-                        fp.ExpectedHasData = expectedHasData;
-                        if (expectedHasData)
-                            fp.ExpectedValue = expectedEnum.Current;
-                        fp.ActualHasData = actualHasData;
-                        if (actualHasData)
-                            fp.ActualValue = actualEnum.Current;
-                        failurePoints.Insert(0, fp);
-                        return false;
-                    }
-                }
-            }
-            finally
-            {
-                var expectedDisposable = expectedEnum as IDisposable;
-                if (expectedDisposable != null) expectedDisposable.Dispose();
-
-                var actualDisposable = actualEnum as IDisposable;
-                if (actualDisposable != null) actualDisposable.Dispose();
-
-            }
         }
 
         private bool StringsEqual(string x, string y)

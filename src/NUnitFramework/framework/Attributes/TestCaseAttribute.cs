@@ -224,8 +224,8 @@ namespace NUnit.Framework
                 Reason = value;
             }
         }
-        
-#if !PORTABLE
+
+#if !PORTABLE && !NETSTANDARD1_6
         /// <summary>
         /// Comma-delimited list of platforms to run the test for
         /// </summary>
@@ -370,15 +370,9 @@ namespace NUnit.Framework
                 if (arg == null)
                     continue;
 
-                if (arg is SpecialValue && (SpecialValue)arg == SpecialValue.Null)
-                {
-                    arglist[i] = null;
-                    continue;
-                }
-
                 if (targetType.IsAssignableFrom(arg.GetType()))
                     continue;
-#if !PORTABLE
+#if !PORTABLE && !NETSTANDARD1_6
                 if (arg is DBNull)
                 {
                     arglist[i] = null;
@@ -429,8 +423,8 @@ namespace NUnit.Framework
         public IEnumerable<TestMethod> BuildFrom(IMethodInfo method, Test suite)
         {
             TestMethod test = new NUnitTestCaseBuilder().BuildTestMethod(method, suite, GetParametersForTestCase(method));
-            
-#if !PORTABLE
+
+#if !PORTABLE && !NETSTANDARD1_6
             if (test.RunState != RunState.NotRunnable &&
                 test.RunState != RunState.Ignored)
             {

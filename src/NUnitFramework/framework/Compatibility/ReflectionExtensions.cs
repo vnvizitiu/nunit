@@ -28,7 +28,7 @@ using System.Linq;
 
 namespace NUnit.Compatibility
 {
-#if !NET_4_5 && !PORTABLE
+#if !NET_4_5 && !PORTABLE && !NETSTANDARD1_6
     /// <summary>
     /// Provides NUnit specific extensions to aid in Reflection
     /// across multiple frameworks
@@ -71,7 +71,7 @@ namespace NUnit.Compatibility
         }
     }
 
-#elif PORTABLE
+#elif PORTABLE || NETSTANDARD1_6
 
     /// <summary>
     /// Provides NUnit specific extensions to aid in Reflection
@@ -197,7 +197,7 @@ namespace NUnit.Compatibility
         {
             var pinfo = info as PropertyInfo;
             if (pinfo != null)
-                return pinfo.GetMethod.IsPrivate == false;
+                return pinfo.GetMethod?.IsPrivate == false;
 
             var finfo = info as FieldInfo;
             if (finfo != null)

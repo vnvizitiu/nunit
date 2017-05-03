@@ -36,6 +36,7 @@ namespace NUnit.Framework
         #region Equals and ReferenceEquals
 
         /// <summary>
+        /// DO NOT USE! Use CollectionAssert.AreEqual(...) instead.
         /// The Equals method throws an InvalidOperationException. This is done 
         /// to make sure there is no mistake by calling this function.
         /// </summary>
@@ -44,19 +45,19 @@ namespace NUnit.Framework
         [EditorBrowsable(EditorBrowsableState.Never)]
         public static new bool Equals(object a, object b)
         {
-            throw new InvalidOperationException("CollectionAssert.Equals should not be used for Assertions");
+            throw new InvalidOperationException("CollectionAssert.Equals should not be used for Assertions, use CollectionAssert.AreEqual(...) instead.");
         }
 
         /// <summary>
-        /// override the default ReferenceEquals to throw an InvalidOperationException. This 
-        /// implementation makes sure there is no mistake in calling this function 
-        /// as part of Assert. 
+        /// DO NOT USE!
+        /// The ReferenceEquals method throws an InvalidOperationException. This is done 
+        /// to make sure there is no mistake by calling this function.
         /// </summary>
         /// <param name="a"></param>
         /// <param name="b"></param>
         public static new void ReferenceEquals(object a, object b)
         {
-            throw new InvalidOperationException("CollectionAssert.ReferenceEquals should not be used for Assertions");
+            throw new InvalidOperationException("CollectionAssert.ReferenceEquals should not be used for Assertions.");
         }
 
         #endregion
@@ -169,7 +170,7 @@ namespace NUnit.Framework
         /// <param name="args">Arguments to be used in formatting the message</param>
         public static void AreEqual (IEnumerable expected, IEnumerable actual, string message, params object[] args) 
         {
-            Assert.That(actual, Is.EqualTo(expected), message, args);
+            Assert.That(actual, Is.EqualTo(expected).AsCollection, message, args);
         }
 
         /// <summary>
@@ -246,7 +247,7 @@ namespace NUnit.Framework
         /// <param name="args">Arguments to be used in formatting the message</param>
         public static void AreNotEqual (IEnumerable expected, IEnumerable actual, string message, params object[] args) 
         {
-            Assert.That(actual, Is.Not.EqualTo(expected), message, args);
+            Assert.That(actual, Is.Not.EqualTo(expected).AsCollection, message, args);
         }
 
         /// <summary>

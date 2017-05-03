@@ -26,7 +26,7 @@ using NUnit.Compatibility;
 using NUnit.Framework.Internal;
 using NUnit.Framework.Internal.Execution;
 
-#if PORTABLE && !NUNITLITE
+#if PORTABLE && !NUNITLITE && !NETSTANDARD1_6
 using BF = NUnit.Compatibility.BindingFlags;
 #else
 using BF = System.Reflection.BindingFlags;
@@ -114,7 +114,7 @@ namespace NUnit.TestUtilities
         public event System.EventHandler Executed;
 
         public FakeWorkItem(Test test, TestExecutionContext context)
-            : base(test) 
+            : base(test, TestFilter.Empty) 
         {
             InitializeContext(context);
         }

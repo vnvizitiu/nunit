@@ -8,10 +8,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject to
 // the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -31,7 +31,7 @@ using ActualValueDelegate = NUnit.Framework.Constraints.ActualValueDelegate<obje
 
 namespace NUnit.Framework.Constraints
 {
-    [TestFixture, Parallelizable(ParallelScope.None)]
+    [TestFixture, NonParallelizable]
     public class DelayedConstraintTests : ConstraintTestBase
     {
         // NOTE: This class tests the functioning of the DelayConstraint,
@@ -63,7 +63,7 @@ namespace NUnit.Framework.Constraints
         }
 
         static object[] SuccessData = new object[] { true };
-        static object[] FailureData = new object[] { 
+        static object[] FailureData = new object[] {
             new TestCaseData( false, "False" ),
             new TestCaseData( 0, "0" ),
             new TestCaseData( null, "null" ) };
@@ -76,7 +76,7 @@ namespace NUnit.Framework.Constraints
         static ActualValueDelegate<object>[] FailureDelegates;
 
         // Initialize static fields that are sensitive to order of initialization.
-        // Most compilers would probably intialize these in lexical order but it
+        // Most compilers would probably initialize these in lexical order but it
         // may not be guaranteed in all cases so we do it directly.
         static DelayedConstraintTests()
         {
@@ -107,7 +107,6 @@ namespace NUnit.Framework.Constraints
             SetValuesAfterDelay(DELAY);
             Assert.That(DelegateReturningValue, new DelayedConstraint(new EqualConstraint(true), AFTER, POLLING));
         }
-
 
         [Test]
         public void SimpleTestUsingBoolean()
@@ -260,7 +259,7 @@ namespace NUnit.Framework.Constraints
 
         private static void Delay(int delay)
         {
-            waitEvent.WaitOne(delay, false);
+            waitEvent.WaitOne(delay);
         }
 
         private static void MethodSetsValues()

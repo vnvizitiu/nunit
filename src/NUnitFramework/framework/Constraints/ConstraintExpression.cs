@@ -198,9 +198,10 @@ namespace NUnit.Framework.Constraints
         /// the following constraint to all members of a collection,
         /// succeeding only if a specified number of them succeed.
         /// </summary>
-        public ConstraintExpression Exactly(int expectedCount)
+        public ItemsConstraintExpression Exactly(int expectedCount)
         {
-            return this.Append(new ExactCountOperator(expectedCount));
+            builder.Append(new ExactCountOperator(expectedCount));
+            return new ItemsConstraintExpression(builder);
         }
         
         #endregion
@@ -438,7 +439,7 @@ namespace NUnit.Framework.Constraints
 
         #region BinarySerializable
 
-#if !PORTABLE
+#if !PORTABLE && !NETSTANDARD1_6
         /// <summary>
         /// Returns a constraint that tests whether an object graph is serializable in binary format.
         /// </summary>
@@ -452,7 +453,7 @@ namespace NUnit.Framework.Constraints
 
         #region XmlSerializable
 
-#if !PORTABLE
+#if !PORTABLE && !NETSTANDARD1_6
         /// <summary>
         /// Returns a constraint that tests whether an object graph is serializable in xml format.
         /// </summary>
@@ -736,6 +737,15 @@ namespace NUnit.Framework.Constraints
         }
 
         /// <summary>
+        /// Returns a new CollectionContainsConstraint checking for the
+        /// presence of a particular object in the collection.
+        /// </summary>
+        public CollectionContainsConstraint Contain(object expected)
+        {
+            return Contains(expected);
+        }
+
+        /// <summary>
         /// Returns a new ContainsConstraint. This constraint
         /// will, in turn, make use of the appropriate second-level
         /// constraint, depending on the type of the actual argument. 
@@ -745,7 +755,7 @@ namespace NUnit.Framework.Constraints
         /// </summary>
         public ContainsConstraint Contain(string expected)
         {
-            return (ContainsConstraint)this.Append(new ContainsConstraint(expected));
+            return Contains(expected);
         }
 
         #endregion

@@ -22,15 +22,53 @@
 // ***********************************************************************
 
 using NUnit.Framework.Interfaces;
+using System;
 
 namespace NUnit.Framework.Internal.Results
 {
-    public class TestResultIgnoredTests : TestResultTests
+    public class TestResultIgnoredWithReasonGivenTests : TestResultIgnoredTests
     {
+        public TestResultIgnoredWithReasonGivenTests() : base(NonWhitespaceIgnoreReason, tnode => ReasonNodeExpectedValidation(tnode, NonWhitespaceIgnoreReason))
+        {
+        }
+    }
+
+    public class TestResultIgnoredWithNullReasonGivenTests : TestResultIgnoredTests
+    {
+        public TestResultIgnoredWithNullReasonGivenTests() : base(null, NoReasonNodeExpectedValidation)
+        {
+        }
+    }
+
+    public class TestResultIgnoredWithEmptyReasonGivenTests : TestResultIgnoredTests
+    {
+        public TestResultIgnoredWithEmptyReasonGivenTests() : base(string.Empty, NoReasonNodeExpectedValidation)
+        {
+        }
+    }
+
+    public class TestResultIgnoredWithWhitespaceReasonGivenTests : TestResultIgnoredTests
+    {
+        public TestResultIgnoredWithWhitespaceReasonGivenTests() : base(" ", NoReasonNodeExpectedValidation)
+        {
+        }
+    }
+
+    public abstract class TestResultIgnoredTests : TestResultTests
+    {
+        protected string _ignoreReason;
+        private Action<TNode> _xmlReasonNodeValidation;
+
+        protected TestResultIgnoredTests(string ignoreReason, Action<TNode> xmlReasonNodeValidation)
+        {
+            _ignoreReason = ignoreReason;
+            _xmlReasonNodeValidation = xmlReasonNodeValidation;
+        }
+
         [SetUp]
         public void SimulateTestRun()
         {
-            _testResult.SetResult(ResultState.Ignored, "because");
+            _testResult.SetResult(ResultState.Ignored, _ignoreReason);
             _suiteResult.AddResult(_testResult);
         }
 
@@ -38,18 +76,18 @@ namespace NUnit.Framework.Internal.Results
         public void TestResultIsIgnored()
         {
             Assert.AreEqual(ResultState.Ignored, _testResult.ResultState);
-            Assert.AreEqual("because", _testResult.Message);
+            Assert.AreEqual(_ignoreReason, _testResult.Message);
         }
 
         [Test]
         public void SuiteResultIsIgnored()
         {
             Assert.AreEqual(ResultState.Ignored, _suiteResult.ResultState);
-            Assert.AreEqual(TestStatus.Skipped, _suiteResult.ResultState.Status);
             Assert.AreEqual(TestResult.CHILD_IGNORE_MESSAGE, _suiteResult.Message);
 
             Assert.AreEqual(0, _suiteResult.PassCount);
             Assert.AreEqual(0, _suiteResult.FailCount);
+            Assert.AreEqual(0, _suiteResult.WarningCount);
             Assert.AreEqual(1, _suiteResult.SkipCount);
             Assert.AreEqual(0, _suiteResult.InconclusiveCount);
             Assert.AreEqual(0, _suiteResult.AssertCount);
@@ -64,11 +102,7 @@ namespace NUnit.Framework.Internal.Results
             Assert.AreEqual("Ignored", testNode.Attributes["label"]);
             Assert.AreEqual(null, testNode.Attributes["site"]);
 
-            TNode reason = testNode.SelectSingleNode("reason");
-            Assert.NotNull(reason);
-            Assert.NotNull(reason.SelectSingleNode("message"));
-            Assert.AreEqual("because", reason.SelectSingleNode("message").Value);
-            Assert.Null(reason.SelectSingleNode("stack-trace"));
+            _xmlReasonNodeValidation(testNode);
         }
 
         [Test]
@@ -81,6 +115,7 @@ namespace NUnit.Framework.Internal.Results
             Assert.AreEqual(null, suiteNode.Attributes["site"]);
             Assert.AreEqual("0", suiteNode.Attributes["passed"]);
             Assert.AreEqual("0", suiteNode.Attributes["failed"]);
+            Assert.AreEqual("0", suiteNode.Attributes["warnings"]);
             Assert.AreEqual("1", suiteNode.Attributes["skipped"]);
             Assert.AreEqual("0", suiteNode.Attributes["inconclusive"]);
             Assert.AreEqual("0", suiteNode.Attributes["asserts"]);

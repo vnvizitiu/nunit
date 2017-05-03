@@ -24,6 +24,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
 using System.Security;
 using NUnit.Compatibility;
@@ -74,12 +75,12 @@ namespace NUnit.Framework.Api
         /// </returns>
         public ITest Build(Assembly assembly, IDictionary<string, object> options)
         {
-#if PORTABLE
+#if PORTABLE || NETSTANDARD1_6
             log.Debug("Loading {0}", assembly.FullName);
 #else
             log.Debug("Loading {0} in AppDomain {1}", assembly.FullName, AppDomain.CurrentDomain.FriendlyName);
 #endif
-            
+
 #if PORTABLE
             string assemblyPath = AssemblyHelper.GetAssemblyName(assembly).FullName;
 #else
@@ -99,7 +100,7 @@ namespace NUnit.Framework.Api
         /// </returns>
         public ITest Build(string assemblyName, IDictionary<string, object> options)
         {
-#if PORTABLE
+#if PORTABLE || NETSTANDARD1_6
             log.Debug("Loading {0}", assemblyName);
 #else
             log.Debug("Loading {0} in AppDomain {1}", assemblyName, AppDomain.CurrentDomain.FriendlyName);
@@ -115,8 +116,7 @@ namespace NUnit.Framework.Api
             catch (Exception ex)
             {
                 testAssembly = new TestAssembly(assemblyName);
-                testAssembly.RunState = RunState.NotRunnable;
-                testAssembly.Properties.Set(PropertyNames.SkipReason, ex.Message);
+                testAssembly.MakeInvalid(ExceptionHelper.BuildFriendlyMessage(ex));
             }
 
             return testAssembly;
@@ -131,26 +131,51 @@ namespace NUnit.Framework.Api
                 if (options.ContainsKey(FrameworkPackageSettings.DefaultTestNamePattern))
                     TestNameGenerator.DefaultTestNamePattern = options[FrameworkPackageSettings.DefaultTestNamePattern] as string;
 
-                if (options.ContainsKey(FrameworkPackageSettings.TestParameters))
+                if (options.ContainsKey(FrameworkPackageSettings.WorkDirectory))
+                    TestContext.DefaultWorkDirectory = options[FrameworkPackageSettings.WorkDirectory] as string;
+                else
+                    TestContext.DefaultWorkDirectory =
+#if PORTABLE
+                        @"\My Documents";
+#else
+                        Directory.GetCurrentDirectory();
+#endif
+
+                if (options.ContainsKey(FrameworkPackageSettings.TestParametersDictionary))
                 {
-                    string parameters = options[FrameworkPackageSettings.TestParameters] as string;
-                    if (!string.IsNullOrEmpty(parameters))
-                        foreach (string param in parameters.Split(new[] { ';' }))
-                        {
-                            int eq = param.IndexOf("=");
+                    var testParametersDictionary = options[FrameworkPackageSettings.TestParametersDictionary] as IDictionary<string, string>;
+                    if (testParametersDictionary != null)
+                    {
+                        foreach (var parameter in testParametersDictionary)
+                            TestContext.Parameters.Add(parameter.Key, parameter.Value);
+                    }
+                }
+                else
+                {
+                    // This cannot be changed without breaking backwards compatibility with old runners.
+                    // Deserializes the way old runners understand.
 
-                            if (eq > 0 && eq < param.Length - 1)
+                    if (options.ContainsKey(FrameworkPackageSettings.TestParameters))
+                    {
+                        string parameters = options[FrameworkPackageSettings.TestParameters] as string;
+                        if (!string.IsNullOrEmpty(parameters))
+                            foreach (string param in parameters.Split(new[] { ';' }))
                             {
-                                var name = param.Substring(0, eq);
-                                var val = param.Substring(eq + 1);
+                                int eq = param.IndexOf("=");
 
-                                TestContext.Parameters.Add(name, val);
+                                if (eq > 0 && eq < param.Length - 1)
+                                {
+                                    var name = param.Substring(0, eq);
+                                    var val = param.Substring(eq + 1);
+
+                                    TestContext.Parameters.Add(name, val);
+                                }
                             }
-                        }
+                    }
                 }
 
                 IList fixtureNames = null;
-                if (options.ContainsKey (FrameworkPackageSettings.LOAD))
+                if (options.ContainsKey(FrameworkPackageSettings.LOAD))
                     fixtureNames = options[FrameworkPackageSettings.LOAD] as IList;
                 var fixtures = GetFixtures(assembly, fixtureNames);
 
@@ -159,8 +184,7 @@ namespace NUnit.Framework.Api
             catch (Exception ex)
             {
                 testAssembly = new TestAssembly(assemblyPath);
-                testAssembly.RunState = RunState.NotRunnable;
-                testAssembly.Properties.Set(PropertyNames.SkipReason, ex.Message);
+                testAssembly.MakeInvalid(ExceptionHelper.BuildFriendlyMessage(ex));
             }
 
             return testAssembly;
@@ -243,7 +267,7 @@ namespace NUnit.Framework.Api
         // the full-trust 'PermissionSetAttribute' on this class. Callers of this method have no influence on how the 
         // Process class is used, so we can safely satisfy the link demand with a 'SecuritySafeCriticalAttribute' rather
         // than a 'SecurityCriticalAttribute' and allow use by security transparent callers.
-        [SecuritySafeCritical]  
+        [SecuritySafeCritical]
 #endif
         private TestSuite BuildTestAssembly(Assembly assembly, string assemblyName, IList<Test> fixtures)
         {
@@ -251,8 +275,7 @@ namespace NUnit.Framework.Api
 
             if (fixtures.Count == 0)
             {
-                testAssembly.RunState = RunState.NotRunnable;
-                testAssembly.Properties.Set(PropertyNames.SkipReason, "Has no TestFixtures");
+                testAssembly.MakeInvalid("Has no TestFixtures");
             }
             else
             {
@@ -264,7 +287,7 @@ namespace NUnit.Framework.Api
 
             testAssembly.ApplyAttributesToTest(assembly);
 
-#if !PORTABLE
+#if !PORTABLE && !NETSTANDARD1_6
             testAssembly.Properties.Set(PropertyNames.ProcessID, System.Diagnostics.Process.GetCurrentProcess().Id);
             testAssembly.Properties.Set(PropertyNames.AppDomain, AppDomain.CurrentDomain.FriendlyName);
 #endif

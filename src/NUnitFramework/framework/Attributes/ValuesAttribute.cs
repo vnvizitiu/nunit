@@ -104,7 +104,7 @@ namespace NUnit.Framework
 
             if (targetType.GetTypeInfo().IsEnum && data.Length == 0)
             {
-                return TypeHelper.GetEnumValues(targetType);
+                return Enum.GetValues(targetType);
             }
             if (targetType == typeof(bool) && data.Length == 0)
             {
@@ -132,7 +132,7 @@ namespace NUnit.Framework
                 if (targetType.GetTypeInfo().IsAssignableFrom(arg.GetType().GetTypeInfo()))
                     continue;
 
-#if !PORTABLE
+#if !PORTABLE && !NETSTANDARD1_6
                 if (arg is DBNull)
                 {
                     data[i] = null;

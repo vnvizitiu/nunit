@@ -20,7 +20,7 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
-#if !PORTABLE
+#if !PORTABLE && !NETSTANDARD1_6
 using System;
 using System.Linq;
 using NUnit.Framework.Interfaces;
@@ -33,7 +33,7 @@ namespace NUnit.Framework.Attributes
     /// <summary>
     /// Tests for MaxTime decoration.
     /// </summary>
-    [TestFixture, Parallelizable(ParallelScope.None)]
+    [TestFixture, NonParallelizable]
     public class MaxTimeTests
     {
         [Test,MaxTime(1000)]

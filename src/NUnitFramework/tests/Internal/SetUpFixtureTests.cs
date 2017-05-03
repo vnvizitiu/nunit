@@ -4,31 +4,34 @@
 // obtain a copy of the license at http://nunit.org
 // ****************************************************************
 
-#if !PORTABLE
+#if !PORTABLE && !NETSTANDARD1_6
 using System.Collections.Generic;
+using System.Reflection;
+using NUnit.Compatibility;
 using NUnit.Framework.Api;
 using NUnit.Framework.Interfaces;
+using NUnit.TestUtilities;
 
 namespace NUnit.Framework.Internal
 {
     [TestFixture]
     public class SetUpFixtureTests
     {
-        private static readonly string testAssembly = AssemblyHelper.GetAssemblyPath(typeof(NUnit.TestData.SetupFixture.Namespace1.SomeFixture).Assembly);
+        private static readonly string testAssembly = AssemblyHelper.GetAssemblyPath(typeof(NUnit.TestData.SetupFixture.Namespace1.SomeFixture).GetTypeInfo().Assembly);
 
         ITestAssemblyBuilder builder;
         ITestAssemblyRunner runner;
 
-#region SetUp
+        #region SetUp
         [SetUp]
         public void SetUp()
         {
             TestUtilities.SimpleEventRecorder.Clear();
-            
+
             builder = new DefaultTestAssemblyBuilder();
             runner = new NUnitTestAssemblyRunner(builder);
         }
-#endregion SetUp
+        #endregion SetUp
 
         private ITestResult runTests(string nameSpace)
         {
@@ -49,10 +52,10 @@ namespace NUnit.Framework.Internal
             return null;
         }
 
-#region Builder Tests
+        #region Builder Tests
 
         /// <summary>
-        /// Tests that the TestSuiteBuilder correctly interperets a SetupFixture class as a 'virtual namespace' into which 
+        /// Tests that the TestSuiteBuilder correctly interprets a SetupFixture class as a 'virtual namespace' into which 
         /// all it's sibling classes are inserted.
         /// </summary>
         [NUnit.Framework.Test]
@@ -87,21 +90,18 @@ namespace NUnit.Framework.Internal
         }
 
         /// <summary>
-        /// Tests that the TestSuiteBuilder correctly interperets a SetupFixture class with no parent namespace 
+        /// Tests that the TestSuiteBuilder correctly interprets a SetupFixture class with no parent namespace 
         /// as a 'virtual assembly' into which all it's sibling fixtures are inserted.
         /// </summary>
         [NUnit.Framework.Test]
         public void AssemblySetUpFixtureReplacesAssemblyNodeInTree()
         {
             IDictionary<string, object> options = new Dictionary<string, object>();
-            ITest suite = builder.Build(testAssembly, options);
+            var setupFixture = builder.Build(testAssembly, options) as SetUpFixture;
+            Assert.IsNotNull(setupFixture);
 
-            Assert.IsNotNull(suite);
-            Assert.That(suite, Is.InstanceOf<SetUpFixture>());
-
-            suite = suite.Tests[1] as TestSuite;
-            Assert.AreEqual("SomeFixture", suite.Name);
-            Assert.AreEqual(1, suite.Tests.Count);
+            var testFixture = TestFinder.Find("SomeFixture", setupFixture, false);
+            Assert.AreEqual(1, testFixture.Tests.Count);
         }
 
         [Test]
@@ -134,24 +134,24 @@ namespace NUnit.Framework.Internal
             Assert.That(suite.Tests[0].RunState, Is.EqualTo(RunState.Runnable));
         }
 
-#endregion
+        #endregion
 
-#region Simple
+        #region Simple
         [NUnit.Framework.Test]
         public void NamespaceSetUpFixtureWrapsExecutionOfSingleTest()
         {
             Assert.That(runTests("NUnit.TestData.SetupFixture.Namespace1").ResultState.Status, Is.EqualTo(TestStatus.Passed));
             TestUtilities.SimpleEventRecorder.Verify("NS1.OneTimeSetup",
-                                                     "NS1.Fixture.SetUp", 
-                                                     "NS1.Test.SetUp", 
-                                                     "NS1.Test", 
-                                                     "NS1.Test.TearDown", 
+                                                     "NS1.Fixture.SetUp",
+                                                     "NS1.Test.SetUp",
+                                                     "NS1.Test",
+                                                     "NS1.Test.TearDown",
                                                      "NS1.Fixture.TearDown",
                                                      "NS1.OneTimeTearDown");
         }
-#endregion Simple
+        #endregion Simple
 
-#region Static
+        #region Static
         [Test]
         public void NamespaceSetUpMethodsMayBeStatic()
         {
@@ -164,9 +164,9 @@ namespace NUnit.Framework.Internal
                                                      "NS5.Fixture.TearDown",
                                                      "NS5.OneTimeTearDown");
         }
-#endregion
+        #endregion
 
-#region TwoTestFixtures
+        #region TwoTestFixtures
         [NUnit.Framework.Test]
         public void NamespaceSetUpFixtureWrapsExecutionOfTwoTests()
         {
@@ -186,9 +186,9 @@ namespace NUnit.Framework.Internal
                                                      "NS2.Fixture.TearDown",
                                                      "NS2.OneTimeTearDown");
         }
-#endregion TwoTestFixtures
+        #endregion TwoTestFixtures
 
-#region SubNamespace
+        #region SubNamespace
         [NUnit.Framework.Test]
         public void NamespaceSetUpFixtureWrapsNestedNamespaceSetUpFixture()
         {
@@ -196,8 +196,8 @@ namespace NUnit.Framework.Internal
             TestUtilities.SimpleEventRecorder.Verify("NS3.OneTimeSetUp",
                                                      "NS3.Fixture.SetUp",
                                                      "NS3.Test.SetUp",
-                                                     "NS3.Test", 
-                                                     "NS3.Test.TearDown", 
+                                                     "NS3.Test",
+                                                     "NS3.Test.TearDown",
                                                      "NS3.Fixture.TearDown",
                                                      "NS3.SubNamespace.OneTimeSetUp",
                                                      "NS3.SubNamespace.Fixture.SetUp",
@@ -208,9 +208,9 @@ namespace NUnit.Framework.Internal
                                                      "NS3.SubNamespace.OneTimeTearDown",
                                                      "NS3.OneTimeTearDown");
         }
-#endregion SubNamespace
+        #endregion SubNamespace
 
-#region TwoSetUpFixtures
+        #region TwoSetUpFixtures
         [NUnit.Framework.Test]
         public void WithTwoSetUpFixturesBothAreUsed()
         {
@@ -224,9 +224,9 @@ namespace NUnit.Framework.Internal
                                              .AndThen("NS4.OneTimeTearDown1", "NS4.OneTimeTearDown2")
                                              .Verify();
         }
-#endregion TwoSetUpFixtures
+        #endregion TwoSetUpFixtures
 
-#region InvalidSetUpFixture
+        #region InvalidSetUpFixture
 
         [Test]
         public void InvalidSetUpFixtureTest()
@@ -235,9 +235,9 @@ namespace NUnit.Framework.Internal
             TestUtilities.SimpleEventRecorder.Verify(new string[0]);
         }
 
-#endregion
+        #endregion
 
-#region NoNamespaceSetupFixture
+        #region NoNamespaceSetupFixture
         [NUnit.Framework.Test]
         public void AssemblySetupFixtureWrapsExecutionOfTest()
         {
@@ -248,7 +248,7 @@ namespace NUnit.Framework.Internal
                                                      "NoNamespaceTest",
                                                      "Assembly.OneTimeTearDown");
         }
-#endregion NoNamespaceSetupFixture
+        #endregion NoNamespaceSetupFixture
     }
 }
 #endif
