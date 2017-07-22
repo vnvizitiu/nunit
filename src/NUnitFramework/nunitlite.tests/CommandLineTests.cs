@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2011 Charlie Poole
+// Copyright (c) 2011 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -40,7 +40,6 @@ namespace NUnitLite.Tests
     {
         #region Argument PreProcessor Tests
 
-#if !PORTABLE
         [TestCase("--arg", "--arg")]
         [TestCase("--ArG", "--ArG")]
         [TestCase("--arg1 --arg2", "--arg1", "--arg2")]
@@ -97,16 +96,16 @@ namespace NUnitLite.Tests
         [TestCase("testfile.dll @file1.txt --arg2", "file1.txt:--where test==somelongname", "testfile.dll", "--where", "test==somelongname", "--arg2")]
         // NOTE: The next is not valid. Where clause is spread over several args and therefore won't parse. Quotes are required.
         [TestCase("testfile.dll @file1.txt --arg2", "file1.txt:--where test == somelongname", "testfile.dll", "--where", "test", "==", "somelongname", "--arg2")]
-        [TestCase("testfile.dll @file1.txt --arg2", 
-            "file1.txt:--where \"test == somelongname\"", 
+        [TestCase("testfile.dll @file1.txt --arg2",
+            "file1.txt:--where \"test == somelongname\"",
             "testfile.dll", "--where", "test == somelongname", "--arg2")]
-        [TestCase("testfile.dll @file1.txt --arg2", 
-            "file1.txt:--where\n    \"test == somelongname\"", 
+        [TestCase("testfile.dll @file1.txt --arg2",
+            "file1.txt:--where\n    \"test == somelongname\"",
             "testfile.dll", "--where", "test == somelongname", "--arg2")]
-        [TestCase("testfile.dll @file1.txt --arg2", 
+        [TestCase("testfile.dll @file1.txt --arg2",
             "file1.txt:--where\n    \"test == somelongname or test == /another long name/ or cat == SomeCategory\"",
             "testfile.dll", "--where", "test == somelongname or test == /another long name/ or cat == SomeCategory", "--arg2")]
-        [TestCase("testfile.dll @file1.txt --arg2", 
+        [TestCase("testfile.dll @file1.txt --arg2",
             "file1.txt:--where\n    \"test == somelongname or\ntest == /another long name/ or\ncat == SomeCategory\"",
             "testfile.dll", "--where", "test == somelongname or test == /another long name/ or cat == SomeCategory", "--arg2")]
         [TestCase("testfile.dll @file1.txt --arg2",
@@ -173,7 +172,6 @@ namespace NUnitLite.Tests
                 Assert.AreEqual(expectedErrors, options.ErrorMessages);
             }
         }
-#endif
         #endregion
 
         #region General Tests
@@ -190,9 +188,7 @@ namespace NUnitLite.Tests
         [TestCase("ShowVersion", "version|V")]
         [TestCase("StopOnError", "stoponerror")]
         [TestCase("WaitBeforeExit", "wait")]
-#if !PORTABLE
         [TestCase("NoHeader", "noheader|noh")]
-#endif
         [TestCase("TeamCity", "teamcity")]
         public void CanRecognizeBooleanOptions(string propertyName, string pattern)
         {
@@ -223,12 +219,10 @@ namespace NUnitLite.Tests
 
         [TestCase("WhereClause", "where", new string[] { "cat==Fast" }, new string[0])]
         [TestCase("DisplayTestLabels", "labels", new string[] { "Off", "On", "Before", "After", "All" }, new string[] { "JUNK" })]
-#if !PORTABLE
         [TestCase("OutFile", "output|out", new string[] { "output.txt" }, new string[0])]
         [TestCase("ErrFile", "err", new string[] { "error.txt" }, new string[0])]
         [TestCase("WorkDirectory", "work", new string[] { "results" }, new string[0])]
         [TestCase("InternalTraceLevel", "trace", new string[] { "Off", "Error", "Warning", "Info", "Debug", "Verbose" }, new string[] { "JUNK" })]
-#endif
         public void CanRecognizeStringOptions(string propertyName, string pattern, string[] goodValues, string[] badValues)
         {
             string[] prototypes = pattern.Split('|');
@@ -256,9 +250,7 @@ namespace NUnitLite.Tests
         }
 
         [TestCase("DisplayTestLabels", "labels", new string[] { "Off", "On", "All" })]
-#if !PORTABLE
         [TestCase("InternalTraceLevel", "trace", new string[] { "Off", "Error", "Warning", "Info", "Debug", "Verbose" })]
-#endif
         public void CanRecognizeLowerCaseOptionValues(string propertyName, string optionName, string[] canonicalValues)
         {
             PropertyInfo property = GetPropertyInfo(propertyName);
@@ -273,8 +265,9 @@ namespace NUnitLite.Tests
                 Assert.AreEqual(canonicalValue, (string)property.GetValue(options, null), "Didn't recognize " + optionPlusValue);
             }
         }
-
+#if !NETSTANDARD1_3 && !NETSTANDARD1_6
         [TestCase("DefaultTimeout", "timeout")]
+#endif
         [TestCase("RandomSeed", "seed")]
 #if PARALLEL
         [TestCase("NumberOfTestWorkers", "workers")]
@@ -316,12 +309,12 @@ namespace NUnitLite.Tests
         // }
 
         [TestCase("--where")]
-        [TestCase("--timeout")]
-#if !PORTABLE
         [TestCase("--output")]
         [TestCase("--err")]
         [TestCase("--work")]
         [TestCase("--trace")]
+#if !NETSTANDARD1_3 && !NETSTANDARD1_6
+        [TestCase("--timeout")]
 #endif
         public void MissingValuesAreReported(string option)
         {
@@ -396,7 +389,7 @@ namespace NUnitLite.Tests
             Assert.True(options.Validate());
             Assert.AreEqual(-1, options.DefaultTimeout);
         }
-
+#if !NETSTANDARD1_3 && !NETSTANDARD1_6
         [Test]
         public void TimeoutThrowsExceptionIfOptionHasNoValue()
         {
@@ -418,6 +411,7 @@ namespace NUnitLite.Tests
             Assert.False(options.Validate());
             Assert.AreEqual(-1, options.DefaultTimeout);
         }
+#endif
 
         #endregion
 
@@ -433,7 +427,6 @@ namespace NUnitLite.Tests
             Assert.AreEqual("results.xml", options.InputFile);
         }
 
-#if !PORTABLE
         [Test]
         public void ResultOptionWithFilePath()
         {
@@ -443,7 +436,6 @@ namespace NUnitLite.Tests
             OutputSpecification spec = options.ResultOutputSpecifications[0];
             Assert.AreEqual("results.xml", spec.OutputPath);
             Assert.AreEqual("nunit3", spec.Format);
-            Assert.Null(spec.Transform);
         }
 
         [Test]
@@ -455,19 +447,6 @@ namespace NUnitLite.Tests
             OutputSpecification spec = options.ResultOutputSpecifications[0];
             Assert.AreEqual("results.xml", spec.OutputPath);
             Assert.AreEqual("nunit2", spec.Format);
-            Assert.Null(spec.Transform);
-        }
-
-        [Test]
-        public void ResultOptionWithFilePathAndTransform()
-        {
-            var options = new NUnitLiteOptions("-result:results.xml;transform=transform.xslt");
-            Assert.True(options.Validate());
-
-            OutputSpecification spec = options.ResultOutputSpecifications[0];
-            Assert.AreEqual("results.xml", spec.OutputPath);
-            Assert.AreEqual("user", spec.Format);
-            Assert.AreEqual("transform.xslt", spec.Transform);
         }
 
         [Test]
@@ -481,26 +460,19 @@ namespace NUnitLite.Tests
         [Test]
         public void ResultOptionMayBeRepeated()
         {
-            var options = new NUnitLiteOptions("-result:results.xml", "-result:nunit2results.xml;format=nunit2", "-result:myresult.xml;transform=mytransform.xslt");
+            var options = new NUnitLiteOptions("-result:results.xml", "-result:nunit2results.xml;format=nunit2");
             Assert.True(options.Validate(), "Should be valid");
 
             var specs = options.ResultOutputSpecifications;
-            Assert.AreEqual(3, specs.Count);
+            Assert.That(specs, Has.Count.EqualTo(2));
 
             var spec1 = specs[0];
             Assert.AreEqual("results.xml", spec1.OutputPath);
             Assert.AreEqual("nunit3", spec1.Format);
-            Assert.Null(spec1.Transform);
 
             var spec2 = specs[1];
             Assert.AreEqual("nunit2results.xml", spec2.OutputPath);
             Assert.AreEqual("nunit2", spec2.Format);
-            Assert.Null(spec2.Transform);
-
-            var spec3 = specs[2];
-            Assert.AreEqual("myresult.xml", spec3.OutputPath);
-            Assert.AreEqual("user", spec3.Format);
-            Assert.AreEqual("mytransform.xslt", spec3.Transform);
         }
 
         [Test]
@@ -512,7 +484,6 @@ namespace NUnitLite.Tests
             var spec = options.ResultOutputSpecifications[0];
             Assert.AreEqual("TestResult.xml", spec.OutputPath);
             Assert.AreEqual("nunit3", spec.Format);
-            Assert.Null(spec.Transform);
         }
 
         [Test]
@@ -528,13 +499,20 @@ namespace NUnitLite.Tests
             var options = new NUnitLiteOptions("-result:results.xml", "-noresult", "-result:nunit2results.xml;format=nunit2");
             Assert.AreEqual(0, options.ResultOutputSpecifications.Count);
         }
-#endif
+
+        [Test]
+        public void InvalidResultSpecRecordsError()
+        {
+            var options = new NUnitLiteOptions("test.dll", "-result:userspecifed.xml;format=nunit2;format=nunit3");
+            Assert.That(options.ResultOutputSpecifications, Has.Exactly(1).Items
+                    .And.Exactly(1).Property(nameof(OutputSpecification.OutputPath)).EqualTo("TestResult.xml"));
+            Assert.That(options.ErrorMessages, Has.Exactly(1).Contains("invalid output spec").IgnoreCase);
+        }
 
         #endregion
 
         #region Explore Option
 
-#if !PORTABLE
         [Test]
         public void ExploreOptionWithoutPath()
         {
@@ -553,7 +531,6 @@ namespace NUnitLite.Tests
             OutputSpecification spec = options.ExploreOutputSpecifications[0];
             Assert.AreEqual("results.xml", spec.OutputPath);
             Assert.AreEqual("nunit3", spec.Format);
-            Assert.Null(spec.Transform);
         }
 
         [Test]
@@ -566,20 +543,6 @@ namespace NUnitLite.Tests
             OutputSpecification spec = options.ExploreOutputSpecifications[0];
             Assert.AreEqual("results.xml", spec.OutputPath);
             Assert.AreEqual("cases", spec.Format);
-            Assert.Null(spec.Transform);
-        }
-
-        [Test]
-        public void ExploreOptionWithFilePathAndTransform()
-        {
-            var options = new NUnitLiteOptions("-explore:results.xml;transform=myreport.xslt");
-            Assert.True(options.Validate());
-            Assert.True(options.Explore);
-
-            OutputSpecification spec = options.ExploreOutputSpecifications[0];
-            Assert.AreEqual("results.xml", spec.OutputPath);
-            Assert.AreEqual("user", spec.Format);
-            Assert.AreEqual("myreport.xslt", spec.Transform);
         }
 
         [Test]
@@ -590,8 +553,6 @@ namespace NUnitLite.Tests
             Assert.True(options.Explore);
             Assert.AreEqual("C:/nunit/tests/bin/Debug/console-test.xml", options.ExploreOutputSpecifications[0].OutputPath);
         }
-
-#endif
 
         [TestCase(true, null, true)]
         [TestCase(false, null, false)]

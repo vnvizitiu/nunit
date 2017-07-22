@@ -1,5 +1,5 @@
 ﻿// ***********************************************************************
-// Copyright (c) 2011 Charlie Poole
+// Copyright (c) 2011 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -8,10 +8,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject to
 // the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -77,7 +77,6 @@ namespace NUnit.Framework
             get { return TestExecutionContext.CurrentContext.OutWriter; }
         }
 
-#if !PORTABLE
         /// <summary>
         /// Gets a TextWriter that will send output directly to Console.Error
         /// </summary>
@@ -87,7 +86,6 @@ namespace NUnit.Framework
         /// Gets a TextWriter for use in displaying immediate progress messages
         /// </summary>
         public static readonly TextWriter Progress = new EventListenerTextWriter("Progress", Console.Error);
-#endif
 
         /// <summary>
         /// TestParameters object holds parameters for the test run, if any are specified
@@ -110,7 +108,7 @@ namespace NUnit.Framework
         }
 
         /// <summary>
-        /// Gets a Representation of the TestResult for the current test. 
+        /// Gets a Representation of the TestResult for the current test.
         /// </summary>
         public ResultAdapter Result
         {
@@ -127,7 +125,6 @@ namespace NUnit.Framework
         }
 #endif
 
-#if !PORTABLE
         /// <summary>
         /// Gets the directory containing the current test assembly.
         /// </summary>
@@ -140,7 +137,7 @@ namespace NUnit.Framework
                 if (assembly != null)
                     return AssemblyHelper.GetDirectoryName(assembly);
 
-#if NETSTANDARD1_6
+#if NETSTANDARD1_3 || NETSTANDARD1_6
                 // Test is null, we may be loading tests rather than executing.
                 // Assume that the NUnit framework is in the same directory as the tests
                 return AssemblyHelper.GetDirectoryName(typeof(TestContext).GetTypeInfo().Assembly);
@@ -151,7 +148,6 @@ namespace NUnit.Framework
 #endif
             }
         }
-#endif
 
         /// <summary>
         /// Gets the directory to be used for outputting files created
@@ -295,6 +291,27 @@ namespace NUnit.Framework
         }
 
         /// <summary>
+        /// Attach a file to the current test result
+        /// </summary>
+        /// <param name="filePath">Relative or absolute file path to attachment</param>
+        /// <param name="description">Optional description of attachment</param>
+        public static void AddTestAttachment(string filePath, string description = null)
+        {
+            Guard.ArgumentNotNull(filePath, nameof(filePath));
+            Guard.ArgumentValid(filePath.IndexOfAny(Path.GetInvalidPathChars()) == -1,
+                $"Test attachment file path contains invalid path characters. {filePath}", nameof(filePath));
+
+            if (!Path.IsPathRooted(filePath))
+                filePath = Path.Combine(TestContext.CurrentContext.WorkDirectory, filePath);
+
+            if (!File.Exists(filePath))
+                throw new FileNotFoundException("Test attachment file path could not be found.", filePath);
+
+            var result = TestExecutionContext.CurrentContext.CurrentResult;
+            result.AddTestAttachment(new TestAttachment(filePath, description));
+        }
+
+        /// <summary>
         /// This method provides a simplified way to add a ValueFormatter
         /// delegate to the chain of responsibility, creating the factory
         /// delegate internally. It is useful when the Type of the object
@@ -351,7 +368,7 @@ namespace NUnit.Framework
             {
                 get { return _test.Name; }
             }
-            
+
             /// <summary>
             /// The name of the method representing the test.
             /// </summary>

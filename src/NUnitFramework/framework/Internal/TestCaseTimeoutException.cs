@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2017 Charlie Poole
+// Copyright (c) 2017 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -24,7 +24,7 @@
 namespace NUnit.Framework.Internal
 {
     using System;
-#if !NETSTANDARD1_6
+#if !NETSTANDARD1_3 && !NETSTANDARD1_6
     using System.Runtime.Serialization;
 #endif
 
@@ -32,7 +32,7 @@ namespace NUnit.Framework.Internal
     /// TestCaseTimeoutException is thrown when a test running directly
     /// on a TestWorker thread is cancelled due to timeout.
     /// </summary>
-#if !PORTABLE && !NETSTANDARD1_6
+#if !NETSTANDARD1_3 && !NETSTANDARD1_6
     [Serializable]
 #endif
     public class TestCaseTimeoutException : Exception
@@ -57,7 +57,7 @@ namespace NUnit.Framework.Internal
         public TestCaseTimeoutException(string message, Exception inner) : base(message, inner)
         { }
 
-#if !PORTABLE && !NETSTANDARD1_6
+#if !NETSTANDARD1_3 && !NETSTANDARD1_6
         /// <summary>
         /// Serialization Constructor
         /// </summary>

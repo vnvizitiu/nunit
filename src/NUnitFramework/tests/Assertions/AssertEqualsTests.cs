@@ -1,5 +1,5 @@
 ﻿// ***********************************************************************
-// Copyright (c) 2004 Charlie Poole
+// Copyright (c) 2004 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -422,7 +422,6 @@ namespace NUnit.Framework.Assertions
             Assert.That(ex.Message, Is.EqualTo(expectedMessage));
         }
 
-#if !PORTABLE
         [Test]
         public void DirectoryInfoEqual()
         {
@@ -443,7 +442,6 @@ namespace NUnit.Framework.Assertions
                 Assert.Throws<AssertionException>(() => Assert.AreEqual(one.Directory, two.Directory));
             }
         }
-#endif
 
         private enum MyEnum
         {

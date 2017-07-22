@@ -160,6 +160,21 @@
     <Compile Include="Constraints\CollectionOrderedConstraint.cs" />
     <Compile Include="Constraints\CollectionSupersetConstraint.cs" />
     <Compile Include="Constraints\CollectionSubsetConstraint.cs" />
+    <Compile Include="Constraints\Comparers\ArraysComparer.cs" />
+    <Compile Include="Constraints\Comparers\CharsComparer.cs" />
+    <Compile Include="Constraints\Comparers\DateTimeOffsetsComparer.cs" />
+    <Compile Include="Constraints\Comparers\DictionariesComparer.cs" />
+    <Compile Include="Constraints\Comparers\DictionaryEntriesComparer.cs" />
+    <Compile Include="Constraints\Comparers\DirectoriesComparer.cs" />
+    <Compile Include="Constraints\Comparers\EnumerablesComparer.cs" />
+    <Compile Include="Constraints\Comparers\EquatablesComparer.cs" />
+    <Compile Include="Constraints\Comparers\IChainComparer.cs" />
+    <Compile Include="Constraints\Comparers\KeyValuePairsComparer.cs" />
+    <Compile Include="Constraints\Comparers\NumericsComparer.cs" />
+    <Compile Include="Constraints\Comparers\StreamsComparer.cs" />
+    <Compile Include="Constraints\Comparers\StringsComparer.cs" />
+    <Compile Include="Constraints\Comparers\TimeSpanToleranceComparer.cs" />
+    <Compile Include="Constraints\Comparers\ValueTupleComparer.cs" />
     <Compile Include="Constraints\CollectionTally.cs" />
     <Compile Include="Constraints\ComparisonAdapter.cs" />
     <Compile Include="Constraints\ComparisonConstraint.cs" />
@@ -287,6 +302,7 @@
     <Compile Include="Interfaces\IXmlNodeBuilder.cs" />
     <Compile Include="Interfaces\ResultState.cs" />
     <Compile Include="Interfaces\RunState.cs" />
+    <Compile Include="Interfaces\TestAttachment.cs" />
     <Compile Include="Interfaces\TestOutput.cs" />
     <Compile Include="Interfaces\TestStatus.cs" />
     <Compile Include="Interfaces\TNode.cs" />
@@ -342,6 +358,7 @@
     <Compile Include="Internal\Execution\TextCapture.cs" />
     <Compile Include="Internal\Execution\TextMessageWriter.cs" />
     <Compile Include="Internal\Execution\WorkItem.cs" />
+    <Compile Include="Internal\Execution\WorkItemBuilder.cs" />
     <Compile Include="Internal\Execution\WorkItemQueue.cs" />
     <Compile Include="Internal\Execution\WorkItemState.cs" />
     <Compile Include="Internal\Execution\WorkShift.cs" />
@@ -352,6 +369,7 @@
     <Compile Include="Internal\Filters\FullNameFilter.cs" />
     <Compile Include="Internal\Filters\IdFilter.cs" />
     <Compile Include="Internal\Filters\MethodNameFilter.cs" />
+    <Compile Include="Internal\Filters\NamespaceFilter.cs" />
     <Compile Include="Internal\Filters\NotFilter.cs" />
     <Compile Include="Internal\Filters\OrFilter.cs" />
     <Compile Include="Internal\Filters\PropertyFilter.cs" />
@@ -359,6 +377,7 @@
     <Compile Include="Internal\Filters\ValueMatchFilter.cs" />
     <Compile Include="Internal\GenericMethodHelper.cs" />
     <Compile Include="Internal\InvalidDataSourceException.cs" />
+    <Compile Include="Internal\InvalidPlatformException.cs" />
     <Compile Include="Internal\InvalidTestFixtureException.cs" />
     <Compile Include="Internal\Logging\ILogger.cs" />
     <Compile Include="Internal\Logging\InternalTrace.cs" />
@@ -405,7 +424,6 @@
     <Compile Include="List.cs" />
     <Compile Include="ListMapper.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="SpecialValue.cs" />
     <Compile Include="StringAssert.cs" />
     <Compile Include="TestCaseData.cs" />
     <Compile Include="TestContext.cs" />

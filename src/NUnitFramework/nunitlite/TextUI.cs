@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2015 Charlie Poole
+// Copyright (c) 2015 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -30,7 +30,7 @@ using NUnit.Common;
 using NUnit.Compatibility;
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
-#if NETSTANDARD1_6
+#if NETSTANDARD1_3 || NETSTANDARD1_6
 using System.Runtime.InteropServices;
 #endif
 
@@ -76,7 +76,7 @@ namespace NUnitLite
             Assembly executingAssembly = GetType().GetTypeInfo().Assembly;
             AssemblyName assemblyName = AssemblyHelper.GetAssemblyName(executingAssembly);
             Version version = assemblyName.Version;
-            string copyright = "Copyright (C) 2017, Charlie Poole";
+            string copyright = "Copyright (C) 2017 Charlie Poole, Rob Prouse";
             string build = "";
 
             var copyrightAttr = executingAssembly.GetCustomAttribute<AssemblyCopyrightAttribute>();
@@ -147,14 +147,13 @@ namespace NUnitLite
             WriteHelpLine("      the following forms:");
             WriteHelpLine("          --OPTION:filename");
             WriteHelpLine("          --OPTION:filename;format=formatname");
-            WriteHelpLine("          --OPTION:filename;transform=xsltfile");
             Writer.WriteLine();
             WriteHelpLine("      The --result option may use any of the following formats:");
-            WriteHelpLine("          nunit3 - the native XML format for NUnit 3.0");
+            WriteHelpLine("          nunit3 - the native XML format for NUnit 3");
             WriteHelpLine("          nunit2 - legacy XML format used by earlier releases of NUnit");
             Writer.WriteLine();
             WriteHelpLine("      The --explore option may use any of the following formats:");
-            WriteHelpLine("          nunit3 - the native XML format for NUnit 3.0");
+            WriteHelpLine("          nunit3 - the native XML format for NUnit 3");
             WriteHelpLine("          cases  - a text file listing the full names of all test cases.");
             WriteHelpLine("      If --explore is used without any specification following, a list of");
             WriteHelpLine("      test cases is output to the console.");
@@ -170,9 +169,8 @@ namespace NUnitLite
         /// </summary>
         public void DisplayRuntimeEnvironment()
         {
-#if !PORTABLE
             WriteSectionHeader("Runtime Environment");
-#if NETSTANDARD1_6
+#if NETSTANDARD1_3 || NETSTANDARD1_6
             Writer.WriteLabelLine("   OS Version: ", RuntimeInformation.OSDescription);
             Writer.WriteLabelLine("  CLR Version: ", RuntimeInformation.FrameworkDescription);
 #else
@@ -180,7 +178,6 @@ namespace NUnitLite
             Writer.WriteLabelLine("  CLR Version: ", Environment.Version);
 #endif
             Writer.WriteLine();
-#endif
         }
 
         #endregion
@@ -223,10 +220,7 @@ namespace NUnitLite
                     : Math.Max(Environment.ProcessorCount, 2));
 #endif
 
-#if !PORTABLE
             Writer.WriteLabelLine("    Work Directory: ", _options.WorkDirectory ?? Directory.GetCurrentDirectory());
-#endif
-
             Writer.WriteLabelLine("    Internal Trace: ", _options.InternalTraceLevel ?? "Off");
 
             if (_options.TeamCity)
@@ -503,7 +497,7 @@ namespace NUnitLite
             string reportID = (++_reportIndex).ToString();
             int numAsserts = result.AssertionResults.Count;
 
-#if PORTABLE && !NETSTANDARD1_6
+#if NETSTANDARD1_3 && !NETSTANDARD1_6
             ColorStyle style = GetColorStyle(resultState);
             string status = GetResultStatus(resultState);
             DisplayTestResult(style, reportID, status, fullName, message, stackTrace);

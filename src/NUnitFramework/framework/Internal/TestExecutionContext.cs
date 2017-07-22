@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2014 Charlie Poole
+// Copyright (c) 2014 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -24,18 +24,18 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Diagnostics;
 using System.IO;
+using System.Reflection;
 using System.Threading;
+using NUnit.Compatibility;
 using NUnit.Framework.Constraints;
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal.Execution;
 
-#if !PORTABLE && !NETSTANDARD1_6
+#if !NETSTANDARD1_3 && !NETSTANDARD1_6
 using System.Runtime.Remoting.Messaging;
 using System.Security;
 using System.Security.Principal;
-using NUnit.Compatibility;
 #endif
 
 namespace NUnit.Framework.Internal
@@ -46,7 +46,7 @@ namespace NUnit.Framework.Internal
     /// or which might be changed by the user tests.
     /// </summary>
     public class TestExecutionContext
-#if !PORTABLE && !NETSTANDARD1_6
+#if !NETSTANDARD1_3 && !NETSTANDARD1_6
         : LongLivedMarshalByRefObject, ILogicalThreadAffinative
 #endif
     {
@@ -96,7 +96,7 @@ namespace NUnit.Framework.Internal
         /// </summary>
         private TestResult _currentResult;
 
-#if !PORTABLE && !NETSTANDARD1_6
+#if !NETSTANDARD1_3 && !NETSTANDARD1_6
         /// <summary>
         /// The current Principal.
         /// </summary>
@@ -119,7 +119,7 @@ namespace NUnit.Framework.Internal
             _currentCulture = CultureInfo.CurrentCulture;
             _currentUICulture = CultureInfo.CurrentUICulture;
 
-#if !PORTABLE && !NETSTANDARD1_6
+#if !NETSTANDARD1_3 && !NETSTANDARD1_6
             _currentPrincipal = Thread.CurrentPrincipal;
 #endif
 
@@ -149,7 +149,7 @@ namespace NUnit.Framework.Internal
 
             DefaultFloatingPointTolerance = other.DefaultFloatingPointTolerance;
 
-#if !PORTABLE && !NETSTANDARD1_6
+#if !NETSTANDARD1_3 && !NETSTANDARD1_6
             _currentPrincipal = other.CurrentPrincipal;
 #endif
 
@@ -166,7 +166,7 @@ namespace NUnit.Framework.Internal
 
         // NOTE: We use different implementations for various platforms.
 
-#if NETSTANDARD1_6
+#if NETSTANDARD1_3 || NETSTANDARD1_6
         private static readonly AsyncLocal<TestExecutionContext> _currentContext = new AsyncLocal<TestExecutionContext>();
         /// <summary>
         /// Gets and sets the current context.
@@ -175,26 +175,12 @@ namespace NUnit.Framework.Internal
         {
             get
             {
-                return _currentContext.Value;
+                return _currentContext.Value ?? (_currentContext.Value = new AdhocContext());
             }
-            private set
+            internal set // internal so that AdhocTestExecutionTests can get at it
             {
                 _currentContext.Value = value;
             }
-        }
-#elif PORTABLE
-        // The portable build only supports a single thread of
-        // execution, so we can use a simple static field to
-        // hold the current TestExecutionContext.
-        private static TestExecutionContext _currentContext;
-
-        /// <summary>
-        /// Gets and sets the current context.
-        /// </summary>
-        public static TestExecutionContext CurrentContext
-        {
-            get { return _currentContext; }
-            private set { _currentContext = value; }
         }
 #else
         // In all other builds, we use the CallContext
@@ -205,16 +191,24 @@ namespace NUnit.Framework.Internal
         /// </summary>
         public static TestExecutionContext CurrentContext
         {
-            // This getter invokes security critical members on the 'System.Runtime.Remoting.Messaging.CallContext' class. 
-            // Callers of this method have no influence on how these methods are used so we define a 'SecuritySafeCriticalAttribute' 
+            // This getter invokes security critical members on the 'System.Runtime.Remoting.Messaging.CallContext' class.
+            // Callers of this method have no influence on how these methods are used so we define a 'SecuritySafeCriticalAttribute'
             // rather than a 'SecurityCriticalAttribute' to enable use by security transparent callers.
             [SecuritySafeCritical]
             get
             {
-                return CallContext.GetData(CONTEXT_KEY) as TestExecutionContext;
+                var context = CallContext.GetData(CONTEXT_KEY) as TestExecutionContext;
+
+                if (context == null)
+                {
+                    context = new AdhocContext();
+                    CallContext.SetData(CONTEXT_KEY, context);
+                }
+
+                return context;
             }
-            // This setter invokes security critical members on the 'System.Runtime.Remoting.Messaging.CallContext' class. 
-            // Callers of this method have no influence on how these methods are used so we define a 'SecuritySafeCriticalAttribute' 
+            // This setter invokes security critical members on the 'System.Runtime.Remoting.Messaging.CallContext' class.
+            // Callers of this method have no influence on how these methods are used so we define a 'SecuritySafeCriticalAttribute'
             // rather than a 'SecurityCriticalAttribute' to enable use by security transparent callers.
             [SecuritySafeCritical]
             private set
@@ -310,7 +304,7 @@ namespace NUnit.Framework.Internal
         }
 
         /// <summary>
-        /// The current WorkItemDispatcher. Made public for 
+        /// The current WorkItemDispatcher. Made public for
         /// use by nunitlite.tests
         /// </summary>
         public IWorkItemDispatcher Dispatcher { get; set; }
@@ -319,7 +313,7 @@ namespace NUnit.Framework.Internal
         /// The ParallelScope to be used by tests running in this context.
         /// For builds with out the parallel feature, it has no effect.
         /// </summary>
-        public ParallelScope ParallelScope { get; set; } 
+        public ParallelScope ParallelScope { get; set; }
 
         /// <summary>
         /// Default tolerance value used for floating point equality
@@ -385,7 +379,7 @@ namespace NUnit.Framework.Internal
             set
             {
                 _currentCulture = value;
-#if !PORTABLE && !NETSTANDARD1_6
+#if !NETSTANDARD1_3 && !NETSTANDARD1_6
                 Thread.CurrentThread.CurrentCulture = _currentCulture;
 #endif
             }
@@ -400,13 +394,13 @@ namespace NUnit.Framework.Internal
             set
             {
                 _currentUICulture = value;
-#if !PORTABLE && !NETSTANDARD1_6
+#if !NETSTANDARD1_3 && !NETSTANDARD1_6
                 Thread.CurrentThread.CurrentUICulture = _currentUICulture;
 #endif
             }
         }
 
-#if !PORTABLE && !NETSTANDARD1_6
+#if !NETSTANDARD1_3 && !NETSTANDARD1_6
         /// <summary>
         /// Gets or sets the current <see cref="IPrincipal"/> for the Thread.
         /// </summary>
@@ -445,7 +439,7 @@ namespace NUnit.Framework.Internal
             _currentCulture = CultureInfo.CurrentCulture;
             _currentUICulture = CultureInfo.CurrentUICulture;
 
-#if !PORTABLE && !NETSTANDARD1_6
+#if !NETSTANDARD1_3 && !NETSTANDARD1_6
             _currentPrincipal = Thread.CurrentPrincipal;
 #endif
         }
@@ -457,7 +451,7 @@ namespace NUnit.Framework.Internal
         /// </summary>
         public void EstablishExecutionEnvironment()
         {
-#if !PORTABLE && !NETSTANDARD1_6
+#if !NETSTANDARD1_3 && !NETSTANDARD1_6
             Thread.CurrentThread.CurrentCulture = _currentCulture;
             Thread.CurrentThread.CurrentUICulture = _currentUICulture;
             Thread.CurrentPrincipal = _currentPrincipal;
@@ -500,6 +494,10 @@ namespace NUnit.Framework.Internal
             if (context.CurrentTest != null)
                 context.CurrentResult = context.CurrentTest.MakeTestResult();
 
+#if PARALLEL
+            context.TestWorker = TestWorker;
+#endif
+
             return context;
         }
 
@@ -507,7 +505,7 @@ namespace NUnit.Framework.Internal
 
         #region InitializeLifetimeService
 
-#if !PORTABLE && !NETSTANDARD1_6
+#if !NETSTANDARD1_3 && !NETSTANDARD1_6
         /// <summary>
         /// Obtain lifetime service object
         /// </summary>
@@ -525,7 +523,7 @@ namespace NUnit.Framework.Internal
 
         /// <summary>
         /// An IsolatedContext is used when running code
-        /// that may effect the current result in ways that 
+        /// that may effect the current result in ways that
         /// should not impact the final result of the test.
         /// A new TestExecutionContext is created with an
         /// initially clear result, which is discarded on
@@ -558,6 +556,33 @@ namespace NUnit.Framework.Internal
             {
                 CurrentContext = _originalContext;
             }
+        }
+
+        #endregion
+
+        #region Nested AdhocTestExecutionContext
+
+        /// <summary>
+        /// An AdhocTestExecutionContext is created whenever a context is needed
+        /// but not available in CurrentContext. This happens when tests are run
+        /// on an adoc basis or Asserts are used outside of tests.
+        /// </summary>
+        public class AdhocContext : TestExecutionContext
+        {
+            /// <summary>
+            /// Construct an AdhocTestExecutionContext, which is used
+            /// whenever the current TestExecutionContext is found to be null.
+            /// </summary>
+            public AdhocContext()
+            {
+                var type = GetType();
+                var method = type.GetMethod("AdhocTestMethod", BindingFlags.NonPublic | BindingFlags.Instance);
+
+                CurrentTest = new TestMethod(new MethodWrapper(type, method));
+                CurrentResult = CurrentTest.MakeTestResult();
+            }
+
+            private void AdhocTestMethod() { }
         }
 
         #endregion

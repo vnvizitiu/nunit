@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2014 Charlie Poole
+// Copyright (c) 2014 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -8,10 +8,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject to
 // the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -26,10 +26,14 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Threading;
 using System.Globalization;
+using System.IO;
 using NUnit.Framework.Constraints;
 using NUnit.Framework.Internal.Execution;
-using System.Security.Principal;
 using NUnit.Framework.Interfaces;
+
+#if !NETSTANDARD1_3 && !NETSTANDARD1_6
+using System.Security.Principal;
+#endif
 
 #if ASYNC
 using System.Threading.Tasks;
@@ -43,18 +47,18 @@ namespace NUnit.Framework.Internal
     [TestFixture][Property("Question", "Why?")]
     public class TestExecutionContextTests
     {
-        TestExecutionContext _fixtureContext;
-        TestExecutionContext _setupContext;
-        ResultState _fixtureResult;
+        private TestExecutionContext _fixtureContext;
+        private TestExecutionContext _setupContext;
+        private ResultState _fixtureResult;
 
-#if !PORTABLE && !NETSTANDARD1_6
+#if !NETSTANDARD1_3 && !NETSTANDARD1_6
         string originalDirectory;
         IPrincipal originalPrincipal;
 #endif
 
         DateTime _fixtureCreateTime = DateTime.UtcNow;
         long _fixtureCreateTicks = Stopwatch.GetTimestamp();
-        
+
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
@@ -81,7 +85,7 @@ namespace NUnit.Framework.Internal
         {
             _setupContext = TestExecutionContext.CurrentContext;
 
-#if !PORTABLE && !NETSTANDARD1_6
+#if !NETSTANDARD1_3 && !NETSTANDARD1_6
             originalCulture = CultureInfo.CurrentCulture;
             originalUICulture = CultureInfo.CurrentUICulture;
 
@@ -93,12 +97,12 @@ namespace NUnit.Framework.Internal
         [TearDown]
         public void Cleanup()
         {
-#if !PORTABLE && !NETSTANDARD1_6
+#if !NETSTANDARD1_3 && !NETSTANDARD1_6
             Thread.CurrentThread.CurrentCulture = originalCulture;
             Thread.CurrentThread.CurrentUICulture = originalUICulture;
 #endif
 
-#if !PORTABLE && !NETSTANDARD1_6
+#if !NETSTANDARD1_3 && !NETSTANDARD1_6
             Environment.CurrentDirectory = originalDirectory;
             Thread.CurrentPrincipal = originalPrincipal;
 #endif
@@ -137,7 +141,7 @@ namespace NUnit.Framework.Internal
         }
 #endif
 
-#if !PORTABLE && !NETSTANDARD1_6
+#if !NETSTANDARD1_3 && !NETSTANDARD1_6
         [Test]
         public void CurrentContextFlowsToUserCreatedThread()
         {
@@ -317,7 +321,7 @@ namespace NUnit.Framework.Internal
         }
 #endif
 
-#if !PORTABLE && !NETSTANDARD1_6
+#if !NETSTANDARD1_3 && !NETSTANDARD1_6
         [Test]
         public void TestHasWorkerWhenParallel()
         {
@@ -343,9 +347,9 @@ namespace NUnit.Framework.Internal
         public void CanAccessResultFullName()
         {
             Assert.That(_fixtureContext.CurrentResult.FullName, Is.EqualTo("NUnit.Framework.Internal.TestExecutionContextTests"));
-            Assert.That(_setupContext.CurrentResult.FullName, 
+            Assert.That(_setupContext.CurrentResult.FullName,
                 Is.EqualTo("NUnit.Framework.Internal.TestExecutionContextTests.CanAccessResultFullName"));
-            Assert.That(TestExecutionContext.CurrentContext.CurrentResult.FullName, 
+            Assert.That(TestExecutionContext.CurrentContext.CurrentResult.FullName,
                 Is.EqualTo("NUnit.Framework.Internal.TestExecutionContextTests.CanAccessResultFullName"));
         }
 
@@ -378,20 +382,20 @@ namespace NUnit.Framework.Internal
         [Test]
         public async Task CanAccessResultFullName_Async()
         {
-            Assert.That(TestExecutionContext.CurrentContext.CurrentResult.FullName, 
+            Assert.That(TestExecutionContext.CurrentContext.CurrentResult.FullName,
                 Is.EqualTo("NUnit.Framework.Internal.TestExecutionContextTests.CanAccessResultFullName_Async"));
             await YieldAsync();
-            Assert.That(TestExecutionContext.CurrentContext.CurrentResult.FullName, 
+            Assert.That(TestExecutionContext.CurrentContext.CurrentResult.FullName,
                 Is.EqualTo("NUnit.Framework.Internal.TestExecutionContextTests.CanAccessResultFullName_Async"));
         }
 
         [Test]
         public async Task CanAccessResultTest_Async()
         {
-            Assert.That(TestExecutionContext.CurrentContext.CurrentResult.Test, 
+            Assert.That(TestExecutionContext.CurrentContext.CurrentResult.Test,
                 Is.SameAs(TestExecutionContext.CurrentContext.CurrentTest));
             await YieldAsync();
-            Assert.That(TestExecutionContext.CurrentContext.CurrentResult.Test, 
+            Assert.That(TestExecutionContext.CurrentContext.CurrentResult.Test,
                 Is.SameAs(TestExecutionContext.CurrentContext.CurrentTest));
         }
 
@@ -744,7 +748,7 @@ namespace NUnit.Framework.Internal
 
         #region CurrentCulture and CurrentUICulture
 
-#if !PORTABLE && !NETSTANDARD1_6
+#if !NETSTANDARD1_3 && !NETSTANDARD1_6
         CultureInfo originalCulture;
         CultureInfo originalUICulture;
 
@@ -833,7 +837,7 @@ namespace NUnit.Framework.Internal
 
         #region CurrentPrincipal
 
-#if !PORTABLE && !NETSTANDARD1_6
+#if !NETSTANDARD1_3 && !NETSTANDARD1_6
         [Test]
         public void CanAccessCurrentPrincipal()
         {
@@ -965,12 +969,12 @@ namespace NUnit.Framework.Internal
 
         #region Cross-domain Tests
 
-#if !PORTABLE && !NETSTANDARD1_6
+#if !NETSTANDARD1_3 && !NETSTANDARD1_6
         [Test, Platform(Exclude="Mono", Reason="Intermittent failures")]
         public void CanCreateObjectInAppDomain()
         {
             AppDomain domain = AppDomain.CreateDomain(
-                "TestCanCreateAppDomain", 
+                "TestCanCreateAppDomain",
                 AppDomain.CurrentDomain.Evidence,
                 AssemblyHelper.GetDirectoryName(Assembly.GetExecutingAssembly()),
                 null,
@@ -1020,7 +1024,7 @@ namespace NUnit.Framework.Internal
         #endregion
     }
 
-#if !PORTABLE && !NETSTANDARD1_6
+#if !NETSTANDARD1_3 && !NETSTANDARD1_6
     [TestFixture, Platform(Exclude="Mono", Reason="Intermittent failures")]
     public class TextExecutionContextInAppDomain
     {

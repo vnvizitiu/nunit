@@ -1,5 +1,5 @@
 ﻿// ***********************************************************************
-// Copyright (c) 2009 Charlie Poole
+// Copyright (c) 2009 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -34,7 +34,7 @@ using NUnit.Framework.Internal;
 using NUnit.Framework.Internal.Commands;
 using NUnit.Framework.Internal.Execution;
 
-#if PORTABLE && !NETSTANDARD1_6 && !NETCOREAPP1_0
+#if NETSTANDARD1_3 && !NETSTANDARD1_6 && !NETCOREAPP1_0
 using BindingFlags = NUnit.Compatibility.BindingFlags;
 #endif
 
@@ -138,7 +138,7 @@ namespace NUnit.TestUtilities
             return RunTest(testMethod, fixture);
         }
 
-#if !PORTABLE && !NETSTANDARD1_6
+#if !NETSTANDARD1_3 && !NETSTANDARD1_6
         public static ITestResult RunAsTestCase(Action action)
         {
             var method = action.Method;
@@ -166,7 +166,7 @@ namespace NUnit.TestUtilities
             context.TestObject = testObject;
             context.Dispatcher = new SuperSimpleDispatcher();
 
-            var work = WorkItem.CreateWorkItem(test, TestFilter.Empty);
+            var work = WorkItemBuilder.CreateWorkItem(test, TestFilter.Empty, true);
             work.InitializeContext(context);
 
             return work;
@@ -179,11 +179,7 @@ namespace NUnit.TestUtilities
             // TODO: Replace with an event - but not while method is static
             while (work.State != WorkItemState.Complete)
             {
-#if PORTABLE
-                System.Threading.Tasks.Task.Delay(1);
-#else
                 Thread.Sleep(1);
-#endif
             }
 
             return work.Result;

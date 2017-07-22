@@ -1,5 +1,5 @@
 ﻿// ***********************************************************************
-// Copyright (c) 2014 Charlie Poole
+// Copyright (c) 2014 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -8,10 +8,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject to
 // the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -37,7 +37,7 @@ namespace NUnit.Framework.Api
     // Functional tests of the FrameworkController and all subordinate classes
     public class FrameworkControllerTests
     {
-#if NETSTANDARD1_6
+#if NETSTANDARD1_3 || NETSTANDARD1_6
         private const string MOCK_ASSEMBLY_FILE = "mock-assembly.dll";
 #else
         private const string MOCK_ASSEMBLY_FILE = "mock-assembly.exe";
@@ -49,16 +49,22 @@ namespace NUnit.Framework.Api
         private const string FIXTURE_CAT_FILTER = "<filter><cat>FixtureCategory</cat></filter>";
 
         private static readonly string MOCK_ASSEMBLY_NAME = typeof(MockAssembly).GetTypeInfo().Assembly.FullName;
-#if PORTABLE
-        private static readonly string EXPECTED_NAME = MOCK_ASSEMBLY_NAME;
-#else
         private static readonly string EXPECTED_NAME = MOCK_ASSEMBLY_FILE;
         private static readonly string MOCK_ASSEMBLY_PATH = Path.Combine(TestContext.CurrentContext.TestDirectory, MOCK_ASSEMBLY_FILE);
-#endif
 
         private IDictionary _settings = new Dictionary<string, object>();
         private FrameworkController _controller;
         private ICallbackEventHandler _handler;
+
+        public static IEnumerable EmptyFilters
+        {
+            get
+            {
+                yield return new TestCaseData(null);
+                yield return new TestCaseData("");
+                yield return new TestCaseData(EMPTY_FILTER);
+            }
+        }
 
         public class FixtureCategoryTester
         {
@@ -77,7 +83,7 @@ namespace NUnit.Framework.Api
         [SetUp]
         public void CreateController()
         {
-#if PORTABLE || NETSTANDARD1_6
+#if NETSTANDARD1_3 || NETSTANDARD1_6
             _controller = new FrameworkController(typeof(MockAssembly).GetTypeInfo().Assembly, "ID", _settings);
 #else
             _controller = new FrameworkController(MOCK_ASSEMBLY_PATH, "ID", _settings);
@@ -91,7 +97,7 @@ namespace NUnit.Framework.Api
         {
             Assert.That(_controller.Builder, Is.TypeOf<DefaultTestAssemblyBuilder>());
             Assert.That(_controller.Runner, Is.TypeOf<NUnitTestAssemblyRunner>());
-#if PORTABLE || NETSTANDARD1_6
+#if NETSTANDARD1_3 || NETSTANDARD1_6
             Assert.That(_controller.AssemblyNameOrPath, Is.EqualTo(MOCK_ASSEMBLY_NAME));
 #else
             Assert.That(_controller.AssemblyNameOrPath, Is.EqualTo(MOCK_ASSEMBLY_PATH));
@@ -132,7 +138,7 @@ namespace NUnit.Framework.Api
             Assert.That(result.SelectNodes("test-suite").Count, Is.EqualTo(0), "Load result should not have child tests");
         }
 
-#if !PORTABLE && !NETSTANDARD1_6
+#if !NETSTANDARD1_3 && !NETSTANDARD1_6
         [Test]
         public void LoadTestsAction_FileNotFound_ReturnsNonRunnableSuite()
         {
@@ -181,11 +187,11 @@ namespace NUnit.Framework.Api
             Assert.That(result.SelectNodes("test-suite").Count, Is.GreaterThan(0), "Explore result should have child tests");
         }
 
-        [Test]
-        public void ExploreTestsAction_AfterLoad_ReturnsRunnableSuite()
+        [TestCaseSource(nameof(EmptyFilters))]
+        public void ExploreTestsAction_AfterLoad_ReturnsRunnableSuite(string filter)
         {
             new FrameworkController.LoadTestsAction(_controller, _handler);
-            new FrameworkController.ExploreTestsAction(_controller, EMPTY_FILTER, _handler);
+            new FrameworkController.ExploreTestsAction(_controller, filter, _handler);
             var result = TNode.FromXml(_handler.GetCallbackResult());
 
             Assert.That(result.Name.ToString(), Is.EqualTo("test-suite"));
@@ -221,7 +227,7 @@ namespace NUnit.Framework.Api
             Assert.That(ex.Message, Is.EqualTo("The Explore method was called but no test has been loaded"));
         }
 
-#if !PORTABLE && !NETSTANDARD1_6
+#if !NETSTANDARD1_3 && !NETSTANDARD1_6
         [Test]
         public void ExploreTestsAction_FileNotFound_ReturnsNonRunnableSuite()
         {
@@ -259,11 +265,11 @@ namespace NUnit.Framework.Api
         #endregion
 
         #region CountTestsAction
-        [Test]
-        public void CountTestsAction_AfterLoad_ReturnsCorrectCount()
+        [TestCaseSource(nameof(EmptyFilters))]
+        public void CountTestsAction_AfterLoad_ReturnsCorrectCount(string filter)
         {
             new FrameworkController.LoadTestsAction(_controller, _handler);
-            new FrameworkController.CountTestsAction(_controller, EMPTY_FILTER, _handler);
+            new FrameworkController.CountTestsAction(_controller, filter, _handler);
             Assert.That(_handler.GetCallbackResult(), Is.EqualTo(MockAssembly.Tests.ToString()));
         }
 
@@ -275,7 +281,7 @@ namespace NUnit.Framework.Api
             Assert.That(ex.Message, Is.EqualTo("The CountTestCases method was called but no test has been loaded"));
         }
 
-#if !PORTABLE && !NETSTANDARD1_6
+#if !NETSTANDARD1_3 && !NETSTANDARD1_6
         [Test]
         public void CountTestsAction_FileNotFound_ReturnsZero()
         {
@@ -297,11 +303,11 @@ namespace NUnit.Framework.Api
         #endregion
 
         #region RunTestsAction
-        [Test]
-        public void RunTestsAction_AfterLoad_ReturnsRunnableSuite()
+        [TestCaseSource(nameof(EmptyFilters))]
+        public void RunTestsAction_AfterLoad_ReturnsRunnableSuite(string filter)
         {
             new FrameworkController.LoadTestsAction(_controller, _handler);
-            new FrameworkController.RunTestsAction(_controller, EMPTY_FILTER, _handler);
+            new FrameworkController.RunTestsAction(_controller, filter, _handler);
             var result = TNode.FromXml(_handler.GetCallbackResult());
 
             // TODO: Any failure here throws an exception because the call to RunTestsAction
@@ -330,7 +336,7 @@ namespace NUnit.Framework.Api
             Assert.That(ex.Message, Is.EqualTo("The Run method was called but no test has been loaded"));
         }
 
-#if !PORTABLE && !NETSTANDARD1_6
+#if !NETSTANDARD1_3 && !NETSTANDARD1_6
         [Test]
         public void RunTestsAction_FileNotFound_ReturnsNonRunnableSuite()
         {
@@ -368,11 +374,11 @@ namespace NUnit.Framework.Api
         #endregion
 
         #region RunAsyncAction
-        [Test]
-        public void RunAsyncAction_AfterLoad_ReturnsRunnableSuite()
+        [TestCaseSource(nameof(EmptyFilters))]
+        public void RunAsyncAction_AfterLoad_ReturnsRunnableSuite(string filter)
         {
             new FrameworkController.LoadTestsAction(_controller, _handler);
-            new FrameworkController.RunAsyncAction(_controller, EMPTY_FILTER, _handler);
+            new FrameworkController.RunAsyncAction(_controller, filter, _handler);
             //var result = TNode.FromXml(_handler.GetCallbackResult());
 
             //Assert.That(result.Name.ToString(), Is.EqualTo("test-suite"));
@@ -397,7 +403,7 @@ namespace NUnit.Framework.Api
             Assert.That(ex.Message, Is.EqualTo("The Run method was called but no test has been loaded"));
         }
 
-#if !PORTABLE && !NETSTANDARD1_6
+#if !NETSTANDARD1_3 && !NETSTANDARD1_6
         [Test]
         public void RunAsyncAction_FileNotFound_ReturnsNonRunnableSuite()
         {
