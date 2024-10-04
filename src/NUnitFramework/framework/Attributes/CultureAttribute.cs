@@ -1,27 +1,7 @@
-﻿// ***********************************************************************
-// Copyright (c) 2007 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
@@ -29,26 +9,29 @@ using NUnit.Framework.Internal;
 namespace NUnit.Framework
 {
     /// <summary>
-    /// CultureAttribute is used to mark a test fixture or an
-    /// individual method as applying to a particular Culture only.
+    /// Marks an assembly, test fixture or test method as applying to a specific Culture.
     /// </summary>
-    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method | AttributeTargets.Assembly, AllowMultiple = false, Inherited=false)]
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method | AttributeTargets.Assembly, AllowMultiple = false, Inherited = false)]
     public class CultureAttribute : IncludeExcludeAttribute, IApplyToTest
     {
-        private CultureDetector cultureDetector = new CultureDetector();
-        private CultureInfo currentCulture = CultureInfo.CurrentCulture;
+        private readonly CultureDetector _cultureDetector = new();
+        private readonly CultureInfo _currentCulture = CultureInfo.CurrentCulture;
 
         /// <summary>
         /// Constructor with no cultures specified, for use
         /// with named property syntax.
         /// </summary>
-        public CultureAttribute() { }
+        public CultureAttribute()
+        {
+        }
 
         /// <summary>
         /// Constructor taking one or more cultures
         /// </summary>
-        /// <param name="cultures">Comma-deliminted list of cultures</param>
-        public CultureAttribute(string cultures) : base(cultures) { }
+        /// <param name="cultures">Comma-delimited list of cultures</param>
+        public CultureAttribute(string? cultures) : base(cultures)
+        {
+        }
 
         #region IApplyToTest members
 
@@ -58,10 +41,13 @@ namespace NUnit.Framework
         /// <param name="test">The test to modify</param>
         public void ApplyToTest(Test test)
         {
-            if (test.RunState != RunState.NotRunnable && !IsCultureSupported())
+            if (test.RunState != RunState.NotRunnable && !IsCultureSupported(out var reason))
             {
                 test.RunState = RunState.Skipped;
-                test.Properties.Set(PropertyNames.SkipReason, Reason);
+
+                // Discards the existing user-specified reason, if any.
+                Reason = reason;
+                test.Properties.Set(PropertyNames.SkipReason, reason);
             }
         }
 
@@ -72,20 +58,21 @@ namespace NUnit.Framework
         /// based on the properties of this attribute.
         /// </summary>
         /// <returns>True, if the current culture is supported</returns>
-        private bool IsCultureSupported()
+        private bool IsCultureSupported([NotNullWhen(false)] out string? reason)
         {
-            if (Include != null && !cultureDetector.IsCultureSupported(Include))
+            if (Include is not null && !_cultureDetector.IsCultureSupported(Include))
             {
-                Reason = string.Format("Only supported under culture {0}", Include);
+                reason = $"Only supported under culture {Include}";
                 return false;
             }
 
-            if (Exclude != null && cultureDetector.IsCultureSupported(Exclude))
+            if (Exclude is not null && _cultureDetector.IsCultureSupported(Exclude))
             {
-                Reason = string.Format("Not supported under culture {0}", Exclude);
+                reason = $"Not supported under culture {Exclude}";
                 return false;
             }
 
+            reason = null;
             return true;
         }
 
@@ -101,12 +88,12 @@ namespace NUnit.Framework
 
             if (culture.IndexOf(',') >= 0)
             {
-                if (IsCultureSupported(culture.Split(new char[] { ',' })))
+                if (IsCultureSupported(culture.Split(',')))
                     return true;
             }
             else
             {
-                if (currentCulture.Name == culture || currentCulture.TwoLetterISOLanguageName == culture)
+                if (_currentCulture.Name == culture || _currentCulture.TwoLetterISOLanguageName == culture)
                     return true;
             }
 
@@ -122,8 +109,10 @@ namespace NUnit.Framework
         public bool IsCultureSupported(string[] cultures)
         {
             foreach (string culture in cultures)
+            {
                 if (IsCultureSupported(culture))
                     return true;
+            }
 
             return false;
         }

@@ -1,46 +1,28 @@
-// ***********************************************************************
-// Copyright (c) 2007 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 
-namespace NUnit.Framework.Constraints
+using NUnit.Framework.Constraints;
+
+namespace NUnit.Framework.Tests.Constraints
 {
     [TestFixture]
     public class GreaterThanConstraintTests : ComparisonConstraintTestBase
     {
+        protected override Constraint TheConstraint { get; } = new GreaterThanConstraint(5);
+
         [SetUp]
         public void SetUp()
         {
-            theConstraint = comparisonConstraint = new GreaterThanConstraint(5);
-            expectedDescription = "greater than 5";
-            stringRepresentation = "<greaterthan 5>";
+            ExpectedDescription = "greater than 5";
+            StringRepresentation = "<greaterthan 5>";
         }
 
-        static object[] SuccessData = new object[] { 6, 5.001 };
-
-        static object[] FailureData = new object[] { new object[] { 4, "4" }, new object[] { 5, "5" } };
+#pragma warning disable IDE0052 // Remove unread private members
+        private static readonly object[] SuccessData = new object[] { 6, 5.001 };
+        private static readonly object[] FailureData = new object[] { new object[] { 4, "4" }, new object[] { 5, "5" } };
+#pragma warning restore IDE0052 // Remove unread private members
 
         [Test]
         public void CanCompareIComparables()
@@ -58,32 +40,59 @@ namespace NUnit.Framework.Constraints
             Assert.That(actual, Is.GreaterThan(expected));
         }
 
-        [TestCase(6.0, 5.0, 0.05)]
-        [TestCase(5.05, 5.0, 0.05)] // upper range bound
-        [TestCase(5.0001, 5.0, 0.05)]
-        [TestCase(4.9999, 5.0, 0.05)]
-        [TestCase(4.9501, 5.0, 0.05)] // lower range bound + .01
-        [TestCase(210, 200, 5)]
-        [TestCase(205, 200, 5)] // upper range bound
-        [TestCase(202, 200, 5)]
-        [TestCase(198, 200, 5)]
-        [TestCase(196, 200, 5)] // lower range bound + 1
-        public void SimpleTolerance(object actual, object expected, object tolerance)
+        [Test]
+        public void CanCompareIComparablesOfInt()
         {
-            Assert.That(actual, Is.GreaterThan(expected).Within(tolerance));
+            int expected = 0;
+            ClassWithIComparableOfT actual = new ClassWithIComparableOfT(42);
+            Assert.That(actual, Is.GreaterThan(expected));
         }
 
-        [TestCase(4.95, 5.0, 0.05)] // lower range bound
-        [TestCase(4.9, 5.0, 0.05)]
-        [TestCase(195, 200, 5)] // lower range bound
-        [TestCase(190, 200, 5)]
+        private static readonly DateTime ConstantDateTime = new(2024, 1, 1, 1, 1, 1);
+
+        private static IEnumerable<object[]> GetSimpleToleranceData()
+        {
+            yield return new object[] { 6.0, 5.0, 0.05 };
+            yield return new object[] { 5.05, 5.0, 0.05 }; // upper range bound
+            yield return new object[] { 5.0001, 5.0, 0.05 };
+            yield return new object[] { 4.9999, 5.0, 0.05 };
+            yield return new object[] { 4.9501, 5.0, 0.05 }; // lower range bound + .01
+            yield return new object[] { 210, 200, 5 };
+            yield return new object[] { 205, 200, 5 }; // upper range bound
+            yield return new object[] { 202, 200, 5 };
+            yield return new object[] { 198, 200, 5 };
+            yield return new object[] { 196, 200, 5 }; // lower range bound + 1
+            yield return new object[] { ConstantDateTime, ConstantDateTime.AddSeconds(1), TimeSpan.FromSeconds(2) };
+        }
+
+        [TestCaseSource(nameof(GetSimpleToleranceData))]
+        public void SimpleTolerance(object actual, object expected, object tolerance)
+        {
+#pragma warning disable NUnit2042 // Comparison constraint on object
+            Assert.That(actual, Is.GreaterThan(expected).Within(tolerance));
+#pragma warning restore NUnit2042 // Comparison constraint on object
+        }
+
+        private static IEnumerable<object[]> GetSimpleTolerance_FailureData()
+        {
+            yield return new object[] { 4.95, 5.0, 0.05 }; // lower range bound
+            yield return new object[] { 4.9, 5.0, 0.05 };
+            yield return new object[] { 195, 200, 5 }; // lower range bound
+            yield return new object[] { 190, 200, 5 };
+            yield return new object[] { ConstantDateTime, ConstantDateTime.AddSeconds(2), TimeSpan.FromSeconds(1) };
+            yield return new object[] { ConstantDateTime, ConstantDateTime.AddSeconds(2), TimeSpan.FromSeconds(2) };
+        }
+
+        [TestCaseSource(nameof(GetSimpleTolerance_FailureData))]
         public void SimpleTolerance_Failure(object actual, object expected, object tolerance)
         {
+#pragma warning disable NUnit2042 // Comparison constraint on object
             var ex = Assert.Throws<AssertionException>(
                 () => Assert.That(actual, Is.GreaterThan(expected).Within(tolerance)),
                 "Assertion should have failed");
+#pragma warning restore NUnit2042 // Comparison constraint on object
 
-            Assert.That(ex.Message, Contains.Substring("Expected: greater than " + expected.ToString()));
+            Assert.That(ex?.Message, Contains.Substring("Expected: greater than " + MsgUtils.FormatValue(expected)));
         }
 
         [TestCase(6.0, 5.0, 1)]
@@ -98,7 +107,9 @@ namespace NUnit.Framework.Constraints
         [TestCase(196, 200, 2.5)] // lower range bound + 1
         public void PercentTolerance(object actual, object expected, object tolerance)
         {
+#pragma warning disable NUnit2042 // Comparison constraint on object
             Assert.That(actual, Is.GreaterThan(expected).Within(tolerance).Percent);
+#pragma warning restore NUnit2042 // Comparison constraint on object
         }
 
         [TestCase(4.95, 5.0, 1)] // lower range bound
@@ -107,11 +118,13 @@ namespace NUnit.Framework.Constraints
         [TestCase(190, 200, 2.5)]
         public void PercentTolerance_Failure(object actual, object expected, object tolerance)
         {
+#pragma warning disable NUnit2042 // Comparison constraint on object
             var ex = Assert.Throws<AssertionException>(
                 () => Assert.That(actual, Is.GreaterThan(expected).Within(tolerance).Percent),
                 "Assertion should have failed");
+#pragma warning restore NUnit2042 // Comparison constraint on object
 
-            Assert.That(ex.Message, Contains.Substring("Expected: greater than " + MsgUtils.FormatValue(expected) + " within " + MsgUtils.FormatValue(tolerance) + " percent"));
+            Assert.That(ex?.Message, Contains.Substring("Expected: greater than " + MsgUtils.FormatValue(expected) + " within " + MsgUtils.FormatValue(tolerance) + " percent"));
         }
     }
 }

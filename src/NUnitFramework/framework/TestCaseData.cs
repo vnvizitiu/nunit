@@ -1,27 +1,5 @@
-// ***********************************************************************
-// Copyright (c) 2008 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
-using System;
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
 
@@ -35,15 +13,14 @@ namespace NUnit.Framework
     /// </summary>
     public class TestCaseData : TestCaseParameters
     {
-
         #region Constructors
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TestCaseData"/> class.
         /// </summary>
         /// <param name="args">The arguments.</param>
-        public TestCaseData(params object[] args)
-            : base(args == null ? new object[] { null } : args)
+        public TestCaseData(params object?[]? args)
+            : base(args ?? new object?[] { null })
         {
         }
 
@@ -51,8 +28,8 @@ namespace NUnit.Framework
         /// Initializes a new instance of the <see cref="TestCaseData"/> class.
         /// </summary>
         /// <param name="arg">The argument.</param>
-        public TestCaseData(object arg)
-            : base(new object[] { arg })
+        public TestCaseData(object? arg)
+            : base(new[] { arg })
         {
         }
 
@@ -61,8 +38,8 @@ namespace NUnit.Framework
         /// </summary>
         /// <param name="arg1">The first argument.</param>
         /// <param name="arg2">The second argument.</param>
-        public TestCaseData(object arg1, object arg2)
-            : base(new object[] { arg1, arg2 })
+        public TestCaseData(object? arg1, object? arg2)
+            : base(new[] { arg1, arg2 })
         {
         }
 
@@ -72,8 +49,8 @@ namespace NUnit.Framework
         /// <param name="arg1">The first argument.</param>
         /// <param name="arg2">The second argument.</param>
         /// <param name="arg3">The third argument.</param>
-        public TestCaseData(object arg1, object arg2, object arg3)
-            : base( new object[] { arg1, arg2, arg3 })
+        public TestCaseData(object? arg1, object? arg2, object? arg3)
+            : base(new[] { arg1, arg2, arg3 })
         {
         }
 
@@ -86,9 +63,9 @@ namespace NUnit.Framework
         /// </summary>
         /// <param name="result">The expected result</param>
         /// <returns>A modified TestCaseData</returns>
-        public TestCaseData Returns(object result)
+        public TestCaseData Returns(object? result)
         {
-            this.ExpectedResult = result;
+            ExpectedResult = result;
             return this;
         }
 
@@ -96,9 +73,30 @@ namespace NUnit.Framework
         /// Sets the name of the test case
         /// </summary>
         /// <returns>The modified TestCaseData instance</returns>
-        public TestCaseData SetName(string name)
+        /// <remarks>
+        /// Consider using <see cref="SetArgDisplayNames"/>for setting argument values in the test name.
+        /// <see cref="SetArgDisplayNames"/> allows you to specify the display names for parameters directly without
+        /// needing to use tokens like {m}.
+        /// </remarks>
+        public TestCaseData SetName(string? name)
         {
-            this.TestName = name;
+            TestName = name;
+            return this;
+        }
+
+        /// <summary>
+        /// Sets the list of display names to use as the parameters in the test name.
+        /// </summary>
+        /// <returns>The modified TestCaseData instance</returns>
+        /// <example>
+        /// <code>
+        /// TestCaseData testCase = new TestCaseData(args)
+        ///     .SetArgDisplayNames("arg1DisplayName", "arg2DisplayName");
+        /// </code>
+        /// </example>
+        public TestCaseData SetArgDisplayNames(params string[]? displayNames)
+        {
+            ArgDisplayNames = displayNames;
             return this;
         }
 
@@ -110,7 +108,7 @@ namespace NUnit.Framework
         /// <returns>The modified TestCaseData instance.</returns>
         public TestCaseData SetDescription(string description)
         {
-            this.Properties.Set(PropertyNames.Description, description);
+            Properties.Set(PropertyNames.Description, description);
             return this;
         }
 
@@ -121,7 +119,7 @@ namespace NUnit.Framework
         /// <returns></returns>
         public TestCaseData SetCategory(string category)
         {
-            this.Properties.Add(PropertyNames.Category, category);
+            Properties.Add(PropertyNames.Category, category);
             return this;
         }
 
@@ -133,7 +131,7 @@ namespace NUnit.Framework
         /// <returns></returns>
         public TestCaseData SetProperty(string propName, string propValue)
         {
-            this.Properties.Add(propName, propValue);
+            Properties.Add(propName, propValue);
             return this;
         }
 
@@ -145,7 +143,7 @@ namespace NUnit.Framework
         /// <returns></returns>
         public TestCaseData SetProperty(string propName, int propValue)
         {
-            this.Properties.Add(propName, propValue);
+            Properties.Add(propName, propValue);
             return this;
         }
 
@@ -157,15 +155,16 @@ namespace NUnit.Framework
         /// <returns></returns>
         public TestCaseData SetProperty(string propName, double propValue)
         {
-            this.Properties.Add(propName, propValue);
+            Properties.Add(propName, propValue);
             return this;
         }
 
         /// <summary>
         /// Marks the test case as explicit.
         /// </summary>
-        public TestCaseData Explicit()	{
-            this.RunState = RunState.Explicit;
+        public TestCaseData Explicit()
+        {
+            RunState = RunState.Explicit;
             return this;
         }
 
@@ -174,8 +173,8 @@ namespace NUnit.Framework
         /// </summary>
         public TestCaseData Explicit(string reason)
         {
-            this.RunState = RunState.Explicit;
-            this.Properties.Set(PropertyNames.SkipReason, reason);
+            RunState = RunState.Explicit;
+            Properties.Set(PropertyNames.SkipReason, reason);
             return this;
         }
 
@@ -184,13 +183,93 @@ namespace NUnit.Framework
         /// </summary>
         /// <param name="reason">The reason.</param>
         /// <returns></returns>
-        public TestCaseData Ignore(string reason)
+        public IgnoredTestCaseData Ignore(string reason)
         {
-            this.RunState = RunState.Ignored;
-            this.Properties.Set(PropertyNames.SkipReason, reason);
-            return this;
+            RunState prevRunState = RunState;
+            RunState = RunState.Ignored;
+            Properties.Set(PropertyNames.SkipReason, reason);
+            var ignoredData = new IgnoredTestCaseData(this, prevRunState);
+            return ignoredData;
         }
 
         #endregion
     }
+
+#if NET6_0_OR_GREATER // Although this compiles for .NET Framework, it fails at runtime with a NotSupportedException : Generic types are not valid.
+
+    /// <summary>
+    /// Marks a method as a parameterized test suite and provides arguments for each test case.
+    /// </summary>
+    public class TestCaseData<T> : TestCaseData
+    {
+        /// <summary>
+        /// Construct a TestCaseData with a list of arguments.
+        /// </summary>
+        public TestCaseData(T argument)
+            : base(new object?[] { argument })
+        {
+            TypeArgs = new[] { typeof(T) };
+        }
+    }
+
+    /// <summary>
+    /// Marks a method as a parameterized test suite and provides arguments for each test case.
+    /// </summary>
+    public class TestCaseData<T1, T2> : TestCaseData
+    {
+        /// <summary>
+        /// Construct a TestCaseData with a list of arguments.
+        /// </summary>
+        public TestCaseData(T1 argument1, T2 argument2)
+            : base(new object?[] { argument1, argument2 })
+        {
+            TypeArgs = new[] { typeof(T1), typeof(T2) };
+        }
+    }
+
+    /// <summary>
+    /// Marks a method as a parameterized test suite and provides arguments for each test case.
+    /// </summary>
+    public class TestCaseData<T1, T2, T3> : TestCaseData
+    {
+        /// <summary>
+        /// Construct a TestCaseData with a list of arguments.
+        /// </summary>
+        public TestCaseData(T1 argument1, T2 argument2, T3 argument3)
+            : base(new object?[] { argument1, argument2, argument3 })
+        {
+            TypeArgs = new[] { typeof(T1), typeof(T2), typeof(T3) };
+        }
+    }
+
+    /// <summary>
+    /// Marks a method as a parameterized test suite and provides arguments for each test case.
+    /// </summary>
+    public class TestCaseData<T1, T2, T3, T4> : TestCaseData
+    {
+        /// <summary>
+        /// Construct a TestCaseData with a list of arguments.
+        /// </summary>
+        public TestCaseData(T1 argument1, T2 argument2, T3 argument3, T4 argument4)
+            : base(new object?[] { argument1, argument2, argument3, argument4 })
+        {
+            TypeArgs = new[] { typeof(T1), typeof(T2), typeof(T3), typeof(T4) };
+        }
+    }
+
+    /// <summary>
+    /// Marks a method as a parameterized test suite and provides arguments for each test case.
+    /// </summary>
+    public class TestCaseData<T1, T2, T3, T4, T5> : TestCaseData
+    {
+        /// <summary>
+        /// Construct a TestCaseData with a list of arguments.
+        /// </summary>
+        public TestCaseData(T1 argument1, T2 argument2, T3 argument3, T4 argument4, T5 argument5)
+            : base(new object?[] { argument1, argument2, argument3, argument4, argument5 })
+        {
+            TypeArgs = new[] { typeof(T1), typeof(T2), typeof(T3), typeof(T4), typeof(T5) };
+        }
+    }
+#endif
 }

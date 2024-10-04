@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>$(NUnitRuntimeFrameworks)</TargetFrameworks>
+    <RootNamespace>NUnit.Tests</RootNamespace>
+    <IsTestProject>false</IsTestProject>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>1591</NoWarn>
+    <Title>mock-assembly</Title>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\framework\nunit.framework.csproj" />
+    <ProjectReference Include="..\nunitlite\nunitlite.csproj" />
+  </ItemGroup>
+
+</Project>

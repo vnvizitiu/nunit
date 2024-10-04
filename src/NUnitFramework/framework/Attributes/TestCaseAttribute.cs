@@ -1,41 +1,21 @@
-// ***********************************************************************
-// Copyright (c) 2008-2015 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Reflection;
-using NUnit.Compatibility;
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
 using NUnit.Framework.Internal.Builders;
+using NUnit.Framework.Internal.Extensions;
 
 namespace NUnit.Framework
 {
     /// <summary>
-    /// TestCaseAttribute is used to mark parameterized test cases
-    /// and provide them with their arguments.
+    /// Marks a method as a parameterized test suite and provides arguments for each test case.
     /// </summary>
-    [AttributeUsage(AttributeTargets.Method, AllowMultiple = true, Inherited=false)]
+    [AttributeUsage(AttributeTargets.Method, AllowMultiple = true, Inherited = false)]
     public class TestCaseAttribute : NUnitAttribute, ITestBuilder, ITestCaseData, IImplyFixture
     {
         #region Constructors
@@ -45,12 +25,12 @@ namespace NUnit.Framework
         /// This constructor is not CLS-Compliant
         /// </summary>
         /// <param name="arguments"></param>
-        public TestCaseAttribute(params object[] arguments)
+        public TestCaseAttribute(params object?[]? arguments)
         {
             RunState = RunState.Runnable;
-            
-            if (arguments == null)
-                Arguments = new object[] { null };
+
+            if (arguments is null)
+                Arguments = new object?[] { null };
             else
                 Arguments = arguments;
 
@@ -61,10 +41,10 @@ namespace NUnit.Framework
         /// Construct a TestCaseAttribute with a single argument
         /// </summary>
         /// <param name="arg"></param>
-        public TestCaseAttribute(object arg)
+        public TestCaseAttribute(object? arg)
         {
-            RunState = RunState.Runnable;			
-            Arguments = new object[] { arg };
+            RunState = RunState.Runnable;
+            Arguments = new[] { arg };
             Properties = new PropertyBag();
         }
 
@@ -73,10 +53,10 @@ namespace NUnit.Framework
         /// </summary>
         /// <param name="arg1"></param>
         /// <param name="arg2"></param>
-        public TestCaseAttribute(object arg1, object arg2)
+        public TestCaseAttribute(object? arg1, object? arg2)
         {
-            RunState = RunState.Runnable;			
-            Arguments = new object[] { arg1, arg2 };
+            RunState = RunState.Runnable;
+            Arguments = new[] { arg1, arg2 };
             Properties = new PropertyBag();
         }
 
@@ -86,10 +66,10 @@ namespace NUnit.Framework
         /// <param name="arg1"></param>
         /// <param name="arg2"></param>
         /// <param name="arg3"></param>
-        public TestCaseAttribute(object arg1, object arg2, object arg3)
+        public TestCaseAttribute(object? arg1, object? arg2, object? arg3)
         {
-            RunState = RunState.Runnable;			
-            Arguments = new object[] { arg1, arg2, arg3 };
+            RunState = RunState.Runnable;
+            Arguments = new[] { arg1, arg2, arg3 };
             Properties = new PropertyBag();
         }
 
@@ -101,7 +81,7 @@ namespace NUnit.Framework
         /// Gets or sets the name of the test.
         /// </summary>
         /// <value>The name of the test.</value>
-        public string TestName { get; set; }
+        public string? TestName { get; set; }
 
         /// <summary>
         /// Gets or sets the RunState of this test case.
@@ -111,12 +91,12 @@ namespace NUnit.Framework
         /// <summary>
         /// Gets the list of arguments to a test case
         /// </summary>
-        public object[] Arguments { get; private set; }
+        public object?[] Arguments { get; }
 
         /// <summary>
         /// Gets the properties of the test case
         /// </summary>
-        public IPropertyBag Properties { get; private set; }
+        public IPropertyBag Properties { get; }
 
         #endregion
 
@@ -126,21 +106,28 @@ namespace NUnit.Framework
         /// Gets or sets the expected result.
         /// </summary>
         /// <value>The result.</value>
-        public object ExpectedResult
+        public object? ExpectedResult
         {
-            get { return _expectedResult; }
+            get => _expectedResult;
             set
             {
                 _expectedResult = value;
                 HasExpectedResult = true;
             }
         }
-        private object _expectedResult;
+        private object? _expectedResult;
 
         /// <summary>
         /// Returns true if the expected result has been set
         /// </summary>
         public bool HasExpectedResult { get; private set; }
+
+        #endregion
+
+        #region Instance Fields
+
+        private RunState _originalRunState;
+        private DateTimeOffset? _untilDate;
 
         #endregion
 
@@ -150,64 +137,86 @@ namespace NUnit.Framework
         /// Gets or sets the description.
         /// </summary>
         /// <value>The description.</value>
-        public string Description
+        [DisallowNull]
+        public string? Description
         {
-            get { return Properties.Get(PropertyNames.Description) as string; }
-            set { Properties.Set(PropertyNames.Description, value); }
+            get => Properties.Get(PropertyNames.Description) as string;
+            set
+            {
+                Guard.ArgumentNotNull(value, nameof(value));
+                Properties.Set(PropertyNames.Description, value);
+            }
         }
 
         /// <summary>
         /// The author of this test
         /// </summary>
-        public string Author
+        [DisallowNull]
+        public string? Author
         {
-            get { return Properties.Get(PropertyNames.Author) as string; }
-            set { Properties.Set(PropertyNames.Author, value); }
+            get => Properties.Get(PropertyNames.Author) as string;
+            set
+            {
+                Guard.ArgumentNotNull(value, nameof(value));
+                Properties.Set(PropertyNames.Author, value);
+            }
         }
 
         /// <summary>
         /// The type that this test is testing
         /// </summary>
-        public Type TestOf
+        [DisallowNull]
+        public Type? TestOf
         {
-            get { return _testOf; }
+            get => _testOf;
             set
             {
+                Guard.ArgumentNotNull(value, nameof(value));
                 _testOf = value;
-                Properties.Set(PropertyNames.TestOf, value.FullName);
+                Properties.Set(PropertyNames.TestOf, value.FullName());
             }
         }
-        private Type _testOf;
+        private Type? _testOf;
 
         /// <summary>
         /// Gets or sets the reason for ignoring the test
         /// </summary>
-        public string Ignore 
-        { 
-            get { return IgnoreReason; }
-            set { IgnoreReason = value; } 
+        [DisallowNull]
+        public string? Ignore
+        {
+            get => IgnoreReason;
+            set
+            {
+                Guard.ArgumentNotNull(value, nameof(value));
+                IgnoreReason = value;
+            }
         }
 
         /// <summary>
         /// Gets or sets a value indicating whether this <see cref="NUnit.Framework.TestCaseAttribute"/> is explicit.
         /// </summary>
         /// <value>
-        /// <c>true</c> if explicit; otherwise, <c>false</c>.
+        /// <see langword="true"/> if explicit; otherwise, <see langword="false"/>.
         /// </value>
         public bool Explicit
         {
-            get { return RunState == RunState.Explicit; }
-            set { RunState = value ? RunState.Explicit : RunState.Runnable; }
+            get => RunState == RunState.Explicit;
+            set => RunState = value ? RunState.Explicit : RunState.Runnable;
         }
 
         /// <summary>
         /// Gets or sets the reason for not running the test.
         /// </summary>
         /// <value>The reason.</value>
-        public string Reason 
-        { 
-            get { return Properties.Get(PropertyNames.SkipReason) as string; }
-            set { Properties.Set(PropertyNames.SkipReason, value); }
+        [DisallowNull]
+        public string? Reason
+        {
+            get => Properties.Get(PropertyNames.SkipReason) as string;
+            set
+            {
+                Guard.ArgumentNotNull(value, nameof(value));
+                Properties.Set(PropertyNames.SkipReason, value);
+            }
         }
 
         /// <summary>
@@ -215,42 +224,75 @@ namespace NUnit.Framework
         /// non-empty value, the test is marked as ignored.
         /// </summary>
         /// <value>The ignore reason.</value>
-        public string IgnoreReason
+        [DisallowNull]
+        public string? IgnoreReason
         {
-            get { return Reason; }
+            get => Reason;
             set
             {
+                Guard.ArgumentNotNull(value, nameof(value));
+                _originalRunState = RunState;
                 RunState = RunState.Ignored;
                 Reason = value;
             }
         }
 
-#if !NETSTANDARD1_3 && !NETSTANDARD1_6
         /// <summary>
         /// Comma-delimited list of platforms to run the test for
         /// </summary>
-        public string IncludePlatform { get; set; }
+        public string? IncludePlatform { get; set; }
 
         /// <summary>
         /// Comma-delimited list of platforms to not run the test for
         /// </summary>
-        public string ExcludePlatform { get; set; }
-#endif
+        public string? ExcludePlatform { get; set; }
+
+        /// <summary>
+        /// Get or set the type arguments for a generic test method.
+        /// If not set explicitly, the generic types will be inferred
+        /// based on the test case parameters.
+        /// </summary>
+        public Type[]? TypeArgs { get; set; } = null;
 
         /// <summary>
         /// Gets and sets the category for this test case.
         /// May be a comma-separated list of categories.
         /// </summary>
-        public string Category
+        [DisallowNull]
+        public string? Category
         {
-            get { return Properties.Get(PropertyNames.Category) as string; }
-            set 
-            { 
-                foreach (string cat in value.Split(new char[] { ',' }) )
-                    Properties.Add(PropertyNames.Category, cat); 
+            get => Properties.Get(PropertyNames.Category) as string;
+            set
+            {
+                Guard.ArgumentNotNull(value, nameof(value));
+
+                foreach (string cat in value.Tokenize(','))
+                    Properties.Add(PropertyNames.Category, cat);
             }
         }
- 
+
+        /// <summary>
+        /// Gets and sets the ignore until date for this test case.
+        /// </summary>
+        [StringSyntax(StringSyntaxAttribute.DateTimeFormat)]
+        [DisallowNull]
+        public string? Until
+        {
+            get => Properties.Get(PropertyNames.IgnoreUntilDate) as string;
+            set
+            {
+                if (!string.IsNullOrEmpty(IgnoreReason))
+                {
+                    _untilDate = DateTimeOffset.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
+                    Properties.Set(PropertyNames.IgnoreUntilDate, _untilDate.Value.ToString("u"));
+                }
+                else
+                {
+                    RunState = RunState.NotRunnable;
+                }
+            }
+        }
+
         #endregion
 
         #region Helper Methods
@@ -265,21 +307,38 @@ namespace NUnit.Framework
                 int argsNeeded = parameters.Length;
                 int argsProvided = Arguments.Length;
 
-                parms = new TestCaseParameters(this);
+                parms = new TestCaseParameters(this)
+                {
+                    TypeArgs = TypeArgs
+                };
+
+                // Special handling for ExpectedResult (see if it needs to be converted into method return type)
+                if (parms.HasExpectedResult
+                    && ParamAttributeTypeConversions.TryConvert(parms.ExpectedResult, method.ReturnType.Type, out var expectedResultInTargetType))
+                {
+                    parms.ExpectedResult = expectedResultInTargetType;
+                }
+
+                // Special handling for CancellationToken
+                if (parameters.LastParameterAcceptsCancellationToken() &&
+                   (!Arguments.LastArgumentIsCancellationToken()))
+                {
+                    // Implict CancellationToken argument
+                    argsProvided++;
+                }
 
                 // Special handling for params arguments
                 if (argsNeeded > 0 && argsProvided >= argsNeeded - 1)
                 {
                     IParameterInfo lastParameter = parameters[argsNeeded - 1];
                     Type lastParameterType = lastParameter.ParameterType;
-                    Type elementType = lastParameterType.GetElementType();
+                    Type elementType = lastParameterType.GetElementType()!;
 
                     if (lastParameterType.IsArray && lastParameter.IsDefined<ParamArrayAttribute>(false))
                     {
                         if (argsProvided == argsNeeded)
                         {
-                            Type lastArgumentType = parms.Arguments[argsProvided - 1].GetType();
-                            if (!lastParameterType.GetTypeInfo().IsAssignableFrom(lastArgumentType.GetTypeInfo()))
+                            if (!lastParameterType.IsInstanceOfType(parms.Arguments[argsProvided - 1]))
                             {
                                 Array array = Array.CreateInstance(elementType, 1);
                                 array.SetValue(parms.Arguments[argsProvided - 1], 0);
@@ -288,7 +347,7 @@ namespace NUnit.Framework
                         }
                         else
                         {
-                            object[] newArglist = new object[argsNeeded];
+                            object?[] newArglist = new object?[argsNeeded];
                             for (int i = 0; i < argsNeeded && i < argsProvided; i++)
                                 newArglist[i] = parms.Arguments[i];
 
@@ -304,39 +363,35 @@ namespace NUnit.Framework
                     }
                 }
 
-                //Special handling for optional parameters
-                if (parms.Arguments.Length < argsNeeded)
+                // Special handling for optional parameters
+                if (argsProvided < argsNeeded)
                 {
-                    object[] newArgList = new object[parameters.Length];
+                    var newArgList = new object?[parameters.Length];
                     Array.Copy(parms.Arguments, newArgList, parms.Arguments.Length);
 
                     //Fill with Type.Missing for remaining required parameters where optional
                     for (var i = parms.Arguments.Length; i < parameters.Length; i++)
                     {
                         if (parameters[i].IsOptional)
+                        {
                             newArgList[i] = Type.Missing;
+                        }
                         else
                         {
                             if (i < parms.Arguments.Length)
                                 newArgList[i] = parms.Arguments[i];
                             else
-                                throw new TargetParameterCountException(string.Format(
-                                    "Method requires {0} arguments but TestCaseAttribute only supplied {1}",
-                                    argsNeeded, 
-                                    argsProvided));
+                                throw new TargetParameterCountException($"Method requires {argsNeeded} arguments but TestCaseAttribute only supplied {argsProvided}");
                         }
                     }
                     parms.Arguments = newArgList;
                 }
 
-                //if (method.GetParameters().Length == 1 && method.GetParameters()[0].ParameterType == typeof(object[]))
-                //    parms.Arguments = new object[]{parms.Arguments};
-
                 // Special handling when sole argument is an object[]
                 if (argsNeeded == 1 && method.GetParameters()[0].ParameterType == typeof(object[]))
                 {
                     if (argsProvided > 1 ||
-                        argsProvided == 1 && parms.Arguments[0].GetType() != typeof(object[]))
+                        argsProvided == 1 && parms.Arguments[0]?.GetType() != typeof(object[]))
                     {
                         parms.Arguments = new object[] { parms.Arguments };
                     }
@@ -360,52 +415,15 @@ namespace NUnit.Framework
         /// </summary>
         /// <param name="arglist">The arguments to be converted</param>
         /// <param name="parameters">The ParameterInfo array for the method</param>
-        private static void PerformSpecialConversions(object[] arglist, IParameterInfo[] parameters)
+        private static void PerformSpecialConversions(object?[] arglist, IParameterInfo[] parameters)
         {
             for (int i = 0; i < arglist.Length; i++)
             {
-                object arg = arglist[i];
+                object? arg = arglist[i];
                 Type targetType = parameters[i].ParameterType;
-
-                if (arg == null)
-                    continue;
-
-                if (targetType.IsAssignableFrom(arg.GetType()))
-                    continue;
-#if !NETSTANDARD1_3 && !NETSTANDARD1_6
-                if (arg is DBNull)
+                if (ParamAttributeTypeConversions.TryConvert(arg, targetType, out var argAsTargetType))
                 {
-                    arglist[i] = null;
-                    continue;
-                }
-#endif
-                bool convert = false;
-
-                if (targetType == typeof(short) || targetType == typeof(byte) || targetType == typeof(sbyte) ||
-                    targetType == typeof(short?) || targetType == typeof(byte?) || targetType == typeof(sbyte?) || targetType == typeof(double?))
-                {
-                    convert = arg is int;
-                }
-                else if (targetType == typeof(decimal) || targetType == typeof(decimal?))
-                {
-                    convert = arg is double || arg is string || arg is int;
-                }
-                else if (targetType == typeof(DateTime) || targetType == typeof(DateTime?))
-                {
-                    convert = arg is string;
-                }
-
-                if (convert)
-                {
-                    Type convertTo = targetType.GetTypeInfo().IsGenericType && targetType.GetGenericTypeDefinition() == typeof(Nullable<>) ? 
-                        targetType.GetGenericArguments()[0] : targetType;
-                    arglist[i] = Convert.ChangeType(arg, convertTo, System.Globalization.CultureInfo.InvariantCulture);
-                }
-                else
-                // Convert.ChangeType doesn't work for TimeSpan from string
-                if ((targetType == typeof(TimeSpan) || targetType == typeof(TimeSpan?)) && arg is string)
-                {
-                    arglist[i] = TimeSpan.Parse((string)arg);
+                    arglist[i] = argAsTargetType;
                 }
             }
         }
@@ -414,33 +432,135 @@ namespace NUnit.Framework
         #region ITestBuilder Members
 
         /// <summary>
-        /// Construct one or more TestMethods from a given MethodInfo,
-        /// using available parameter data.
+        /// Builds a single test from the specified method and context.
         /// </summary>
         /// <param name="method">The MethodInfo for which tests are to be constructed.</param>
         /// <param name="suite">The suite to which the tests will be added.</param>
-        /// <returns>One or more TestMethods</returns>
-        public IEnumerable<TestMethod> BuildFrom(IMethodInfo method, Test suite)
+        public IEnumerable<TestMethod> BuildFrom(IMethodInfo method, Test? suite)
         {
             TestMethod test = new NUnitTestCaseBuilder().BuildTestMethod(method, suite, GetParametersForTestCase(method));
 
-#if !NETSTANDARD1_3 && !NETSTANDARD1_6
-            if (test.RunState != RunState.NotRunnable &&
-                test.RunState != RunState.Ignored)
+            if (_untilDate.HasValue)
             {
-                PlatformHelper platformHelper = new PlatformHelper();
-                
+                if (_untilDate > DateTimeOffset.UtcNow)
+                {
+                    test.RunState = RunState.Ignored;
+                    string reason = $"Ignoring until {_untilDate.Value:u}. {IgnoreReason}";
+                    test.Properties.Set(PropertyNames.SkipReason, reason);
+                }
+                else
+                {
+                    test.RunState = _originalRunState;
+                }
+            }
+
+            if (IncludePlatform is not null || ExcludePlatform is not null)
+            {
+                if (test.RunState is RunState.NotRunnable or RunState.Ignored)
+                {
+                    yield return test;
+                    yield break;
+                }
+
+                var platformHelper = new PlatformHelper();
+
                 if (!platformHelper.IsPlatformSupported(this))
                 {
                     test.RunState = RunState.Skipped;
                     test.Properties.Add(PropertyNames.SkipReason, platformHelper.Reason);
                 }
             }
-#endif
 
             yield return test;
         }
 
         #endregion
     }
+
+#if NET6_0_OR_GREATER // Although this compiles for .NET Framework, it fails at runtime with a NotSupportedException : Generic types are not valid.
+
+#pragma warning disable CS3015 // Type has no accessible constructors which use only CLS-compliant types
+
+    /// <summary>
+    /// Marks a method as a parameterized test suite and provides arguments for each test case.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Method, AllowMultiple = true, Inherited = false)]
+    public class TestCaseAttribute<T> : TestCaseAttribute
+    {
+        /// <summary>
+        /// Construct a TestCaseAttribute with a list of arguments.
+        /// </summary>
+        public TestCaseAttribute(T argument)
+            : base(new object?[] { argument })
+        {
+            TypeArgs = new[] { typeof(T) };
+        }
+    }
+
+    /// <summary>
+    /// Marks a method as a parameterized test suite and provides arguments for each test case.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Method, AllowMultiple = true, Inherited = false)]
+    public class TestCaseAttribute<T1, T2> : TestCaseAttribute
+    {
+        /// <summary>
+        /// Construct a TestCaseAttribute with a list of arguments.
+        /// </summary>
+        public TestCaseAttribute(T1 argument1, T2 argument2)
+            : base(new object?[] { argument1, argument2 })
+        {
+            TypeArgs = new[] { typeof(T1), typeof(T2) };
+        }
+    }
+
+    /// <summary>
+    /// Marks a method as a parameterized test suite and provides arguments for each test case.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Method, AllowMultiple = true, Inherited = false)]
+    public class TestCaseAttribute<T1, T2, T3> : TestCaseAttribute
+    {
+        /// <summary>
+        /// Construct a TestCaseAttribute with a list of arguments.
+        /// </summary>
+        public TestCaseAttribute(T1 argument1, T2 argument2, T3 argument3)
+            : base(new object?[] { argument1, argument2, argument3 })
+        {
+            TypeArgs = new[] { typeof(T1), typeof(T2), typeof(T3) };
+        }
+    }
+
+    /// <summary>
+    /// Marks a method as a parameterized test suite and provides arguments for each test case.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Method, AllowMultiple = true, Inherited = false)]
+    public class TestCaseAttribute<T1, T2, T3, T4> : TestCaseAttribute
+    {
+        /// <summary>
+        /// Construct a TestCaseAttribute with a list of arguments.
+        /// </summary>
+        public TestCaseAttribute(T1 argument1, T2 argument2, T3 argument3, T4 argument4)
+            : base(new object?[] { argument1, argument2, argument3, argument4 })
+        {
+            TypeArgs = new[] { typeof(T1), typeof(T2), typeof(T3), typeof(T4) };
+        }
+    }
+
+    /// <summary>
+    /// Marks a method as a parameterized test suite and provides arguments for each test case.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Method, AllowMultiple = true, Inherited = false)]
+    public class TestCaseAttribute<T1, T2, T3, T4, T5> : TestCaseAttribute
+    {
+        /// <summary>
+        /// Construct a TestCaseAttribute with a list of arguments.
+        /// </summary>
+        public TestCaseAttribute(T1 argument1, T2 argument2, T3 argument3, T4 argument4, T5 argument5)
+            : base(new object?[] { argument1, argument2, argument3, argument4, argument5 })
+        {
+            TypeArgs = new[] { typeof(T1), typeof(T2), typeof(T3), typeof(T4), typeof(T5) };
+        }
+    }
+
+#pragma warning restore CS3015 // Type has no accessible constructors which use only CLS-compliant types
+#endif
 }

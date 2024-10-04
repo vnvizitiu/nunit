@@ -1,31 +1,10 @@
-﻿// ***********************************************************************
-// Copyright (c) 2017 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-//
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
-#if PARALLEL
+using NUnit.Framework.Internal;
+using NUnit.Framework.Internal.Execution;
+using NUnit.Framework.Tests.TestUtilities;
 
-using NUnit.TestUtilities;
-
-namespace NUnit.Framework.Internal.Execution
+namespace NUnit.Framework.Tests.Internal.Execution
 {
     public class ParallelExecutionStrategyTests
     {
@@ -41,55 +20,66 @@ namespace NUnit.Framework.Internal.Execution
             _testFixture = new TestFixture(new TypeWrapper(typeof(MyFixture)));
         }
 
-        [TestCase(ParallelScope.Default, ParallelScope.Default, "Direct")]
-        [TestCase(ParallelScope.Self, ParallelScope.Default, "Parallel")]
-        [TestCase(ParallelScope.None, ParallelScope.Default, "NonParallel")]
-        [TestCase(ParallelScope.Default, ParallelScope.Children, "Parallel")]
-        [TestCase(ParallelScope.Self, ParallelScope.Children, "Parallel")]
-        [TestCase(ParallelScope.None, ParallelScope.Children, "NonParallel")]
-        [TestCase(ParallelScope.Default, ParallelScope.Fixtures, "Direct")]
-        [TestCase(ParallelScope.Self, ParallelScope.Fixtures, "Parallel")]
-        [TestCase(ParallelScope.None, ParallelScope.Fixtures, "NonParallel")]
-        public void ParallelExecutionStrategy_TestCase(ParallelScope testScope, ParallelScope contextScope, string expectedStrategy)
+        [TestCase(ParallelScope.Default, ParallelScope.Default, ParallelExecutionStrategy.Direct)]
+        [TestCase(ParallelScope.Self, ParallelScope.Default, ParallelExecutionStrategy.Parallel)]
+        [TestCase(ParallelScope.None, ParallelScope.Default, ParallelExecutionStrategy.NonParallel)]
+        [TestCase(ParallelScope.Default, ParallelScope.Children, ParallelExecutionStrategy.Parallel)]
+        [TestCase(ParallelScope.Self, ParallelScope.Children, ParallelExecutionStrategy.Parallel)]
+        [TestCase(ParallelScope.None, ParallelScope.Children, ParallelExecutionStrategy.NonParallel)]
+        [TestCase(ParallelScope.Default, ParallelScope.Fixtures, ParallelExecutionStrategy.Direct)]
+        [TestCase(ParallelScope.Self, ParallelScope.Fixtures, ParallelExecutionStrategy.Parallel)]
+        [TestCase(ParallelScope.None, ParallelScope.Fixtures, ParallelExecutionStrategy.NonParallel)]
+        public void TestCaseStrategy(ParallelScope testScope, ParallelScope contextScope, ParallelExecutionStrategy expectedStrategy)
         {
-            _testMethod.Properties.Set(PropertyNames.ParallelScope, testScope);
-            _context.ParallelScope = contextScope;
+            var strategy = MakeWorkItem(_testMethod, testScope, contextScope).ExecutionStrategy;
+            Assert.That(strategy, Is.EqualTo(expectedStrategy));
+        }
 
-            WorkItem work = WorkItemBuilder.CreateWorkItem(_testMethod, TestFilter.Empty);
-            work.InitializeContext(_context);
-
-            // We use a string for expected because the ExecutionStrategy enum is internal and can't be an arg to a public method
-            Assert.That(ParallelWorkItemDispatcher.GetExecutionStrategy(work).ToString(), Is.EqualTo(expectedStrategy));
-            
-            // Make context single threaded - should always be direct
+        [TestCase(ParallelScope.Default, ParallelScope.Default)]
+        [TestCase(ParallelScope.Self, ParallelScope.Default)]
+        [TestCase(ParallelScope.None, ParallelScope.Default)]
+        [TestCase(ParallelScope.Default, ParallelScope.Children)]
+        [TestCase(ParallelScope.Self, ParallelScope.Children)]
+        [TestCase(ParallelScope.None, ParallelScope.Children)]
+        [TestCase(ParallelScope.Default, ParallelScope.Fixtures)]
+        [TestCase(ParallelScope.Self, ParallelScope.Fixtures)]
+        [TestCase(ParallelScope.None, ParallelScope.Fixtures)]
+        public void SingleThreadedTestCase(ParallelScope testScope, ParallelScope contextScope)
+        {
             _context.IsSingleThreaded = true;
-            Assert.That(ParallelWorkItemDispatcher.GetExecutionStrategy(work).ToString(), Is.EqualTo("Direct"));
+            var strategy = MakeWorkItem(_testMethod, testScope, contextScope).ExecutionStrategy;
+            Assert.That(strategy, Is.EqualTo(ParallelExecutionStrategy.Direct));
         }
 
-        [TestCase(ParallelScope.Default, ParallelScope.Default, "NonParallel")]
-        [TestCase(ParallelScope.Self, ParallelScope.Default, "Parallel")]
-        [TestCase(ParallelScope.None, ParallelScope.Default, "NonParallel")]
-        [TestCase(ParallelScope.Default, ParallelScope.Children, "Parallel")]
-        [TestCase(ParallelScope.Self, ParallelScope.Children, "Parallel")]
-        [TestCase(ParallelScope.None, ParallelScope.Children, "NonParallel")]
-        [TestCase(ParallelScope.Default, ParallelScope.Fixtures, "Parallel")]
-        [TestCase(ParallelScope.Self, ParallelScope.Fixtures, "Parallel")]
-        [TestCase(ParallelScope.None, ParallelScope.Fixtures, "NonParallel")]
-        public void ParallelExecutionStrategy_TestFixture(ParallelScope testScope, ParallelScope contextScope, string expectedStrategy)
+        [TestCase(ParallelScope.Default, ParallelScope.Default, ParallelExecutionStrategy.NonParallel)]
+        [TestCase(ParallelScope.Self, ParallelScope.Default, ParallelExecutionStrategy.Parallel)]
+        [TestCase(ParallelScope.None, ParallelScope.Default, ParallelExecutionStrategy.NonParallel)]
+        [TestCase(ParallelScope.Default, ParallelScope.Children, ParallelExecutionStrategy.Parallel)]
+        [TestCase(ParallelScope.Self, ParallelScope.Children, ParallelExecutionStrategy.Parallel)]
+        [TestCase(ParallelScope.None, ParallelScope.Children, ParallelExecutionStrategy.NonParallel)]
+        [TestCase(ParallelScope.Default, ParallelScope.Fixtures, ParallelExecutionStrategy.Parallel)]
+        [TestCase(ParallelScope.Self, ParallelScope.Fixtures, ParallelExecutionStrategy.Parallel)]
+        [TestCase(ParallelScope.None, ParallelScope.Fixtures, ParallelExecutionStrategy.NonParallel)]
+        public void TestFixtureStrategy(ParallelScope testScope, ParallelScope contextScope, ParallelExecutionStrategy expectedStrategy)
         {
-            _testFixture.Properties.Set(PropertyNames.ParallelScope, testScope);
+            var strategy = MakeWorkItem(_testFixture, testScope, contextScope).ExecutionStrategy;
+            Assert.That(strategy, Is.EqualTo(expectedStrategy));
+        }
+
+        private WorkItem MakeWorkItem(Test test, ParallelScope testScope, ParallelScope contextScope)
+        {
+            test.Properties.Set(PropertyNames.ParallelScope, testScope);
             _context.ParallelScope = contextScope;
 
-            WorkItem work = WorkItemBuilder.CreateWorkItem(_testFixture, TestFilter.Empty);
-            work.InitializeContext(_context);
-
-            // We use a string for expected because the ExecutionStrategy enum is internal and can't be an arg to a public method
-            Assert.That(ParallelWorkItemDispatcher.GetExecutionStrategy(work).ToString(), Is.EqualTo(expectedStrategy));
+            return TestBuilder.CreateWorkItem(test, _context);
         }
 
-        private void TestMethod() { }
+        private void TestMethod()
+        {
+        }
 
-        private class MyFixture { }
+        private class MyFixture
+        {
+        }
     }
 }
-#endif

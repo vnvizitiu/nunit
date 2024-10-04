@@ -1,58 +1,40 @@
-// ***********************************************************************
-// Copyright (c) 2009 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
-using System;
+using NUnit.Framework.Constraints;
 
-namespace NUnit.Framework.Constraints
+namespace NUnit.Framework.Tests.Constraints
 {
     /// <summary>
     /// Summary description for PathConstraintTests.
     /// </summary>]
-    [TestFixture]
+    [TestFixture, Platform("Win")]
     public class SamePathTest_Windows : StringConstraintTests
     {
+        protected override Constraint TheConstraint { get; } = new SamePathConstraint(@"C:\folder1\file.tmp").IgnoreCase;
+
         [SetUp]
         public void SetUp()
         {
-            theConstraint = new SamePathConstraint( @"C:\folder1\file.tmp" ).IgnoreCase;
-            expectedDescription = @"Path matching ""C:\folder1\file.tmp""";
-            stringRepresentation = "<samepath \"C:\\folder1\\file.tmp\" ignorecase>";
+            ExpectedDescription = @"Path matching ""C:\folder1\file.tmp""";
+            StringRepresentation = "<samepath \"C:\\folder1\\file.tmp\" ignorecase>";
         }
 
-        static object[] SuccessData = new object[] 
-            { 
-                @"C:\folder1\file.tmp", 
-                @"C:\Folder1\File.TMP",
-                @"C:\folder1\.\file.tmp",
-                @"C:\folder1\folder2\..\file.tmp",
-                @"C:\FOLDER1\.\folder2\..\File.TMP",
-                @"C:/folder1/file.tmp"
-            };
-        static object[] FailureData = new object[] 
-            { 
-                new TestCaseData( @"C:\folder2\file.tmp", "\"C:\\folder2\\file.tmp\"" ),
-                new TestCaseData( @"C:\folder1\.\folder2\..\file.temp", "\"C:\\folder1\\.\\folder2\\..\\file.temp\"" )
-            };
+#pragma warning disable IDE0052 // Remove unread private members
+        private static readonly object[] SuccessData = new object[]
+        {
+            @"C:\folder1\file.tmp",
+            @"C:\Folder1\File.TMP",
+            @"C:\folder1\.\file.tmp",
+            @"C:\folder1\folder2\..\file.tmp",
+            @"C:\FOLDER1\.\folder2\..\File.TMP",
+            @"C:/folder1/file.tmp"
+        };
+        private static readonly object[] FailureData = new object[]
+        {
+            new TestCaseData(@"C:\folder2\file.tmp", "\"C:\\folder2\\file.tmp\""),
+            new TestCaseData(@"C:\folder1\.\folder2\..\file.temp", "\"C:\\folder1\\.\\folder2\\..\\file.temp\"")
+        };
+#pragma warning restore IDE0052 // Remove unread private members
 
         [Test]
         public void RootPathEquality()
@@ -61,39 +43,42 @@ namespace NUnit.Framework.Constraints
         }
     }
 
-    [TestFixture]
+    [TestFixture, Platform("Unix")]
     public class SamePathTest_Linux : StringConstraintTests
     {
+        protected override Constraint TheConstraint { get; } = new SamePathConstraint(@"/folder1/folder2").RespectCase;
+
         [SetUp]
         public void SetUp()
         {
-            theConstraint = new SamePathConstraint(@"/folder1/folder2").RespectCase;
-            expectedDescription = @"Path matching ""/folder1/folder2""";
-            stringRepresentation = @"<samepath ""/folder1/folder2"" respectcase>";
+            ExpectedDescription = @"Path matching ""/folder1/folder2""";
+            StringRepresentation = @"<samepath ""/folder1/folder2"" respectcase>";
         }
 
-        static object[] SuccessData = new object[] 
-            { 
-                @"/folder1/folder2", 
-                @"/folder1/folder2/",
-                @"/folder1/./folder2",
-                @"/folder1/./folder2/",
-                @"/folder1/junk/../folder2",
-                @"/folder1/junk/../folder2/",
-                @"/folder1/./junk/../folder2",
-                @"/folder1/./junk/../folder2/",
-                @"\folder1\folder2",
-                @"\folder1\folder2\"
-            };
-        static object[] FailureData = new object[] 
-            { 
-                new TestCaseData( "folder1/folder2", "\"folder1/folder2\""),
-                new TestCaseData( "//folder1/folder2", "\"//folder1/folder2\""),
-                new TestCaseData( @"/junk/folder2", "\"/junk/folder2\"" ),
-                new TestCaseData( @"/folder1/./junk/../file.temp", "\"/folder1/./junk/../file.temp\"" ),
-                new TestCaseData( @"/Folder1/FOLDER2", "\"/Folder1/FOLDER2\"" ),
-                new TestCaseData( @"/FOLDER1/./junk/../FOLDER2", "\"/FOLDER1/./junk/../FOLDER2\"" )
-            };
+#pragma warning disable IDE0052 // Remove unread private members
+        private static readonly object[] SuccessData = new object[]
+        {
+            @"/folder1/folder2",
+            @"/folder1/folder2/",
+            @"/folder1/./folder2",
+            @"/folder1/./folder2/",
+            @"/folder1/junk/../folder2",
+            @"/folder1/junk/../folder2/",
+            @"/folder1/./junk/../folder2",
+            @"/folder1/./junk/../folder2/",
+            @"\folder1\folder2",
+            @"\folder1\folder2\"
+        };
+        private static readonly object[] FailureData = new object[]
+        {
+            new TestCaseData("folder1/folder2", "\"folder1/folder2\""),
+            new TestCaseData("//folder1/folder2", "\"//folder1/folder2\""),
+            new TestCaseData(@"/junk/folder2", "\"/junk/folder2\""),
+            new TestCaseData(@"/folder1/./junk/../file.temp", "\"/folder1/./junk/../file.temp\""),
+            new TestCaseData(@"/Folder1/FOLDER2", "\"/Folder1/FOLDER2\""),
+            new TestCaseData(@"/FOLDER1/./junk/../FOLDER2", "\"/FOLDER1/./junk/../FOLDER2\"")
+        };
+#pragma warning restore IDE0052 // Remove unread private members
 
         [Test]
         public void RootPathEquality()
@@ -102,36 +87,39 @@ namespace NUnit.Framework.Constraints
         }
     }
 
-    [TestFixture]
+    [TestFixture, Platform("Win")]
     public class SubPathTest_Windows : ConstraintTestBase
     {
+        protected override Constraint TheConstraint { get; } = new SubPathConstraint(@"C:\folder1\folder2").IgnoreCase;
+
         [SetUp]
         public void SetUp()
         {
-            theConstraint = new SubPathConstraint(@"C:\folder1\folder2").IgnoreCase;
-            expectedDescription = @"Subpath of ""C:\folder1\folder2""";
-            stringRepresentation = @"<subpath ""C:\folder1\folder2"" ignorecase>";
+            ExpectedDescription = @"Subpath of ""C:\folder1\folder2""";
+            StringRepresentation = @"<subpath ""C:\folder1\folder2"" ignorecase>";
         }
 
-        static object[] SuccessData = new object[]
-            {
-                @"C:\folder1\folder2\folder3",
-                @"C:\folder1\.\folder2\folder3",
-                @"C:\folder1\junk\..\folder2\folder3",
-                @"C:\FOLDER1\.\junk\..\Folder2\temp\..\Folder3",
-                @"C:/folder1/folder2/folder3",
-            };
-        static object[] FailureData = new object[]
-            {
-                new TestCaseData(@"C:\folder1\folder3", "\"C:\\folder1\\folder3\""),
-                new TestCaseData(@"C:\folder1\.\folder2\..\file.temp", "\"C:\\folder1\\.\\folder2\\..\\file.temp\""),
-                new TestCaseData(@"C:\folder1\folder2", "\"C:\\folder1\\folder2\""),
-                new TestCaseData(@"C:\Folder1\Folder2", "\"C:\\Folder1\\Folder2\""),
-                new TestCaseData(@"C:\folder1\.\folder2", "\"C:\\folder1\\.\\folder2\""),
-                new TestCaseData(@"C:\folder1\junk\..\folder2", "\"C:\\folder1\\junk\\..\\folder2\""),
-                new TestCaseData(@"C:\FOLDER1\.\junk\..\Folder2", "\"C:\\FOLDER1\\.\\junk\\..\\Folder2\""),
-                new TestCaseData(@"C:/folder1/folder2", "\"C:/folder1/folder2\"")
-            };
+#pragma warning disable IDE0052 // Remove unread private members
+        private static readonly object[] SuccessData = new object[]
+        {
+            @"C:\folder1\folder2\folder3",
+            @"C:\folder1\.\folder2\folder3",
+            @"C:\folder1\junk\..\folder2\folder3",
+            @"C:\FOLDER1\.\junk\..\Folder2\temp\..\Folder3",
+            @"C:/folder1/folder2/folder3",
+        };
+        private static readonly object[] FailureData = new object[]
+        {
+            new TestCaseData(@"C:\folder1\folder3", "\"C:\\folder1\\folder3\""),
+            new TestCaseData(@"C:\folder1\.\folder2\..\file.temp", "\"C:\\folder1\\.\\folder2\\..\\file.temp\""),
+            new TestCaseData(@"C:\folder1\folder2", "\"C:\\folder1\\folder2\""),
+            new TestCaseData(@"C:\Folder1\Folder2", "\"C:\\Folder1\\Folder2\""),
+            new TestCaseData(@"C:\folder1\.\folder2", "\"C:\\folder1\\.\\folder2\""),
+            new TestCaseData(@"C:\folder1\junk\..\folder2", "\"C:\\folder1\\junk\\..\\folder2\""),
+            new TestCaseData(@"C:\FOLDER1\.\junk\..\Folder2", "\"C:\\FOLDER1\\.\\junk\\..\\Folder2\""),
+            new TestCaseData(@"C:/folder1/folder2", "\"C:/folder1/folder2\"")
+        };
+#pragma warning restore IDE0052 // Remove unread private members
 
         [Test]
         public void SubPathOfRoot()
@@ -140,37 +128,40 @@ namespace NUnit.Framework.Constraints
         }
     }
 
-    [TestFixture]
+    [TestFixture, Platform("Unix")]
     public class SubPathTest_Linux : ConstraintTestBase
     {
+        protected override Constraint TheConstraint { get; } = new SubPathConstraint(@"/folder1/folder2").RespectCase;
+
         [SetUp]
         public void SetUp()
         {
-            theConstraint = new SubPathConstraint(@"/folder1/folder2").RespectCase;
-            expectedDescription = @"Subpath of ""/folder1/folder2""";
-            stringRepresentation = @"<subpath ""/folder1/folder2"" respectcase>";
+            ExpectedDescription = @"Subpath of ""/folder1/folder2""";
+            StringRepresentation = @"<subpath ""/folder1/folder2"" respectcase>";
         }
 
-        static object[] SuccessData = new object[]
-            {
-                @"/folder1/folder2/folder3",
-                @"/folder1/./folder2/folder3",
-                @"/folder1/junk/../folder2/folder3",
-                @"\folder1\folder2\folder3",
-            };
-        static object[] FailureData = new object[]
-            {
-                new TestCaseData("/Folder1/Folder2", "\"/Folder1/Folder2\""),
-                new TestCaseData("/FOLDER1/./junk/../Folder2", "\"/FOLDER1/./junk/../Folder2\""),
-                new TestCaseData("/FOLDER1/./junk/../Folder2/temp/../Folder3", "\"/FOLDER1/./junk/../Folder2/temp/../Folder3\""),
-                new TestCaseData("/folder1/folder3", "\"/folder1/folder3\""),
-                new TestCaseData("/folder1/./folder2/../folder3", "\"/folder1/./folder2/../folder3\""),
-                new TestCaseData("/folder1", "\"/folder1\""),
-                new TestCaseData("/folder1/folder2", "\"/folder1/folder2\""),
-                new TestCaseData("/folder1/./folder2", "\"/folder1/./folder2\""),
-                new TestCaseData("/folder1/junk/../folder2", "\"/folder1/junk/../folder2\""),
-                new TestCaseData(@"\folder1\folder2", "\"\\folder1\\folder2\"")
-            };
+#pragma warning disable IDE0052 // Remove unread private members
+        private static readonly object[] SuccessData = new object[]
+        {
+            @"/folder1/folder2/folder3",
+            @"/folder1/./folder2/folder3",
+            @"/folder1/junk/../folder2/folder3",
+            @"\folder1\folder2\folder3",
+        };
+        private static readonly object[] FailureData = new object[]
+        {
+            new TestCaseData("/Folder1/Folder2", "\"/Folder1/Folder2\""),
+            new TestCaseData("/FOLDER1/./junk/../Folder2", "\"/FOLDER1/./junk/../Folder2\""),
+            new TestCaseData("/FOLDER1/./junk/../Folder2/temp/../Folder3", "\"/FOLDER1/./junk/../Folder2/temp/../Folder3\""),
+            new TestCaseData("/folder1/folder3", "\"/folder1/folder3\""),
+            new TestCaseData("/folder1/./folder2/../folder3", "\"/folder1/./folder2/../folder3\""),
+            new TestCaseData("/folder1", "\"/folder1\""),
+            new TestCaseData("/folder1/folder2", "\"/folder1/folder2\""),
+            new TestCaseData("/folder1/./folder2", "\"/folder1/./folder2\""),
+            new TestCaseData("/folder1/junk/../folder2", "\"/folder1/junk/../folder2\""),
+            new TestCaseData(@"\folder1\folder2", "\"\\folder1\\folder2\"")
+        };
+#pragma warning restore IDE0052 // Remove unread private members
 
         [Test]
         public void SubPathOfRoot()
@@ -179,68 +170,74 @@ namespace NUnit.Framework.Constraints
         }
     }
 
-    [TestFixture]
+    [TestFixture, Platform("Win")]
     public class SamePathOrUnderTest_Windows : StringConstraintTests
     {
+        protected override Constraint TheConstraint { get; } = new SamePathOrUnderConstraint(@"C:\folder1\folder2").IgnoreCase;
+
         [SetUp]
         public void SetUp()
         {
-            theConstraint = new SamePathOrUnderConstraint( @"C:\folder1\folder2" ).IgnoreCase;
-            expectedDescription = @"Path under or matching ""C:\folder1\folder2""";
-            stringRepresentation = @"<samepathorunder ""C:\folder1\folder2"" ignorecase>";
+            ExpectedDescription = @"Path under or matching ""C:\folder1\folder2""";
+            StringRepresentation = @"<samepathorunder ""C:\folder1\folder2"" ignorecase>";
         }
 
-        static object[] SuccessData = new object[]
-            {
-                @"C:\folder1\folder2",
-                @"C:\Folder1\Folder2",
-                @"C:\folder1\.\folder2",
-                @"C:\folder1\junk\..\folder2",
-                @"C:\FOLDER1\.\junk\..\Folder2",
-                @"C:/folder1/folder2",
-                @"C:\folder1\folder2\folder3",
-                @"C:\folder1\.\folder2\folder3",
-                @"C:\folder1\junk\..\folder2\folder3",
-                @"C:\FOLDER1\.\junk\..\Folder2\temp\..\Folder3",
-                @"C:/folder1/folder2/folder3",
-            };
-        static object[] FailureData = new object[]
-            {
-                new TestCaseData( @"C:\folder1\folder3", "\"C:\\folder1\\folder3\"" ),
-                new TestCaseData( @"C:\folder1\.\folder2\..\file.temp", "\"C:\\folder1\\.\\folder2\\..\\file.temp\"" )
-            };
+#pragma warning disable IDE0052 // Remove unread private members
+        private static readonly object[] SuccessData = new object[]
+        {
+            @"C:\folder1\folder2",
+            @"C:\Folder1\Folder2",
+            @"C:\folder1\.\folder2",
+            @"C:\folder1\junk\..\folder2",
+            @"C:\FOLDER1\.\junk\..\Folder2",
+            @"C:/folder1/folder2",
+            @"C:\folder1\folder2\folder3",
+            @"C:\folder1\.\folder2\folder3",
+            @"C:\folder1\junk\..\folder2\folder3",
+            @"C:\FOLDER1\.\junk\..\Folder2\temp\..\Folder3",
+            @"C:/folder1/folder2/folder3",
+        };
+        private static readonly object[] FailureData = new object[]
+        {
+            new TestCaseData(@"C:\folder1\folder3", "\"C:\\folder1\\folder3\""),
+            new TestCaseData(@"C:\folder1\.\folder2\..\file.temp", "\"C:\\folder1\\.\\folder2\\..\\file.temp\"")
+        };
+#pragma warning restore IDE0052 // Remove unread private members
     }
 
-    [TestFixture]
+    [TestFixture, Platform("Unix")]
     public class SamePathOrUnderTest_Linux : StringConstraintTests
     {
+        protected override Constraint TheConstraint { get; } = new SamePathOrUnderConstraint(@"/folder1/folder2").RespectCase;
+
         [SetUp]
         public void SetUp()
         {
-            theConstraint = new SamePathOrUnderConstraint( @"/folder1/folder2"  ).RespectCase;
-            expectedDescription = @"Path under or matching ""/folder1/folder2""";
-            stringRepresentation = @"<samepathorunder ""/folder1/folder2"" respectcase>";
+            ExpectedDescription = @"Path under or matching ""/folder1/folder2""";
+            StringRepresentation = @"<samepathorunder ""/folder1/folder2"" respectcase>";
         }
 
-        static object[] SuccessData = new object[]
-            {
-                @"/folder1/folder2",
-                @"/folder1/./folder2",
-                @"/folder1/junk/../folder2",
-                @"\folder1\folder2",
-                @"/folder1/folder2/folder3",
-                @"/folder1/./folder2/folder3",
-                @"/folder1/junk/../folder2/folder3",
-                @"\folder1\folder2\folder3",
-            };
-        static object[] FailureData = new object[]
-            {
-                new TestCaseData( "/Folder1/Folder2", "\"/Folder1/Folder2\"" ),
-                new TestCaseData( "/FOLDER1/./junk/../Folder2", "\"/FOLDER1/./junk/../Folder2\"" ),
-                new TestCaseData( "/FOLDER1/./junk/../Folder2/temp/../Folder3", "\"/FOLDER1/./junk/../Folder2/temp/../Folder3\"" ),
-                new TestCaseData( "/folder1/folder3", "\"/folder1/folder3\"" ),
-                new TestCaseData( "/folder1/./folder2/../folder3", "\"/folder1/./folder2/../folder3\"" ),
-                new TestCaseData( "/folder1", "\"/folder1\"" )
-            };
+#pragma warning disable IDE0052 // Remove unread private members
+        private static readonly object[] SuccessData = new object[]
+        {
+            @"/folder1/folder2",
+            @"/folder1/./folder2",
+            @"/folder1/junk/../folder2",
+            @"\folder1\folder2",
+            @"/folder1/folder2/folder3",
+            @"/folder1/./folder2/folder3",
+            @"/folder1/junk/../folder2/folder3",
+            @"\folder1\folder2\folder3",
+        };
+        private static readonly object[] FailureData = new object[]
+        {
+            new TestCaseData("/Folder1/Folder2", "\"/Folder1/Folder2\""),
+            new TestCaseData("/FOLDER1/./junk/../Folder2", "\"/FOLDER1/./junk/../Folder2\""),
+            new TestCaseData("/FOLDER1/./junk/../Folder2/temp/../Folder3", "\"/FOLDER1/./junk/../Folder2/temp/../Folder3\""),
+            new TestCaseData("/folder1/folder3", "\"/folder1/folder3\""),
+            new TestCaseData("/folder1/./folder2/../folder3", "\"/folder1/./folder2/../folder3\""),
+            new TestCaseData("/folder1", "\"/folder1\"")
+        };
+#pragma warning restore IDE0052 // Remove unread private members
     }
 }

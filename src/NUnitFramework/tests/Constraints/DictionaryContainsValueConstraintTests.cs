@@ -1,29 +1,8 @@
-// ***********************************************************************
-// Copyright (c) 2015 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
+using System;
 using System.Collections;
 using System.Collections.Generic;
-
 using NUnit.Framework.Constraints;
 using NUnit.Framework.Internal;
 
@@ -49,19 +28,22 @@ namespace NUnit.Framework.Tests.Constraints
 
             Assert.That(act, Throws.Exception.TypeOf<AssertionException>());
         }
-        [Test]
-        public void SucceedsWhenValueIsPresentUsingContainKey()
+
+        [TestCase("Mundo")]
+        [TestCase(null)]
+        public void SucceedsWhenValueIsPresentUsingContainValue(string? expectedValue)
         {
-            var dictionary = new Dictionary<string, string> { { "Hello", "World" }, { "Hola", "Mundo" } };
-            Assert.That(dictionary, Does.ContainValue("Mundo"));
+            var dictionary = new Dictionary<string, string?> { { "Hello", "World" }, { "Hola", expectedValue } };
+            Assert.That(dictionary, Does.ContainValue(expectedValue));
         }
 
         [Test]
-        public void SucceedsWhenValueIsNotPresentUsingContainKey()
+        public void SucceedsWhenValueIsNotPresentUsingContainValue()
         {
             var dictionary = new Dictionary<string, string> { { "Hello", "World" }, { "Hola", "Mundo" } };
             Assert.That(dictionary, Does.Not.ContainValue("NotValue"));
         }
+
         [Test]
         public void FailsWhenNotUsedAgainstADictionary()
         {
@@ -69,11 +51,10 @@ namespace NUnit.Framework.Tests.Constraints
                 new Dictionary<string, string> { { "Hello", "World" }, { "Hi", "Universe" }, { "Hola", "Mundo" } });
 
             TestDelegate act = () => Assert.That(keyValuePairs, new DictionaryContainsValueConstraint("Community"));
-          
+
             Assert.That(act, Throws.ArgumentException.With.Message.Contains("IDictionary"));
         }
 
-#if !NETSTANDARD1_3 && !NETSTANDARD1_6
         [Test]
         public void WorksWithNonGenericDictionary()
         {
@@ -81,9 +62,8 @@ namespace NUnit.Framework.Tests.Constraints
 
             Assert.That(dictionary, new DictionaryContainsValueConstraint("Universe"));
         }
-#endif
 
-        [Test]
+        [Test, SetCulture("en-US")]
         public void IgnoreCaseIsHonored()
         {
             var dictionary = new Dictionary<string, string> { { "Hello", "World" }, { "Hi", "Universe" }, { "Hola", "Mundo" } };
@@ -92,12 +72,49 @@ namespace NUnit.Framework.Tests.Constraints
         }
 
         [Test]
+        public void IgnoreWhiteSpaceIsHonored()
+        {
+            var dictionary = new Dictionary<string, string> { { "Hello", "World" }, { "Hi", "Universe" }, { "Hola", "Mundo" } };
+
+            Assert.That(dictionary, new DictionaryContainsValueConstraint("U n i v e r s e").IgnoreWhiteSpace);
+        }
+
+        [Test, SetCulture("en-US")]
         public void UsingIsHonored()
         {
             var dictionary = new Dictionary<string, string> { { "Hello", "World" }, { "Hi", "Universe" }, { "Hola", "Mundo" } };
 
             Assert.That(dictionary,
-                new DictionaryContainsValueConstraint("UNIVERSE").Using<string>((x, y) => StringUtil.Compare(x, y, true)));
+                new DictionaryContainsValueConstraint("UNIVERSE").Using<string>((x, y) => string.Compare(x, y, StringComparison.CurrentCultureIgnoreCase)));
+        }
+
+        [Test]
+        public void UsingPropertiesComparerIsHonored()
+        {
+            var dictionary = new Dictionary<string, XY> { { "5", new(3, 4) }, { "13", new(5, 12) } };
+            var value = new XY(5, 12);
+            Assert.That(dictionary, Does.Not.ContainValue(value));
+            Assert.That(dictionary, Does.ContainValue(value).UsingPropertiesComparer());
+        }
+
+        [Test]
+        public void UsingCustomComparerIsHonored()
+        {
+            var dictionary = new Dictionary<string, int> { { "a", 1 }, { "b", 2 }, { "c", 3 } };
+
+            Assert.That(dictionary, new DictionaryContainsValueConstraint("1").Using<int, string>((actual, expected) => actual.ToString() == expected));
+        }
+
+        private sealed class XY
+        {
+            public XY(double x, double y)
+            {
+                X = x;
+                Y = y;
+            }
+
+            public double X { get; }
+            public double Y { get; }
         }
     }
 }

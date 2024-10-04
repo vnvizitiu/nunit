@@ -1,42 +1,36 @@
-// ***********************************************************************
-// Copyright (c) 2007 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
-namespace NUnit.Framework.Constraints
+using System;
+using NUnit.Framework.Constraints;
+using NUnit.Framework.Internal;
+
+namespace NUnit.Framework.Tests.Constraints
 {
     [TestFixture]
     public class AndConstraintTests : ConstraintTestBase
     {
+        private TextMessageWriter _messageWriter;
+
+        protected override Constraint TheConstraint { get; } = new AndConstraint(new GreaterThanConstraint(40), new LessThanConstraint(50));
+
         [SetUp]
         public void SetUp()
         {
-            theConstraint = new AndConstraint(new GreaterThanConstraint(40), new LessThanConstraint(50));
-            expectedDescription = "greater than 40 and less than 50";
-            stringRepresentation = "<and <greaterthan 40> <lessthan 50>>";
+            ExpectedDescription = "greater than 40 and less than 50";
+            StringRepresentation = "<and <greaterthan 40> <lessthan 50>>";
+            _messageWriter = new TextMessageWriter();
         }
 
-        static object[] SuccessData = new object[] { 42 };
+        [TearDown]
+        public void TearDown()
+        {
+            _messageWriter.Dispose();
+        }
 
-        static object[] FailureData = new object[] { new object[] { 37, "37" }, new object[] { 53, "53" } };
+#pragma warning disable IDE0052 // Remove unread private members
+        private static readonly object[] SuccessData = new object[] { 42 };
+        private static readonly object[] FailureData = new object[] { new object[] { 37, "37" }, new object[] { 53, "53" } };
+#pragma warning restore IDE0052 // Remove unread private members
 
         [Test]
         public void CanCombineTestsWithAndOperator()
@@ -53,8 +47,62 @@ namespace NUnit.Framework.Constraints
             var constraint = expression.Resolve();
             var constraintResult = constraint.ApplyTo(test);
 
-            Assert.That( constraintResult.IsSuccess, Is.False );
-            Assert.That( constraintResult.Description, Is.EqualTo( "String starting with \"Could not load\" and containing \"c:\\myfile.txt\"" ) );
+            Assert.That(constraintResult.IsSuccess, Is.False);
+            Assert.That(constraintResult.Description, Is.EqualTo("String starting with \"Could not load\" and containing \"c:\\myfile.txt\""));
+        }
+
+        [Test]
+        public void ShouldIncludeAdditionalInformationFromFailedConstraint_Right()
+        {
+            var constraint = new AndConstraint(Is.Ordered, Is.EquivalentTo(new[] { 1, 2, 3 }));
+
+            string expectedMsg =
+                "  Expected: collection ordered and equivalent to < 1, 2, 3 >" + Environment.NewLine +
+                "  But was:  < 1, 2 >" + Environment.NewLine +
+                "  Missing (1): < 3 >" + Environment.NewLine;
+
+            var constraintResult = constraint.ApplyTo(new[] { 1, 2 });
+
+            Assert.That(constraintResult.IsSuccess, Is.False);
+
+            constraintResult.WriteMessageTo(_messageWriter);
+            Assert.That(_messageWriter.ToString(), Is.EqualTo(expectedMsg));
+        }
+
+        [Test]
+        public void ShouldIncludeAdditionalInformationFromFailedConstraint_Left()
+        {
+            var constraint = new AndConstraint(Is.EquivalentTo(new[] { 1, 2, 3 }), Is.Ordered);
+
+            string expectedMsg =
+                "  Expected: equivalent to < 1, 2, 3 > and collection ordered" + Environment.NewLine +
+                "  But was:  < 1, 2 >" + Environment.NewLine +
+                "  Missing (1): < 3 >" + Environment.NewLine;
+
+            var constraintResult = constraint.ApplyTo(new[] { 1, 2 });
+
+            Assert.That(constraintResult.IsSuccess, Is.False);
+
+            constraintResult.WriteMessageTo(_messageWriter);
+            Assert.That(_messageWriter.ToString(), Is.EqualTo(expectedMsg));
+        }
+
+        [Test]
+        public void ShouldIncludeAdditionalInformationFromFailedConstraint_Both()
+        {
+            var constraint = new AndConstraint(Is.EquivalentTo(new[] { 1, 2, 3 }), Is.Ordered);
+
+            string expectedMsg =
+                "  Expected: equivalent to < 1, 2, 3 > and collection ordered" + Environment.NewLine +
+                "  But was:  < 2, 1 >" + Environment.NewLine +
+                "  Missing (1): < 3 >" + Environment.NewLine;
+
+            var constraintResult = constraint.ApplyTo(new[] { 2, 1 });
+
+            Assert.That(constraintResult.IsSuccess, Is.False);
+
+            constraintResult.WriteMessageTo(_messageWriter);
+            Assert.That(_messageWriter.ToString(), Is.EqualTo(expectedMsg));
         }
     }
 }

@@ -1,25 +1,4 @@
-// ***********************************************************************
-// Copyright (c) 2007 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
 using System.Collections.Generic;
@@ -30,45 +9,38 @@ namespace NUnit.Framework.Constraints
     /// ConstraintBuilder maintains the stacks that are used in
     /// processing a ConstraintExpression. An OperatorStack
     /// is used to hold operators that are waiting for their
-    /// operands to be reorganized. a ConstraintStack holds 
+    /// operands to be reorganized. a ConstraintStack holds
     /// input constraints as well as the results of each
     /// operator applied.
     /// </summary>
-    public class ConstraintBuilder : IResolveConstraint
+    public sealed class ConstraintBuilder : IResolveConstraint
     {
         #region Nested Operator Stack Class
 
         /// <summary>
         /// OperatorStack is a type-safe stack for holding ConstraintOperators
         /// </summary>
-        public class OperatorStack
+        private sealed class OperatorStack
         {
-            private readonly Stack<ConstraintOperator> stack = new Stack<ConstraintOperator>();
+            private readonly Stack<ConstraintOperator> _stack = new();
 
             /// <summary>
             /// Initializes a new instance of the <see cref="OperatorStack"/> class.
             /// </summary>
-            /// <param name="builder">The ConstraintBuilder using this stack.</param>
-            public OperatorStack(ConstraintBuilder builder)
+            public OperatorStack()
             {
             }
 
             /// <summary>
             /// Gets a value indicating whether this <see cref="OperatorStack"/> is empty.
             /// </summary>
-            /// <value><c>true</c> if empty; otherwise, <c>false</c>.</value>
-            public bool Empty
-            {
-                get { return stack.Count == 0; }
-            }
+            /// <value><see langword="true"/> if empty; otherwise, <see langword="false"/>.</value>
+            public bool Empty => _stack.Count == 0;
 
             /// <summary>
             /// Gets the topmost operator without modifying the stack.
             /// </summary>
-            public ConstraintOperator Top
-            {
-                get { return stack.Peek(); }
-            }
+            public ConstraintOperator Top => _stack.Peek();
 
             /// <summary>
             /// Pushes the specified operator onto the stack.
@@ -76,7 +48,7 @@ namespace NUnit.Framework.Constraints
             /// <param name="op">The operator to put onto the stack.</param>
             public void Push(ConstraintOperator op)
             {
-                stack.Push(op);
+                _stack.Push(op);
             }
 
             /// <summary>
@@ -85,7 +57,7 @@ namespace NUnit.Framework.Constraints
             /// <returns>The topmost operator on the stack</returns>
             public ConstraintOperator Pop()
             {
-                return stack.Pop();
+                return _stack.Pop();
             }
         }
 
@@ -96,10 +68,10 @@ namespace NUnit.Framework.Constraints
         /// <summary>
         /// ConstraintStack is a type-safe stack for holding Constraints
         /// </summary>
-        public class ConstraintStack
+        public sealed class ConstraintStack
         {
-            private readonly Stack<IConstraint> stack = new Stack<IConstraint>();
-            private readonly ConstraintBuilder builder;
+            private readonly Stack<IConstraint> _stack = new();
+            private readonly ConstraintBuilder _builder;
 
             /// <summary>
             /// Initializes a new instance of the <see cref="ConstraintStack"/> class.
@@ -107,28 +79,25 @@ namespace NUnit.Framework.Constraints
             /// <param name="builder">The ConstraintBuilder using this stack.</param>
             public ConstraintStack(ConstraintBuilder builder)
             {
-                this.builder = builder;
+                _builder = builder;
             }
 
             /// <summary>
             /// Gets a value indicating whether this <see cref="ConstraintStack"/> is empty.
             /// </summary>
-            /// <value><c>true</c> if empty; otherwise, <c>false</c>.</value>
-            public bool Empty
-            {
-                get { return stack.Count == 0; }
-            }
+            /// <value><see langword="true"/> if empty; otherwise, <see langword="false"/>.</value>
+            public bool Empty => _stack.Count == 0;
 
             /// <summary>
             /// Pushes the specified constraint. As a side effect,
-            /// the constraint's Builder field is set to the 
+            /// the constraint's Builder field is set to the
             /// ConstraintBuilder owning this stack.
             /// </summary>
             /// <param name="constraint">The constraint to put onto the stack</param>
             public void Push(IConstraint constraint)
             {
-                stack.Push(constraint);
-                constraint.Builder = this.builder;
+                _stack.Push(constraint);
+                constraint.Builder = _builder;
             }
 
             /// <summary>
@@ -136,10 +105,10 @@ namespace NUnit.Framework.Constraints
             /// As a side effect, the constraint's Builder
             /// field is set to null.
             /// </summary>
-            /// <returns>The topmost contraint on the stack</returns>
+            /// <returns>The topmost constraint on the stack</returns>
             public IConstraint Pop()
             {
-                IConstraint constraint = stack.Pop();
+                IConstraint constraint = _stack.Pop();
                 constraint.Builder = null;
                 return constraint;
             }
@@ -149,11 +118,11 @@ namespace NUnit.Framework.Constraints
 
         #region Instance Fields
 
-        private readonly OperatorStack ops;
+        private readonly OperatorStack _ops;
 
-        private readonly ConstraintStack constraints;
+        private readonly ConstraintStack _constraints;
 
-        private object lastPushed;
+        private object? _lastPushed;
 
         #endregion
 
@@ -164,8 +133,8 @@ namespace NUnit.Framework.Constraints
         /// </summary>
         public ConstraintBuilder()
         {
-            this.ops = new OperatorStack(this);
-            this.constraints = new ConstraintStack(this);
+            _ops = new OperatorStack();
+            _constraints = new ConstraintStack(this);
         }
 
         #endregion
@@ -180,15 +149,15 @@ namespace NUnit.Framework.Constraints
         /// <param name="op">The operator to push.</param>
         public void Append(ConstraintOperator op)
         {
-            op.LeftContext = lastPushed;
-            if (lastPushed is ConstraintOperator)
+            op.LeftContext = _lastPushed;
+            if (_lastPushed is ConstraintOperator)
                 SetTopOperatorRightContext(op);
 
             // Reduce any lower precedence operators
             ReduceOperatorStack(op.LeftPrecedence);
-            
-            ops.Push(op);
-            lastPushed = op;
+
+            _ops.Push(op);
+            _lastPushed = op;
         }
 
         /// <summary>
@@ -198,11 +167,11 @@ namespace NUnit.Framework.Constraints
         /// <param name="constraint">The constraint to push.</param>
         public void Append(Constraint constraint)
         {
-            if (lastPushed is ConstraintOperator)
+            if (_lastPushed is ConstraintOperator)
                 SetTopOperatorRightContext(constraint);
 
-            constraints.Push(constraint);
-            lastPushed = constraint;
+            _constraints.Push(constraint);
+            _lastPushed = constraint;
             constraint.Builder = this;
         }
 
@@ -214,17 +183,17 @@ namespace NUnit.Framework.Constraints
         {
             // Some operators change their precedence based on
             // the right context - save current precedence.
-            int oldPrecedence = ops.Top.LeftPrecedence;
+            int oldPrecedence = _ops.Top.LeftPrecedence;
 
-            ops.Top.RightContext = rightContext;
+            _ops.Top.RightContext = rightContext;
 
             // If the precedence increased, we may be able to
             // reduce the region of the stack below the operator
-            if (ops.Top.LeftPrecedence > oldPrecedence)
+            if (_ops.Top.LeftPrecedence > oldPrecedence)
             {
-                ConstraintOperator changedOp = ops.Pop();
+                ConstraintOperator changedOp = _ops.Pop();
                 ReduceOperatorStack(changedOp.LeftPrecedence);
-                ops.Push(changedOp);
+                _ops.Push(changedOp);
             }
         }
 
@@ -235,8 +204,8 @@ namespace NUnit.Framework.Constraints
         /// <param name="targetPrecedence">The target precedence.</param>
         private void ReduceOperatorStack(int targetPrecedence)
         {
-            while (!ops.Empty && ops.Top.RightPrecedence < targetPrecedence)
-                ops.Pop().Reduce(constraints);
+            while (!_ops.Empty && _ops.Top.RightPrecedence < targetPrecedence)
+                _ops.Pop().Reduce(_constraints);
         }
 
         #endregion
@@ -253,13 +222,13 @@ namespace NUnit.Framework.Constraints
             if (!IsResolvable)
                 throw new InvalidOperationException("A partial expression may not be resolved");
 
-            while (!ops.Empty)
+            while (!_ops.Empty)
             {
-                ConstraintOperator op = ops.Pop();
-                op.Reduce(constraints);
+                ConstraintOperator op = _ops.Pop();
+                op.Reduce(_constraints);
             }
 
-            return constraints.Pop();
+            return _constraints.Pop();
         }
 
         #endregion
@@ -270,12 +239,9 @@ namespace NUnit.Framework.Constraints
         /// Gets a value indicating whether this instance is resolvable.
         /// </summary>
         /// <value>
-        /// 	<c>true</c> if this instance is resolvable; otherwise, <c>false</c>.
+        /// <see langword="true"/> if this instance is resolvable; otherwise, <see langword="false"/>.
         /// </value>
-        private bool IsResolvable
-        {
-            get { return lastPushed is Constraint || lastPushed is SelfResolvingOperator; }
-        }
+        private bool IsResolvable => _lastPushed is Constraint || _lastPushed is SelfResolvingOperator;
 
         #endregion
     }

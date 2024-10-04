@@ -1,28 +1,8 @@
-// ***********************************************************************
-// Copyright (c) 2007 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System.IO;
 using System.Collections;
+using System;
 
 namespace NUnit.Framework.Constraints
 {
@@ -35,11 +15,12 @@ namespace NUnit.Framework.Constraints
     /// </summary>
     public abstract class MessageWriter : StringWriter
     {
-
         /// <summary>
         /// Construct a MessageWriter given a culture
         /// </summary>
-        protected MessageWriter() : base(System.Globalization.CultureInfo.InvariantCulture) { }
+        protected MessageWriter() : base(System.Globalization.CultureInfo.InvariantCulture)
+        {
+        }
 
         /// <summary>
         /// Abstract method to get the max line length
@@ -47,30 +28,30 @@ namespace NUnit.Framework.Constraints
         public abstract int MaxLineLength { get; set; }
 
         /// <summary>
-        /// Method to write single line  message with optional args, usually
+        /// Method to write single line message with optional args, usually
         /// written to precede the general failure message.
         /// </summary>
         /// <param name="message">The message to be written</param>
         /// <param name="args">Any arguments used in formatting the message</param>
-        public void WriteMessageLine(string message, params object[] args)
+        public void WriteMessageLine(string message, params object?[]? args)
         {
             WriteMessageLine(0, message, args);
         }
 
         /// <summary>
-        /// Method to write single line  message with optional args, usually
-        /// written to precede the general failure message, at a given 
+        /// Method to write single line message with optional args, usually
+        /// written to precede the general failure message, at a given
         /// indentation level.
         /// </summary>
         /// <param name="level">The indentation level of the message</param>
         /// <param name="message">The message to be written</param>
         /// <param name="args">Any arguments used in formatting the message</param>
-        public abstract void WriteMessageLine(int level, string message, params object[] args);
+        public abstract void WriteMessageLine(int level, string message, params object?[]? args);
 
         /// <summary>
         /// Display Expected and Actual lines for a constraint. This
-        /// is called by MessageWriter's default implementation of 
-        /// WriteMessageTo and provides the generic two-line display. 
+        /// is called by MessageWriter's default implementation of
+        /// WriteMessageTo and provides the generic two-line display.
         /// </summary>
         /// <param name="result">The failing constraint result</param>
         public abstract void DisplayDifferences(ConstraintResult result);
@@ -83,7 +64,7 @@ namespace NUnit.Framework.Constraints
         /// </summary>
         /// <param name="expected">The expected value</param>
         /// <param name="actual">The actual value causing the failure</param>
-        public abstract void DisplayDifferences(object expected, object actual);
+        public abstract void DisplayDifferences(object? expected, object? actual);
 
         /// <summary>
         /// Display Expected and Actual lines for given values, including
@@ -92,7 +73,7 @@ namespace NUnit.Framework.Constraints
         /// <param name="expected">The expected value</param>
         /// <param name="actual">The actual value causing the failure</param>
         /// <param name="tolerance">The tolerance within which the test was made</param>
-        public abstract void DisplayDifferences(object expected, object actual, Tolerance tolerance);
+        public abstract void DisplayDifferences(object? expected, object? actual, Tolerance? tolerance);
 
         /// <summary>
         /// Display the expected and actual string values on separate lines.
@@ -101,22 +82,44 @@ namespace NUnit.Framework.Constraints
         /// </summary>
         /// <param name="expected">The expected string value</param>
         /// <param name="actual">The actual string value</param>
-        /// <param name="mismatch">The point at which the strings don't match or -1</param>
+        /// <param name="mismatch">The point in <paramref name="expected"/> at which the strings don't match or -1</param>
         /// <param name="ignoreCase">If true, case is ignored in locating the point where the strings differ</param>
         /// <param name="clipping">If true, the strings should be clipped to fit the line</param>
         public abstract void DisplayStringDifferences(string expected, string actual, int mismatch, bool ignoreCase, bool clipping);
 
         /// <summary>
+        /// Display the expected and actual string values on separate lines.
+        /// If the mismatch parameter is >=0, an additional line is displayed
+        /// line containing a caret that points to the mismatch point.
+        /// </summary>
+        /// <param name="expected">The expected string value</param>
+        /// <param name="actual">The actual string value</param>
+        /// <param name="mismatchExpected">The point in <paramref name="expected"/> at which the strings don't match or -1</param>
+        /// <param name="mismatchActual">The point in <paramref name="actual"/> at which the strings don't match or -1</param>
+        /// <param name="ignoreCase">If true, case is ignored in locating the point where the strings differ</param>
+        /// <param name="ignoreWhiteSpace">If true, white space is ignored in locating the point where the strings differ</param>
+        /// <param name="clipping">If true, the strings should be clipped to fit the line</param>
+        public virtual void DisplayStringDifferences(string expected, string actual, int mismatchExpected, int mismatchActual, bool ignoreCase, bool ignoreWhiteSpace, bool clipping)
+        {
+            if (ignoreWhiteSpace && mismatchExpected != mismatchActual)
+            {
+                throw new NotImplementedException("Please override to show difference with 'ignoreWhiteSpace'");
+            }
+
+            DisplayStringDifferences(expected, actual, mismatchExpected, ignoreCase, clipping);
+        }
+
+        /// <summary>
         /// Writes the text for an actual value.
         /// </summary>
         /// <param name="actual">The actual value.</param>
-        public abstract void WriteActualValue(object actual);
+        public abstract void WriteActualValue(object? actual);
 
         /// <summary>
         /// Writes the text for a generalized value.
         /// </summary>
         /// <param name="val">The value.</param>
-        public abstract void WriteValue(object val);
+        public abstract void WriteValue(object? val);
 
         /// <summary>
         /// Writes the text for a collection value,

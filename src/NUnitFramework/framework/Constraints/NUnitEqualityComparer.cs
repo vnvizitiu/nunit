@@ -1,25 +1,4 @@
-﻿// ***********************************************************************
-// Copyright (c) 2009 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-//
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
 using System.Collections.Generic;
@@ -31,76 +10,120 @@ namespace NUnit.Framework.Constraints
     /// NUnitEqualityComparer encapsulates NUnit's handling of
     /// equality tests between objects.
     /// </summary>
-    public class NUnitEqualityComparer
+    public sealed class NUnitEqualityComparer
     {
         #region Static and Instance Fields
+
+        /// <summary>
+        /// Method for comparing two objects with a tolerance.
+        /// </summary>
+        /// <param name="x">The first object to compare.</param>
+        /// <param name="y">The second object to compare.</param>
+        /// <param name="tolerance">The tolerance to use when comparing the objects.</param>
+        /// <param name="state">The evaluation state of the comparison.</param>
+        /// <param name="equalityComparer">The <see cref="NUnitEqualityComparer"/> for parameters.</param>
+        /// <returns>
+        ///     <see langword="null"/> if the objects cannot be compared using the method.
+        ///     Otherwise the result of the comparison is returned.
+        /// </returns>
+        private delegate EqualMethodResult EqualMethod(object x, object y, ref Tolerance tolerance, ComparisonState state, NUnitEqualityComparer equalityComparer);
+
+        /// <summary>
+        /// List of comparers used to compare pairs of objects.
+        /// </summary>
+        private static readonly EqualMethod[] Comparers =
+        {
+            ArraysComparer.Equal,
+            DictionariesComparer.Equal,
+            DictionaryEntriesComparer.Equal,
+            KeyValuePairsComparer.Equal,
+            StringsComparer.Equal,
+            StreamsComparer.Equal,
+            CharsComparer.Equal,
+            EnumComparer.Equal,
+            DirectoriesComparer.Equal,
+            NumericsComparer.Equal,
+            DateTimeOffsetsComparer.Equal,
+            TimeSpanToleranceComparer.Equal,
+            TupleComparer.Equal,
+            ValueTupleComparer.Equal,
+            StructuralComparer.Equal,
+            EquatablesComparer.Equal,
+            EnumerablesComparer.Equal,
+            EqualsComparer.Equal,
+        };
+
         /// <summary>
         /// If true, all string comparisons will ignore case
         /// </summary>
-        private bool caseInsensitive;
+        private bool _caseInsensitive;
+
+        /// <summary>
+        /// If true, all string comparisons will ignore white space differences
+        /// </summary>
+        private bool _ignoreWhiteSpace;
 
         /// <summary>
         /// If true, arrays will be treated as collections, allowing
         /// those of different dimensions to be compared
         /// </summary>
-        private bool compareAsCollection;
+        private bool _compareAsCollection;
+
+        /// <summary>
+        /// If true, when a class does not implement <see cref="IEquatable{T}"/>
+        /// it will be compared property by property.
+        /// </summary>
+        private bool _compareProperties;
 
         /// <summary>
         /// Comparison objects used in comparisons for some constraints.
         /// </summary>
-        private List<EqualityAdapter> externalComparers = new List<EqualityAdapter>();
+        private List<EqualityAdapter>? _externalComparers;
 
         /// <summary>
         /// List of points at which a failure occurred.
         /// </summary>
-        private List<FailurePoint> failurePoints;
-
-        /// <summary>
-        /// List of comparers used to compare pairs of objects.
-        /// </summary>
-        private readonly List<IChainComparer> _comparers;
+        private List<FailurePoint>? _failurePoints;
 
         #endregion
 
-        internal NUnitEqualityComparer()
+        /// <summary>
+        /// Initializes a new instance of the <see cref="NUnitEqualityComparer"/> class.
+        /// </summary>
+        public NUnitEqualityComparer()
         {
-            EnumerablesComparer _enumerablesComparer = new EnumerablesComparer(this);
-            _comparers = new List<IChainComparer>
-            {
-                new ArraysComparer(this, _enumerablesComparer),
-                new DictionariesComparer(this),
-                new DictionaryEntriesComparer(this),
-                new KeyValuePairsComparer(this),
-                new StringsComparer(this ),
-                new StreamsComparer(this),
-                new CharsComparer(this),
-                new DirectoriesComparer(),
-                new NumericsComparer(),
-                new DateTimeOffsetsComparer(this),
-                new TimeSpanToleranceComparer(),
-                new EquatablesComparer(this),
-                new ValueTupleComparer(this),
-                _enumerablesComparer
-            };
         }
 
         #region Properties
 
-        /// <summary>
-        /// Returns the default NUnitEqualityComparer
-        /// </summary>
-        public static NUnitEqualityComparer Default
-        {
-            get { return new NUnitEqualityComparer(); }
-        }
         /// <summary>
         /// Gets and sets a flag indicating whether case should
         /// be ignored in determining equality.
         /// </summary>
         public bool IgnoreCase
         {
-            get { return caseInsensitive; }
-            set { caseInsensitive = value; }
+            get => _caseInsensitive;
+            set => _caseInsensitive = value;
+        }
+
+        /// <summary>
+        /// Gets and sets a flag indicating whether white space should
+        /// be ignored in determining equality.
+        /// </summary>
+        public bool IgnoreWhiteSpace
+        {
+            get => _ignoreWhiteSpace;
+            set => _ignoreWhiteSpace = value;
+        }
+
+        /// <summary>
+        /// Gets and sets a flag indicating whether an instance properties
+        /// should be compared when determining equality.
+        /// </summary>
+        public bool CompareProperties
+        {
+            get => _compareProperties;
+            set => _compareProperties = value;
         }
 
         /// <summary>
@@ -109,8 +132,8 @@ namespace NUnit.Framework.Constraints
         /// </summary>
         public bool CompareAsCollection
         {
-            get { return compareAsCollection; }
-            set { compareAsCollection = value; }
+            get => _compareAsCollection;
+            set => _compareAsCollection = value;
         }
 
         /// <summary>
@@ -118,13 +141,12 @@ namespace NUnit.Framework.Constraints
         /// test for equality. They are applied to members of
         /// collections, in place of NUnit's own logic.
         /// </summary>
-        public IList<EqualityAdapter> ExternalComparers
-        {
-            get { return externalComparers; }
-        }
+        public IList<EqualityAdapter> ExternalComparers => _externalComparers ??= new();
 
-        // TODO: Define some sort of FailurePoint struct or otherwise
-        // eliminate the type-unsafeness of the current approach
+        /// <summary>
+        /// Gets a value indicating whether there is any additional Failure Information.
+        /// </summary>
+        public bool HasFailurePoints => _failurePoints is not null && _failurePoints.Count > 0;
 
         /// <summary>
         /// Gets the list of failure points for the last Match performed.
@@ -132,10 +154,7 @@ namespace NUnit.Framework.Constraints
         /// This generally means that the caller may only make use of
         /// objects it has placed on the list at a particular depth.
         /// </summary>
-        public IList<FailurePoint> FailurePoints
-        {
-            get { return failurePoints; }
-        }
+        public IList<FailurePoint> FailurePoints => _failurePoints ??= new();
 
         /// <summary>
         /// Flags the comparer to include <see cref="DateTimeOffset.Offset"/>
@@ -149,45 +168,93 @@ namespace NUnit.Framework.Constraints
         #endregion
 
         #region Public Methods
+
         /// <summary>
         /// Compares two objects for equality within a tolerance.
         /// </summary>
-        public bool AreEqual(object x, object y, ref Tolerance tolerance)
+        public bool AreEqual(object? x, object? y, ref Tolerance tolerance)
         {
-            this.failurePoints = new List<FailurePoint>();
+            EqualMethodResult result = AreEqual(x, y, ref tolerance, new ComparisonState(true));
 
-            if (x == null && y == null)
-                return true;
-
-            if (x == null || y == null)
-                return false;
-
-            if (object.ReferenceEquals(x, y))
-                return true;
-
-            EqualityAdapter externalComparer = GetExternalComparer(x, y);
-            if (externalComparer != null)
-                return externalComparer.AreEqual(x, y);
-
-            foreach (IChainComparer comparer in _comparers)
+            switch (result)
             {
-                bool? result = comparer.Equal(x, y, ref tolerance);
-                if (result.HasValue)
-                    return result.Value;
+                case EqualMethodResult.TypesNotSupported:
+                    throw new NotSupportedException($"No comparer found for instances of type '{GetType(x)}' and '{GetType(y)}'");
+                case EqualMethodResult.ToleranceNotSupported:
+                    throw new NotSupportedException($"Specified Tolerance not supported for instances of type '{GetType(x)}' and '{GetType(y)}'");
+                case EqualMethodResult.ComparedEqual:
+                    return true;
+                case EqualMethodResult.ComparisonPending:
+                case EqualMethodResult.ComparedNotEqual:
+                default:
+                    return false;
             }
 
-            return x.Equals(y);
+            static string GetType(object? x) => x?.GetType().FullName ?? "null";
+        }
+
+        internal EqualMethodResult AreEqual(object? x, object? y, ref Tolerance tolerance, ComparisonState state)
+        {
+            if (x is null && y is null)
+                return EqualMethodResult.ComparedEqual;
+
+            if (x is null || y is null)
+                return EqualMethodResult.ComparedNotEqual;
+
+            if (object.ReferenceEquals(x, y))
+                return EqualMethodResult.ComparedEqual;
+
+            if (state.DidCompare(x, y))
+                return EqualMethodResult.ComparisonPending;
+
+            EqualityAdapter? externalComparer = GetExternalComparer(x, y);
+
+            if (externalComparer is not null)
+            {
+                try
+                {
+                    return externalComparer.AreEqual(x, y, ref tolerance) ?
+                        EqualMethodResult.ComparedEqual : EqualMethodResult.ComparedNotEqual;
+                }
+                catch (InvalidOperationException)
+                {
+                    return EqualMethodResult.ToleranceNotSupported;
+                }
+            }
+
+            foreach (EqualMethod equalMethod in Comparers)
+            {
+                EqualMethodResult result = equalMethod(x, y, ref tolerance, state, this);
+                if (result != EqualMethodResult.TypesNotSupported)
+                    return result;
+            }
+
+            if (_compareProperties)
+            {
+                return PropertiesComparer.Equal(x, y, ref tolerance, state, this);
+            }
+
+            if (tolerance.HasVariance)
+                return EqualMethodResult.ToleranceNotSupported;
+
+            return x.Equals(y) ?
+                EqualMethodResult.ComparedEqual : EqualMethodResult.ComparedNotEqual;
         }
 
         #endregion
 
         #region Helper Methods
 
-        private EqualityAdapter GetExternalComparer(object x, object y)
+        private EqualityAdapter? GetExternalComparer(object x, object y)
         {
-            foreach (EqualityAdapter adapter in externalComparers)
-                if (adapter.CanCompare(x, y))
-                    return adapter;
+            if (_externalComparers is not null)
+            {
+                foreach (EqualityAdapter adapter in _externalComparers)
+                {
+                    if (adapter.CanCompare(x, y))
+                        return adapter;
+                }
+            }
 
             return null;
         }
@@ -200,7 +267,7 @@ namespace NUnit.Framework.Constraints
         /// FailurePoint class represents one point of failure
         /// in an equality test.
         /// </summary>
-        public class FailurePoint
+        public sealed class FailurePoint
         {
             /// <summary>
             /// The location of the failure
@@ -208,14 +275,19 @@ namespace NUnit.Framework.Constraints
             public long Position;
 
             /// <summary>
+            /// The name of the property.
+            /// </summary>
+            public string? PropertyName;
+
+            /// <summary>
             /// The expected value
             /// </summary>
-            public object ExpectedValue;
+            public object? ExpectedValue;
 
             /// <summary>
             /// The actual value
             /// </summary>
-            public object ActualValue;
+            public object? ActualValue;
 
             /// <summary>
             /// Indicates whether the expected value is valid

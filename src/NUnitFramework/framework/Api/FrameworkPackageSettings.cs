@@ -1,25 +1,4 @@
-// ***********************************************************************
-// Copyright (c) 2016 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 namespace NUnit
 {
@@ -64,14 +43,27 @@ namespace NUnit
         public const string DefaultTimeout = "DefaultTimeout";
 
         /// <summary>
+        /// A string representing the default thread culture to be used for
+        /// running tests. String should be a valid BCP-47 culture name. If
+        /// culture is unset, tests run on the machine's default culture.
+        /// </summary>
+        public const string DefaultCulture = "DefaultCulture";
+
+        /// <summary>
+        /// A string representing the default thread UI culture to be used for
+        /// running tests. String should be a valid BCP-47 culture name. If
+        /// culture is unset, tests run on the machine's default culture.
+        /// </summary>
+        public const string DefaultUICulture = "DefaultUICulture";
+
+        /// <summary>
         /// A TextWriter to which the internal trace will be sent.
         /// </summary>
         public const string InternalTraceWriter = "InternalTraceWriter";
 
         /// <summary>
-        /// A list of tests to be loaded. 
+        /// A list of tests to be loaded.
         /// </summary>
-        // TODO: Remove?
         public const string LOAD = "LOAD";
 
         /// <summary>
@@ -96,6 +88,11 @@ namespace NUnit
         public const string StopOnError = "StopOnError";
 
         /// <summary>
+        /// If true, asserts in multiple asserts block will throw first-chance exception on failure.
+        /// </summary>
+        public const string ThrowOnEachFailureUnderDebugger = "ThrowOnEachFailureUnderDebugger";
+
+        /// <summary>
         /// If true, use of the event queue is suppressed and test events are synchronous.
         /// </summary>
         public const string SynchronousEvents = "SynchronousEvents";
@@ -114,6 +111,11 @@ namespace NUnit
         /// Parameters to be passed on to the tests, already parsed into an IDictionary&lt;string, string>. Replaces <see cref="TestParameters"/>.
         /// </summary>
         public const string TestParametersDictionary = "TestParametersDictionary";
+
+        /// <summary>
+        /// If true, the tests will run on the same thread as the NUnit runner itself
+        /// </summary>
+        public const string RunOnMainThread = "RunOnMainThread";
 
         #endregion
     }

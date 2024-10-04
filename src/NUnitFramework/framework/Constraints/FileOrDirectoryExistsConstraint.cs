@@ -1,25 +1,4 @@
-﻿// ***********************************************************************
-// Copyright (c) 2014 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-//
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
 using System.IO;
@@ -62,13 +41,15 @@ namespace NUnit.Framework.Constraints
         /// Initializes a new instance of the <see cref="FileOrDirectoryExistsConstraint"/> class that
         /// will check files and directories.
         /// </summary>
-        public FileOrDirectoryExistsConstraint(){}
+        public FileOrDirectoryExistsConstraint()
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="FileOrDirectoryExistsConstraint"/> class that
         /// will only check files if ignoreDirectories is true.
         /// </summary>
-        /// <param name="ignoreDirectories">if set to <c>true</c> [ignore directories].</param>
+        /// <param name="ignoreDirectories">if set to <see langword="true"/> [ignore directories].</param>
         public FileOrDirectoryExistsConstraint(bool ignoreDirectories)
         {
             _ignoreDirectories = ignoreDirectories;
@@ -103,40 +84,37 @@ namespace NUnit.Framework.Constraints
         /// <returns>A ConstraintResult</returns>
         public override ConstraintResult ApplyTo<TActual>(TActual actual)
         {
-            if(actual == null)
-                throw new ArgumentNullException("actual", "The actual value must be a non-null string" + ErrorSubstring);
+            if (actual is null)
+                throw new ArgumentNullException(nameof(actual), "The actual value must be a non-null string" + ErrorSubstring);
 
-            if(actual is string)
+            if (actual is string stringValue)
             {
-                return CheckString(actual);
+                return CheckString(stringValue);
             }
 
-            var fileInfo = actual as FileInfo;
-            if (!_ignoreFiles && fileInfo != null)
+            if (!_ignoreFiles && actual is FileInfo fileInfo)
             {
                 return new ConstraintResult(this, actual, fileInfo.Exists);
             }
 
-            var directoryInfo = actual as DirectoryInfo;
-            if (!_ignoreDirectories && directoryInfo != null)
+            if (!_ignoreDirectories && actual is DirectoryInfo directoryInfo)
             {
                 return new ConstraintResult(this, actual, directoryInfo.Exists);
             }
-            throw new ArgumentException("The actual value must be a string" + ErrorSubstring, "actual");
+            throw new ArgumentException("The actual value must be a string" + ErrorSubstring, nameof(actual));
         }
 
-        private ConstraintResult CheckString<TActual>(TActual actual)
+        private ConstraintResult CheckString(string actual)
         {
-            var str = actual as string;
-            if (String.IsNullOrEmpty(str))
-                throw new ArgumentException("The actual value cannot be an empty string", "actual");
+            if (string.IsNullOrEmpty(actual))
+                throw new ArgumentException("The actual value cannot be an empty string", nameof(actual));
 
-            var fileInfo = new FileInfo(str);
+            var fileInfo = new FileInfo(actual);
             if (_ignoreDirectories && !_ignoreFiles)
             {
                 return new ConstraintResult(this, actual, fileInfo.Exists);
             }
-            var directoryInfo = new DirectoryInfo(str);
+            var directoryInfo = new DirectoryInfo(actual);
             if (_ignoreFiles && !_ignoreDirectories)
             {
                 return new ConstraintResult(this, actual, directoryInfo.Exists);

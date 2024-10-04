@@ -1,25 +1,4 @@
-﻿// ***********************************************************************
-// Copyright (c) 2015 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
 using System.Text;
@@ -39,9 +18,13 @@ namespace NUnit.Common
 
     public class Token
     {
-        public Token(TokenKind kind) : this(kind, string.Empty) { }
+        public Token(TokenKind kind) : this(kind, string.Empty)
+        {
+        }
 
-        public Token(TokenKind kind, char ch) : this(kind, ch.ToString()) { }
+        public Token(TokenKind kind, char ch) : this(kind, ch.ToString())
+        {
+        }
 
         public Token(TokenKind kind, string text)
         {
@@ -49,9 +32,9 @@ namespace NUnit.Common
             Text = text;
         }
 
-        public TokenKind Kind { get; private set; }
+        public TokenKind Kind { get; }
 
-        public string Text { get; private set; }
+        public string Text { get; }
 
         public int Pos { get; set; }
 
@@ -69,15 +52,15 @@ namespace NUnit.Common
 
         public override string ToString()
         {
-            return Text != null
-                ? Kind.ToString() + ":" + Text
-                : Kind.ToString();
+            if (Text is null)
+                return Kind.ToString();
+            return $"{Kind}:{Text}";
         }
 
         public static bool operator ==(Token t1, Token t2)
         {
-            bool t1Null = ReferenceEquals(t1, null);
-            bool t2Null = ReferenceEquals(t2, null);
+            bool t1Null = t1 is null;
+            bool t2Null = t2 is null;
 
             if (t1Null && t2Null)
                 return true;
@@ -104,19 +87,19 @@ namespace NUnit.Common
     /// </summary>
     public class Tokenizer
     {
-        private string _input;
+        private readonly string _input;
         private int _index;
 
         private const char EOF_CHAR = '\0';
         private const string WORD_BREAK_CHARS = "=!()&|";
-        private readonly string[] DOUBLE_CHAR_SYMBOLS = new string[] { "==", "=~", "!=", "!~", "&&", "||" };
+        private static readonly string[] DOUBLE_CHAR_SYMBOLS = new string[] { "==", "=~", "!=", "!~", "&&", "||" };
 
         private Token _lookahead;
 
         public Tokenizer(string input)
         {
-            if (input == null)
-                throw new ArgumentNullException("input");
+            if (input is null)
+                throw new ArgumentNullException(nameof(input));
 
             _input = input;
             _index = 0;
@@ -126,7 +109,7 @@ namespace NUnit.Common
         {
             get
             {
-                if (_lookahead == null)
+                if (_lookahead is null)
                     _lookahead = GetNextToken();
 
                 return _lookahead;
@@ -164,12 +147,14 @@ namespace NUnit.Common
                 case '=':
                 case '!':
                     GetChar();
-                    foreach(string dbl in DOUBLE_CHAR_SYMBOLS)
+                    foreach (string dbl in DOUBLE_CHAR_SYMBOLS)
+                    {
                         if (ch == dbl[0] && NextChar == dbl[1])
                         {
                             GetChar();
                             return new Token(TokenKind.Symbol, dbl) { Pos = pos };
                         }
+                    }
 
                     return new Token(TokenKind.Symbol, ch);
 
@@ -234,13 +219,7 @@ namespace NUnit.Common
         /// <summary>
         /// Peek ahead at the next character in input
         /// </summary>
-        private char NextChar
-        {
-            get
-            {
-                return _index < _input.Length ? _input[_index] : EOF_CHAR;
-            }
-        }
+        private char NextChar => _index < _input.Length ? _input[_index] : EOF_CHAR;
 
         private void SkipBlanks()
         {

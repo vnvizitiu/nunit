@@ -1,29 +1,6 @@
-﻿// ***********************************************************************
-// Copyright (c) 2015 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
-using System.Collections.Generic;
-using System.Text;
 using System.Xml;
 using NUnit.Framework;
 
@@ -41,9 +18,17 @@ namespace NUnit.Common.Tests
 
         [TestCase("cat=Urgent", "<cat>Urgent</cat>")]
         [TestCase("cat==Urgent", "<cat>Urgent</cat>")]
+        [TestCase("cat=='Urgent,+-!'", "<cat>Urgent,+-!</cat>")]
         [TestCase("cat!=Urgent", "<not><cat>Urgent</cat></not>")]
+        [TestCase("cat!='Urgent,+-!'", "<not><cat>Urgent,+-!</cat></not>")]
         [TestCase("cat =~ Urgent", "<cat re='1'>Urgent</cat>")]
+        [TestCase("cat =~ 'Urgent,+-!'", "<cat re='1'>Urgent,+-!</cat>")]
+        [TestCase("cat =~ 'Urgent,\\+-!'", "<cat re='1'>Urgent,+-!</cat>")]
+        [TestCase("cat =~ 'Urgent,\\\\+-!'", "<cat re='1'>Urgent,\\+-!</cat>")]
         [TestCase("cat !~ Urgent", "<not><cat re='1'>Urgent</cat></not>")]
+        [TestCase("cat !~ 'Urgent,+-!'", "<not><cat re='1'>Urgent,+-!</cat></not>")]
+        [TestCase("cat !~ 'Urgent,\\+-!'", "<not><cat re='1'>Urgent,+-!</cat></not>")]
+        [TestCase("cat !~ 'Urgent,\\\\+-!'", "<not><cat re='1'>Urgent,\\+-!</cat></not>")]
         [TestCase("cat = Urgent || cat = High", "<or><cat>Urgent</cat><cat>High</cat></or>")]
         [TestCase("Priority == High", "<prop name='Priority'>High</prop>")]
         [TestCase("Priority != Urgent", "<not><prop name='Priority'>Urgent</prop></not>")]
@@ -69,12 +54,8 @@ namespace NUnit.Common.Tests
         {
             Assert.That(_parser.Parse(input), Is.EqualTo(output));
 
-#if NETCOREAPP1_0
-            Assert.DoesNotThrow(() => System.Xml.Linq.XDocument.Parse(output));
-#else
             XmlDocument doc = new XmlDocument();
             Assert.DoesNotThrow(() => doc.LoadXml(output));
-#endif
         }
 
         [TestCase(null, typeof(ArgumentNullException))]

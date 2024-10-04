@@ -1,44 +1,18 @@
-﻿// ***********************************************************************
-// Copyright (c) 2015 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-//
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
-#if ASYNC
 using System.Collections;
-using System.Reflection;
 using NUnit.Framework.Interfaces;
+using NUnit.Framework.Internal;
 using NUnit.Framework.Internal.Builders;
 using NUnit.TestData;
-using NUnit.TestUtilities;
+using NUnit.Framework.Tests.TestUtilities;
 
-namespace NUnit.Framework.Internal
+namespace NUnit.Framework.Tests.Internal
 {
     [TestFixture]
     public class AsyncTestMethodTests
     {
-#if NETSTANDARD1_3 || NETSTANDARD1_6
-        private static readonly bool PLATFORM_IGNORE = true;
-#else
         private static readonly bool PLATFORM_IGNORE = OSPlatform.CurrentPlatform.IsUnix;
-#endif
 
         private DefaultTestCaseBuilder _builder;
         private object _testObject;
@@ -59,10 +33,16 @@ namespace NUnit.Framework.Internal
                 yield return GetTestCase(Method("AsyncTaskSuccess"), ResultState.Success, 1, true);
                 yield return GetTestCase(Method("AsyncTaskFailure"), ResultState.Failure, 1, true);
                 yield return GetTestCase(Method("AsyncTaskError"), ResultState.Error, 0, false);
+                yield return GetTestCase(Method("AsyncTaskPass"), ResultState.Success, 0, false);
+                yield return GetTestCase(Method("AsyncTaskIgnore"), ResultState.Ignored, 0, false);
+                yield return GetTestCase(Method("AsyncTaskInconclusive"), ResultState.Inconclusive, 0, false);
 
                 yield return GetTestCase(Method("TaskSuccess"), ResultState.Success, 1, true);
                 yield return GetTestCase(Method("TaskFailure"), ResultState.Failure, 1, true);
                 yield return GetTestCase(Method("TaskError"), ResultState.Error, 0, false);
+                yield return GetTestCase(Method("TaskPass"), ResultState.Success, 0, false);
+                yield return GetTestCase(Method("TaskIgnore"), ResultState.Ignored, 0, false);
+                yield return GetTestCase(Method("TaskInconclusive"), ResultState.Inconclusive, 0, false);
 
                 yield return GetTestCase(Method("AsyncTaskResult"), ResultState.NotRunnable, 0, false);
                 yield return GetTestCase(Method("TaskResult"), ResultState.NotRunnable, 0, false);
@@ -105,7 +85,7 @@ namespace NUnit.Framework.Internal
         }
 
         [Test]
-        [TestCaseSource("TestCases")]
+        [TestCaseSource(nameof(TestCases))]
         public void RunTests(IMethodInfo method, ResultState resultState, int assertionCount)
         {
             var test = _builder.BuildFrom(method);
@@ -121,4 +101,3 @@ namespace NUnit.Framework.Internal
         }
     }
 }
-#endif

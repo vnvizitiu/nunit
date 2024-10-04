@@ -1,3 +1,5 @@
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
+
 using System;
 
 namespace NUnit.Framework.Constraints
@@ -6,7 +8,7 @@ namespace NUnit.Framework.Constraints
     /// Keeps track of an interval time which can be represented in
     /// Minutes, Seconds or Milliseconds
     /// </summary>
-    public class Interval
+    public sealed class Interval
     {
         private readonly int _value;
         private IntervalUnit _mode;
@@ -66,12 +68,9 @@ namespace NUnit.Framework.Constraints
         }
 
         /// <summary>
-        /// Is true for intervals created with a non zero value
+        /// Is true for intervals created with a non-zero value
         /// </summary>
-        public bool IsNotZero
-        {
-            get { return _value != 0; }
-        }
+        public bool IsNotZero => _value != 0;
 
         /// <summary>
         /// Returns a string that represents the current object.
@@ -81,7 +80,7 @@ namespace NUnit.Framework.Constraints
         /// </returns>
         public override string ToString()
         {
-            return string.Format("{0} {1}{2}", _value, _mode.ToString().ToLower(), _value > 1 ? "s" : string.Empty);
+            return $"{_value} {_mode.ToString().ToLower()}{(_value > 1 ? "s" : string.Empty)}";
         }
 
         /// <summary>

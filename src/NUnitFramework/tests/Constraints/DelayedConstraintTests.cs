@@ -1,34 +1,13 @@
-﻿// ***********************************************************************
-// Copyright (c) 2009 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-//
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
-using NUnit.Compatibility;
+using NUnit.Framework.Constraints;
 using ActualValueDelegate = NUnit.Framework.Constraints.ActualValueDelegate<object>;
 
-namespace NUnit.Framework.Constraints
+namespace NUnit.Framework.Tests.Constraints
 {
     [TestFixture, NonParallelizable]
     public class DelayedConstraintTests : ConstraintTestBase
@@ -40,39 +19,43 @@ namespace NUnit.Framework.Constraints
         // constructing the constraint class, and verify that they work.
 
         private const int DELAY = 100;
-        private const int AFTER = 300;
+        private const int AFTER = 500;
         private const int POLLING = 50;
         private const int MIN = AFTER - 10;
 
-        private static bool boolValue;
-        private static List<int> list;
-        private static string statusString;
+        private static bool _boolValue;
+        private static List<int> _list;
+        private static string? _statusString;
+
+        protected override Constraint TheConstraint { get; } = new DelayedConstraint(new EqualConstraint(true), 500);
 
         [SetUp]
         public void SetUp()
         {
-            theConstraint = new DelayedConstraint(new EqualConstraint(true), 500);
-            expectedDescription = "True after 500 milliseconds delay";
-            stringRepresentation = "<after 500 <equal True>>";
+            ExpectedDescription = "True after 500 milliseconds delay";
+            StringRepresentation = "<after 500 <equal True>>";
 
-            boolValue = false;
-            list = new List<int>();
-            statusString = null;
+            _boolValue = false;
+            _list = new List<int>();
+            _statusString = null;
             //SetValueTrueAfterDelay(300);
         }
 
-        static object[] SuccessData = new object[] { true };
-        static object[] FailureData = new object[] {
-            new TestCaseData( false, "False" ),
-            new TestCaseData( 0, "0" ),
-            new TestCaseData( null, "null" ) };
+#pragma warning disable IDE0052 // Remove unread private members
+        private static readonly object[] SuccessData = new object[] { true };
+        private static readonly object[] FailureData = new object[]
+        {
+            new TestCaseData(false, "False"),
+            new TestCaseData(0, "0"),
+            new TestCaseData(null, "null")
+        };
+#pragma warning restore IDE0052 // Remove unread private members
 
-        static ActualValueDelegate DelegateReturningValue;
-        static ActualValueDelegate DelegateReturningFalse;
-        static ActualValueDelegate DelegateReturningZero;
-
-        static ActualValueDelegate<object>[] SuccessDelegates;
-        static ActualValueDelegate<object>[] FailureDelegates;
+        private static readonly ActualValueDelegate DelegateReturningValue;
+        private static readonly ActualValueDelegate DelegateReturningFalse;
+        private static readonly ActualValueDelegate DelegateReturningZero;
+        private static readonly ActualValueDelegate<object>[] SuccessDelegates;
+        private static readonly ActualValueDelegate<object>[] FailureDelegates;
 
         // Initialize static fields that are sensitive to order of initialization.
         // Most compilers would probably initialize these in lexical order but it
@@ -83,21 +66,21 @@ namespace NUnit.Framework.Constraints
             DelegateReturningFalse = new ActualValueDelegate(MethodReturningFalse);
             DelegateReturningZero = new ActualValueDelegate(MethodReturningZero);
 
-            SuccessDelegates = new ActualValueDelegate<object>[] { DelegateReturningValue };
-            FailureDelegates = new ActualValueDelegate<object>[] { DelegateReturningFalse, DelegateReturningZero };
+            SuccessDelegates = new[] { DelegateReturningValue };
+            FailureDelegates = new[] { DelegateReturningFalse, DelegateReturningZero };
         }
 
-        [Test, TestCaseSource("SuccessDelegates")]
+        [Test, TestCaseSource(nameof(SuccessDelegates))]
         public void SucceedsWithGoodDelegates(ActualValueDelegate<object> del)
         {
             SetValuesAfterDelay(DELAY);
-            Assert.That(theConstraint.ApplyTo(del).IsSuccess);
+            Assert.That(TheConstraint.ApplyTo(del).IsSuccess);
         }
 
-        [Test, TestCaseSource("FailureDelegates")]
+        [Test, TestCaseSource(nameof(FailureDelegates))]
         public void FailsWithBadDelegates(ActualValueDelegate<object> del)
         {
-            Assert.IsFalse(theConstraint.ApplyTo(del).IsSuccess);
+            Assert.That(TheConstraint.ApplyTo(del).IsSuccess, Is.False);
         }
 
         [Test]
@@ -111,7 +94,7 @@ namespace NUnit.Framework.Constraints
         public void SimpleTestUsingBoolean()
         {
             SetValuesAfterDelay(DELAY);
-            Assert.That(() => boolValue, new DelayedConstraint(new EqualConstraint(true), AFTER, POLLING));
+            Assert.That(() => _boolValue, new DelayedConstraint(new EqualConstraint(true), AFTER, POLLING));
         }
 
         [Test]
@@ -131,21 +114,26 @@ namespace NUnit.Framework.Constraints
         public void CanTestContentsOfList()
         {
             SetValuesAfterDelay(1);
-            Assert.That(list, Has.Count.EqualTo(1).After(AFTER, POLLING));
+
+            // https://github.com/nunit/nunit.analyzers/issues/431
+            // It was decided to keep to analyzer warning
+#pragma warning disable NUnit2044 // Non-delegate actual parameter
+            Assert.That(_list, Has.Count.EqualTo(1).After(AFTER, POLLING));
+#pragma warning restore NUnit2044 // Non-delegate actual parameter
         }
 
         [Test]
         public void CanTestContentsOfDelegateReturningList()
         {
             SetValuesAfterDelay(1);
-            Assert.That(() => list, Has.Count.EqualTo(1).After(AFTER, POLLING));
+            Assert.That(() => _list, Has.Count.EqualTo(1).After(AFTER, POLLING));
         }
 
         [Test]
         public void CanTestInitiallyNullDelegate()
         {
             SetValuesAfterDelay(DELAY);
-            Assert.That(() => statusString, Is.Not.Null.And.Length.GreaterThan(0).After(AFTER, POLLING));
+            Assert.That(() => _statusString, Is.Not.Null.And.Length.GreaterThan(0).After(AFTER, POLLING));
         }
 
         [Test]
@@ -244,34 +232,123 @@ namespace NUnit.Framework.Constraints
             Assert.That(watch.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(AFTER));
         }
 
-        private static int setValuesDelay;
+        private int _pollCount;
 
-        private static void MethodReturningVoid() { }
+        [Test, Platform(Exclude = "MACOSX", Reason = "Doesn't seem to work correctly with timing, something to ponder later")]
+        public void ThatPollingCallsDelegateCorrectNumberOfTimes()
+        {
+            _pollCount = 0;
+            Assert.That(PollCount, Is.EqualTo(4).After(110, 25));
+        }
 
-        private static object MethodReturningValue() { return boolValue; }
+        [Test]
+        public void AssertionExpectingAnExceptionWithRetrySucceeds()
+        {
+            int i = 0;
+            void ThrowsAfterRetry()
+            {
+                if (i++ > 0)
+                {
+                    throw new InvalidOperationException("Always throws after first attempt.");
+                }
+            }
 
-        private static object MethodReturningFalse() { return false; }
+            Assert.That(ThrowsAfterRetry, Throws.InvalidOperationException.After(AFTER, POLLING));
+        }
 
-        private static object MethodReturningZero() { return 0; }
+        [Test]
+        public void AssertionExpectingNoExceptionWithRetrySucceeds()
+        {
+            int i = 0;
+            void DoesNotThrowAfterRetry()
+            {
+                if (i++ < 3)
+                {
+                    throw new InvalidOperationException("Only throws before third attempt.");
+                }
+            }
 
-        private static AutoResetEvent waitEvent = new AutoResetEvent(false);
+            Assert.That(DoesNotThrowAfterRetry, Throws.Nothing.After(AFTER, POLLING));
+        }
+
+        [Test]
+        public void AssertionForDelegateWhichThrowsExceptionUntilRetriedSucceeds()
+        {
+            int i = 0;
+            string DoesNotThrowAfterRetry()
+            {
+                if (i++ < 3)
+                {
+                    throw new InvalidOperationException("Only throws before third attempt.");
+                }
+
+                return "Success!";
+            }
+
+            Assert.That(DoesNotThrowAfterRetry, Is.EqualTo("Success!").After(AFTER, POLLING));
+        }
+
+        private int PollCount()
+        {
+            return _pollCount++;
+        }
+
+        [Test]
+        public void PreservesOriginalResultAdditionalLines()
+        {
+            var exception = Assert.Throws<AssertionException>(
+                () => Assert.That(() => new[] { 1, 2 }, Is.EquivalentTo(new[] { 2, 3 }).After(1)));
+
+            var expectedMessage =
+                "  Expected: equivalent to < 2, 3 > after 1 millisecond delay" + Environment.NewLine +
+                "  But was:  < 1, 2 >" + Environment.NewLine +
+                "  Missing (1): < 3 >" + Environment.NewLine +
+                "  Extra (1): < 1 >" + Environment.NewLine;
+
+            Assert.That(exception.Message, Does.Contain(expectedMessage));
+        }
+
+        private static int _setValuesDelay;
+
+        private static object MethodReturningValue()
+        {
+            return _boolValue;
+        }
+
+        private static object MethodReturningFalse()
+        {
+            return false;
+        }
+
+        private static object MethodReturningZero()
+        {
+            return 0;
+        }
+
+        private static readonly AutoResetEvent WaitEvent = new AutoResetEvent(false);
+
+        [OneTimeTearDown]
+        public void OneTimeTearDown()
+        {
+            WaitEvent.Dispose();
+        }
 
         private static void Delay(int delay)
         {
-            waitEvent.WaitOne(delay);
+            WaitEvent.WaitOne(delay);
         }
 
         private static void MethodSetsValues()
         {
-            Delay(setValuesDelay);
-            boolValue = true;
-            list.Add(1);
-            statusString = "Finished";
+            Delay(_setValuesDelay);
+            _boolValue = true;
+            _list.Add(1);
+            _statusString = "Finished";
         }
 
-        private void SetValuesAfterDelay(int delayInMilliSeconds)
+        private static void SetValuesAfterDelay(int delayInMilliSeconds)
         {
-            setValuesDelay = delayInMilliSeconds;
+            _setValuesDelay = delayInMilliSeconds;
             Thread thread = new Thread(MethodSetsValues);
             thread.Start();
         }

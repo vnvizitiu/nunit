@@ -1,34 +1,10 @@
-﻿// ***********************************************************************
-// Copyright (c) 2011 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-//
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using System.Reflection;
 using System.Xml;
-using NUnit.Common;
 using NUnit.Framework.Api;
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
@@ -80,17 +56,15 @@ namespace NUnitLite
             TNode resultNode = result.ToXml(true);
 
             // Insert elements as first child in reverse order
-            if (runSettings != null) // Some platforms don't have settings
+            if (runSettings is not null) // Some platforms don't have settings
                 FrameworkController.InsertSettingsElement(resultNode, runSettings);
             FrameworkController.InsertEnvironmentElement(resultNode);
 
             TNode testRun = MakeTestRunElement(result);
 
-#if !NETSTANDARD1_3 && !NETSTANDARD1_6
-            testRun.ChildNodes.Add(MakeCommandLineElement());
-#endif
-            testRun.ChildNodes.Add(MakeTestFilterElement(filter));
-            testRun.ChildNodes.Add(resultNode);
+            testRun.AddChildNode(MakeCommandLineElement());
+            testRun.AddChildNode(MakeTestFilterElement(filter));
+            testRun.AddChildNode(resultNode);
 
             testRun.WriteTo(xmlWriter);
         }
@@ -108,17 +82,17 @@ namespace NUnitLite
             if (result.ResultState.Label != string.Empty)
                 testRun.AddAttribute("label", result.ResultState.Label);
 
-            testRun.AddAttribute("start-time", result.StartTime.ToString("u"));
-            testRun.AddAttribute("end-time", result.EndTime.ToString("u"));
+            testRun.AddAttribute("start-time", result.StartTime.ToString("o"));
+            testRun.AddAttribute("end-time", result.EndTime.ToString("o"));
             testRun.AddAttribute("duration", result.Duration.ToString("0.000000", NumberFormatInfo.InvariantInfo));
 
-            testRun.AddAttribute("total", (result.PassCount + result.FailCount + result.SkipCount + result.InconclusiveCount).ToString());
+            testRun.AddAttribute("total", result.TotalCount.ToString());
             testRun.AddAttribute("passed", result.PassCount.ToString());
             testRun.AddAttribute("failed", result.FailCount.ToString());
             testRun.AddAttribute("inconclusive", result.InconclusiveCount.ToString());
             testRun.AddAttribute("skipped", result.SkipCount.ToString());
+            testRun.AddAttribute("warnings", result.WarningCount.ToString());
             testRun.AddAttribute("asserts", result.AssertCount.ToString());
-
             testRun.AddAttribute("random-seed", Randomizer.InitialSeed.ToString());
 
             // NOTE: The console runner adds attributes for engine-version and clr-version
@@ -128,17 +102,15 @@ namespace NUnitLite
             return testRun;
         }
 
-#if !NETSTANDARD1_3 && !NETSTANDARD1_6
         private static TNode MakeCommandLineElement()
         {
             return new TNode("command-line", Environment.CommandLine, true);
         }
-#endif
 
         private static TNode MakeTestFilterElement(TestFilter filter)
         {
             TNode result = new TNode("filter");
-            if (!filter.IsEmpty)
+            if (filter is not null && !filter.IsEmpty)
                 filter.AddToXml(result, true);
             return result;
         }

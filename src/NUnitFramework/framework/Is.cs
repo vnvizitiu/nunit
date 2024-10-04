@@ -1,28 +1,8 @@
-// ***********************************************************************
-// Copyright (c) 2009 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-//
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using NUnit.Framework.Constraints;
 
 namespace NUnit.Framework
@@ -31,7 +11,8 @@ namespace NUnit.Framework
     /// Helper class with properties and methods that supply
     /// a number of constraints used in Asserts.
     /// </summary>
-    public class Is
+    // Abstract because we support syntax extension by inheriting and declaring new static members.
+    public abstract class Is
     {
         #region Not
 
@@ -39,10 +20,7 @@ namespace NUnit.Framework
         /// Returns a ConstraintExpression that negates any
         /// following constraint.
         /// </summary>
-        public static ConstraintExpression Not
-        {
-            get { return new ConstraintExpression().Not; }
-        }
+        public static ConstraintExpression Not => new ConstraintExpression().Not;
 
         #endregion
 
@@ -53,10 +31,7 @@ namespace NUnit.Framework
         /// the following constraint to all members of a collection,
         /// succeeding if all of them succeed.
         /// </summary>
-        public static ConstraintExpression All
-        {
-            get { return new ConstraintExpression().All; }
-        }
+        public static ConstraintExpression All => new ConstraintExpression().All;
 
         #endregion
 
@@ -65,10 +40,16 @@ namespace NUnit.Framework
         /// <summary>
         /// Returns a constraint that tests for null
         /// </summary>
-        public static NullConstraint Null
-        {
-            get { return new NullConstraint(); }
-        }
+        public static NullConstraint Null => new();
+
+        #endregion
+
+        #region Default
+
+        /// <summary>
+        /// Returns a constraint that tests for default value
+        /// </summary>
+        public static DefaultConstraint Default => new();
 
         #endregion
 
@@ -77,10 +58,7 @@ namespace NUnit.Framework
         /// <summary>
         /// Returns a constraint that tests for True
         /// </summary>
-        public static TrueConstraint True
-        {
-            get { return new TrueConstraint(); }
-        }
+        public static TrueConstraint True => new();
 
         #endregion
 
@@ -89,10 +67,7 @@ namespace NUnit.Framework
         /// <summary>
         /// Returns a constraint that tests for False
         /// </summary>
-        public static FalseConstraint False
-        {
-            get { return new FalseConstraint(); }
-        }
+        public static FalseConstraint False => new();
 
         #endregion
 
@@ -101,10 +76,7 @@ namespace NUnit.Framework
         /// <summary>
         /// Returns a constraint that tests for a positive value
         /// </summary>
-        public static GreaterThanConstraint Positive
-        {
-            get { return new GreaterThanConstraint(0); }
-        }
+        public static GreaterThanConstraint Positive => new(0);
 
         #endregion
 
@@ -113,10 +85,7 @@ namespace NUnit.Framework
         /// <summary>
         /// Returns a constraint that tests for a negative value
         /// </summary>
-        public static LessThanConstraint Negative
-        {
-            get { return new LessThanConstraint(0); }
-        }
+        public static LessThanConstraint Negative => new(0);
 
         #endregion
 
@@ -125,10 +94,7 @@ namespace NUnit.Framework
         /// <summary>
         /// Returns a constraint that tests for equality with zero
         /// </summary>
-        public static EqualConstraint Zero
-        {
-            get { return new EqualConstraint(0); }
-        }
+        public static EqualConstraint Zero => new(0);
 
         #endregion
 
@@ -137,10 +103,7 @@ namespace NUnit.Framework
         /// <summary>
         /// Returns a constraint that tests for NaN
         /// </summary>
-        public static NaNConstraint NaN
-        {
-            get { return new NaNConstraint(); }
-        }
+        public static NaNConstraint NaN => new();
 
         #endregion
 
@@ -149,10 +112,16 @@ namespace NUnit.Framework
         /// <summary>
         /// Returns a constraint that tests for empty
         /// </summary>
-        public static EmptyConstraint Empty
-        {
-            get { return new EmptyConstraint(); }
-        }
+        public static EmptyConstraint Empty => new();
+
+        #endregion
+
+        #region WhiteSpace
+
+        /// <summary>
+        /// Returns a constraint that tests for white-space
+        /// </summary>
+        public static WhiteSpaceConstraint WhiteSpace => new();
 
         #endregion
 
@@ -162,47 +131,29 @@ namespace NUnit.Framework
         /// Returns a constraint that tests whether a collection
         /// contains all unique items.
         /// </summary>
-        public static UniqueItemsConstraint Unique
-        {
-            get { return new UniqueItemsConstraint(); }
-        }
+        public static UniqueItemsConstraint Unique => new();
 
         #endregion
 
-        #region BinarySerializable
-
-#if !NETSTANDARD1_3 && !NETSTANDARD1_6
         /// <summary>
-        /// Returns a constraint that tests whether an object graph is serializable in binary format.
+        /// Returns a constraint that tests whether an object graph is serializable in XML format.
         /// </summary>
-        public static BinarySerializableConstraint BinarySerializable
-        {
-            get { return new BinarySerializableConstraint(); }
-        }
-#endif
-
-        #endregion
-
-        #region XmlSerializable
-
-#if !NETSTANDARD1_3 && !NETSTANDARD1_6
-        /// <summary>
-        /// Returns a constraint that tests whether an object graph is serializable in xml format.
-        /// </summary>
-        public static XmlSerializableConstraint XmlSerializable
-        {
-            get { return new XmlSerializableConstraint(); }
-        }
-#endif
-
-        #endregion
+        public static XmlSerializableConstraint XmlSerializable => new();
 
         #region EqualTo
 
         /// <summary>
         /// Returns a constraint that tests two items for equality
         /// </summary>
-        public static EqualConstraint EqualTo(object expected)
+        public static EqualConstraint EqualTo(object? expected)
+        {
+            return new EqualConstraint(expected);
+        }
+
+        /// <summary>
+        /// Returns a constraint that tests two collections for equality.
+        /// </summary>
+        public static EqualConstraint EqualTo<T>(IEnumerable<T>? expected)
         {
             return new EqualConstraint(expected);
         }
@@ -214,7 +165,7 @@ namespace NUnit.Framework
         /// <summary>
         /// Returns a constraint that tests that two references are the same object
         /// </summary>
-        public static SameAsConstraint SameAs(object expected)
+        public static SameAsConstraint SameAs(object? expected)
         {
             return new SameAsConstraint(expected);
         }
@@ -391,6 +342,16 @@ namespace NUnit.Framework
             return new CollectionEquivalentConstraint(expected);
         }
 
+        /// <summary>
+        /// Returns a constraint that tests whether the actual value
+        /// is a collection containing the same elements as the
+        /// collection supplied as an argument.
+        /// </summary>
+        public static CollectionEquivalentConstraint EquivalentTo<T>(IEnumerable<T> expected)
+        {
+            return new CollectionEquivalentConstraint(expected);
+        }
+
         #endregion
 
         #region SubsetOf
@@ -400,6 +361,15 @@ namespace NUnit.Framework
         /// is a subset of the collection supplied as an argument.
         /// </summary>
         public static CollectionSubsetConstraint SubsetOf(IEnumerable expected)
+        {
+            return new CollectionSubsetConstraint(expected);
+        }
+
+        /// <summary>
+        /// Returns a constraint that tests whether the actual value
+        /// is a subset of the collection supplied as an argument.
+        /// </summary>
+        public static CollectionSubsetConstraint SubsetOf<T>(IEnumerable<T> expected)
         {
             return new CollectionSubsetConstraint(expected);
         }
@@ -417,6 +387,15 @@ namespace NUnit.Framework
             return new CollectionSupersetConstraint(expected);
         }
 
+        /// <summary>
+        /// Returns a constraint that tests whether the actual value
+        /// is a superset of the collection supplied as an argument.
+        /// </summary>
+        public static CollectionSupersetConstraint SupersetOf<T>(IEnumerable<T> expected)
+        {
+            return new CollectionSupersetConstraint(expected);
+        }
+
         #endregion
 
         #region Ordered
@@ -424,66 +403,7 @@ namespace NUnit.Framework
         /// <summary>
         /// Returns a constraint that tests whether a collection is ordered
         /// </summary>
-        public static CollectionOrderedConstraint Ordered
-        {
-            get { return new CollectionOrderedConstraint(); }
-        }
-
-        #endregion
-
-        #region StringContaining
-
-        /// <summary>
-        /// Returns a constraint that succeeds if the actual
-        /// value contains the substring supplied as an argument.
-        /// </summary>
-        [Obsolete("Deprecated, use Does.Contain")]
-        public static SubstringConstraint StringContaining(string expected)
-        {
-            return new SubstringConstraint(expected);
-        }
-
-        #endregion
-
-        #region StringStarting
-
-        /// <summary>
-        /// Returns a constraint that succeeds if the actual
-        /// value starts with the substring supplied as an argument.
-        /// </summary>
-        [Obsolete("Deprecated, use Does.StartWith")]
-        public static StartsWithConstraint StringStarting(string expected)
-        {
-            return new StartsWithConstraint(expected);
-        }
-
-        #endregion
-
-        #region StringEnding
-
-        /// <summary>
-        /// Returns a constraint that succeeds if the actual
-        /// value ends with the substring supplied as an argument.
-        /// </summary>
-        [Obsolete("Deprecated, use Does.EndWith")]
-        public static EndsWithConstraint StringEnding(string expected)
-        {
-            return new EndsWithConstraint(expected);
-        }
-
-        #endregion
-
-        #region StringMatching
-
-        /// <summary>
-        /// Returns a constraint that succeeds if the actual
-        /// value matches the regular expression supplied as an argument.
-        /// </summary>
-        [Obsolete("Deprecated, use Does.Match")]
-        public static RegexConstraint StringMatching(string pattern)
-        {
-            return new RegexConstraint(pattern);
-        }
+        public static CollectionOrderedConstraint Ordered => new();
 
         #endregion
 
@@ -532,13 +452,39 @@ namespace NUnit.Framework
         /// Returns a constraint that tests whether the actual value falls
         /// inclusively within a specified range.
         /// </summary>
-        /// <remarks>from must be less than or equal to true</remarks>
-        /// <param name="from">Inclusive beginning of the range. Must be less than or equal to to.</param>
-        /// <param name="to">Inclusive end of the range. Must be greater than or equal to from.</param>
+        /// <param name="from">Inclusive beginning of the range.</param>
+        /// <param name="to">Inclusive end of the range.</param>
         /// <returns></returns>
-        public static RangeConstraint InRange(IComparable from, IComparable to)
+        public static RangeConstraint InRange(object from, object to)
         {
             return new RangeConstraint(from, to);
+        }
+
+        #endregion
+
+        #region Any Of
+
+        /// <summary>
+        /// Returns a constraint that tests if an item is equal to any of parameters
+        /// </summary>
+        /// <param name="expected">Expected values</param>
+        public static AnyOfConstraint AnyOf(params object?[]? expected)
+        {
+            if (expected is null)
+            {
+                expected = new object?[] { null };
+            }
+
+            return new AnyOfConstraint(expected);
+        }
+
+        /// <summary>
+        /// Returns a constraint that tests if an item is equal to any of parameters
+        /// </summary>
+        /// <param name="expected">Expected values</param>
+        public static AnyOfConstraint AnyOf(ICollection expected)
+        {
+            return new AnyOfConstraint(expected);
         }
 
         #endregion

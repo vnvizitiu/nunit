@@ -1,33 +1,11 @@
-// ***********************************************************************
-// Copyright (c) 2012-2014 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-//
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Reflection;
-using System.Security;
-using NUnit.Compatibility;
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
 using NUnit.Framework.Internal.Builders;
@@ -40,14 +18,14 @@ namespace NUnit.Framework.Api
     /// </summary>
     public class DefaultTestAssemblyBuilder : ITestAssemblyBuilder
     {
-        static Logger log = InternalTrace.GetLogger(typeof(DefaultTestAssemblyBuilder));
+        private static readonly Logger Log = InternalTrace.GetLogger(typeof(DefaultTestAssemblyBuilder));
 
         #region Instance Fields
 
         /// <summary>
         /// The default suite builder used by the test assembly builder.
         /// </summary>
-        ISuiteBuilder _defaultSuiteBuilder;
+        private readonly ISuiteBuilder _defaultSuiteBuilder;
 
         #endregion
 
@@ -75,83 +53,77 @@ namespace NUnit.Framework.Api
         /// </returns>
         public ITest Build(Assembly assembly, IDictionary<string, object> options)
         {
-#if NETSTANDARD1_3 || NETSTANDARD1_6
-            log.Debug("Loading {0}", assembly.FullName);
-#else
-            log.Debug("Loading {0} in AppDomain {1}", assembly.FullName, AppDomain.CurrentDomain.FriendlyName);
-#endif
+            Log.Debug("Loading {0} in AppDomain {1}", assembly.FullName!, AppDomain.CurrentDomain.FriendlyName);
 
             string assemblyPath = AssemblyHelper.GetAssemblyPath(assembly);
-            return Build(assembly, assemblyPath, options);
+            string suiteName = assemblyPath.Equals("<Unknown>")
+                ? AssemblyHelper.GetAssemblyName(assembly).FullName
+                : assemblyPath;
+
+            return Build(assembly, suiteName, options);
         }
 
         /// <summary>
-        /// Build a suite of tests given the filename of an assembly
+        /// Build a suite of tests given the name or the location of an assembly
         /// </summary>
-        /// <param name="assemblyName">The filename of the assembly from which tests are to be built</param>
+        /// <param name="assemblyNameOrPath">The name or the location of the assembly.</param>
         /// <param name="options">A dictionary of options to use in building the suite</param>
         /// <returns>
         /// A TestSuite containing the tests found in the assembly
         /// </returns>
-        public ITest Build(string assemblyName, IDictionary<string, object> options)
+        public ITest Build(string assemblyNameOrPath, IDictionary<string, object> options)
         {
-#if NETSTANDARD1_3 || NETSTANDARD1_6
-            log.Debug("Loading {0}", assemblyName);
-#else
-            log.Debug("Loading {0} in AppDomain {1}", assemblyName, AppDomain.CurrentDomain.FriendlyName);
-#endif
+            Log.Debug("Loading {0} in AppDomain {1}", assemblyNameOrPath, AppDomain.CurrentDomain.FriendlyName);
 
-            TestSuite testAssembly = null;
+            TestSuite testAssembly;
 
             try
             {
-                var assembly = AssemblyHelper.Load(assemblyName);
-                testAssembly = Build(assembly, assemblyName, options);
+                var assembly = AssemblyHelper.Load(assemblyNameOrPath);
+                testAssembly = Build(assembly, assemblyNameOrPath, options);
             }
             catch (Exception ex)
             {
-                testAssembly = new TestAssembly(assemblyName);
-                testAssembly.MakeInvalid(ExceptionHelper.BuildFriendlyMessage(ex));
+                testAssembly = new TestAssembly(assemblyNameOrPath);
+                testAssembly.MakeInvalid(ExceptionHelper.BuildMessage(ex, true));
             }
 
             return testAssembly;
         }
 
-        private TestSuite Build(Assembly assembly, string assemblyPath, IDictionary<string, object> options)
+        private TestSuite Build(Assembly assembly, string assemblyNameOrPath, IDictionary<string, object> options)
         {
-            TestSuite testAssembly = null;
+            TestSuite testAssembly;
 
             try
             {
-                if (options.ContainsKey(FrameworkPackageSettings.DefaultTestNamePattern))
-                    TestNameGenerator.DefaultTestNamePattern = options[FrameworkPackageSettings.DefaultTestNamePattern] as string;
+                if (options.TryGetValue(FrameworkPackageSettings.DefaultTestNamePattern, out object? defaultTestNamePattern))
+                    TestNameGenerator.DefaultTestNamePattern = (string)defaultTestNamePattern;
 
-                if (options.ContainsKey(FrameworkPackageSettings.WorkDirectory))
-                    TestContext.DefaultWorkDirectory = options[FrameworkPackageSettings.WorkDirectory] as string;
+                if (options.TryGetValue(FrameworkPackageSettings.WorkDirectory, out object? workDirectory))
+                    TestContext.DefaultWorkDirectory = workDirectory as string;
                 else
                     TestContext.DefaultWorkDirectory = Directory.GetCurrentDirectory();
 
-                if (options.ContainsKey(FrameworkPackageSettings.TestParametersDictionary))
+                if (options.TryGetValue(FrameworkPackageSettings.TestParametersDictionary, out object? testParametersObject) &&
+                    testParametersObject is Dictionary<string, string> testParametersDictionary)
                 {
-                    var testParametersDictionary = options[FrameworkPackageSettings.TestParametersDictionary] as IDictionary<string, string>;
-                    if (testParametersDictionary != null)
-                    {
-                        foreach (var parameter in testParametersDictionary)
-                            TestContext.Parameters.Add(parameter.Key, parameter.Value);
-                    }
+                    foreach (var parameter in testParametersDictionary)
+                        TestContext.Parameters.Add(parameter.Key, parameter.Value);
                 }
                 else
                 {
                     // This cannot be changed without breaking backwards compatibility with old runners.
                     // Deserializes the way old runners understand.
 
-                    if (options.ContainsKey(FrameworkPackageSettings.TestParameters))
+                    if (options.TryGetValue(FrameworkPackageSettings.TestParameters, out var testParameters))
                     {
-                        string parameters = options[FrameworkPackageSettings.TestParameters] as string;
-                        if (!string.IsNullOrEmpty(parameters))
-                            foreach (string param in parameters.Split(new[] { ';' }))
+                        var parametersString = (string?)testParameters;
+                        if (!string.IsNullOrEmpty(parametersString))
+                        {
+                            foreach (var param in parametersString!.Tokenize(';'))
                             {
-                                int eq = param.IndexOf("=");
+                                var eq = param.IndexOf('=');
 
                                 if (eq > 0 && eq < param.Length - 1)
                                 {
@@ -161,20 +133,25 @@ namespace NUnit.Framework.Api
                                     TestContext.Parameters.Add(name, val);
                                 }
                             }
+                        }
                     }
                 }
 
-                IList fixtureNames = null;
-                if (options.ContainsKey(FrameworkPackageSettings.LOAD))
-                    fixtureNames = options[FrameworkPackageSettings.LOAD] as IList;
-                var fixtures = GetFixtures(assembly, fixtureNames);
+                var filter = new PreFilter();
+                if (options.TryGetValue(FrameworkPackageSettings.LOAD, out object? load))
+                {
+                    foreach (string filterText in (IList)load)
+                        filter.Add(filterText);
+                }
 
-                testAssembly = BuildTestAssembly(assembly, assemblyPath, fixtures);
+                var fixtures = GetFixtures(assembly, filter);
+
+                testAssembly = BuildTestAssembly(assembly, assemblyNameOrPath, fixtures);
             }
             catch (Exception ex)
             {
-                testAssembly = new TestAssembly(assemblyPath);
-                testAssembly.MakeInvalid(ExceptionHelper.BuildFriendlyMessage(ex));
+                testAssembly = new TestAssembly(assemblyNameOrPath);
+                testAssembly.MakeInvalid(ExceptionHelper.BuildMessage(ex, true));
             }
 
             return testAssembly;
@@ -184,86 +161,60 @@ namespace NUnit.Framework.Api
 
         #region Helper Methods
 
-        private IList<Test> GetFixtures(Assembly assembly, IList names)
+        private IList<Test> GetFixtures(Assembly assembly, PreFilter filter)
         {
             var fixtures = new List<Test>();
-            log.Debug("Examining assembly for test fixtures");
+            Log.Debug("Examining assembly for test fixtures");
 
-            var testTypes = GetCandidateFixtureTypes(assembly, names);
+            var testTypes = GetCandidateFixtureTypes(assembly, filter);
 
-            log.Debug("Found {0} classes to examine", testTypes.Count);
-#if LOAD_TIMING
-            System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
-            timer.Start();
-#endif
-            int testcases = 0;
+            Log.Debug("Found {0} classes to examine", testTypes.Count);
+            var timer = Stopwatch.StartNew();
+            var testcases = 0;
             foreach (Type testType in testTypes)
             {
                 var typeInfo = new TypeWrapper(testType);
 
-                try
+                // Any exceptions from this call are fatal problems in NUnit itself,
+                // since this is always DefaultSuiteBuilder and the current implementation
+                // of DefaultSuiteBuilder.CanBuildFrom cannot invoke any user code.
+                if (_defaultSuiteBuilder.CanBuildFrom(typeInfo))
                 {
-                    if (_defaultSuiteBuilder.CanBuildFrom(typeInfo))
-                    {
-                        Test fixture = _defaultSuiteBuilder.BuildFrom(typeInfo);
-                        fixtures.Add(fixture);
-                        testcases += fixture.TestCaseCount;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    log.Error(ex.ToString());
+                    // We pass the filter for use in selecting methods of the type.
+                    // Any exceptions from this call are fatal problems in NUnit itself,
+                    // since this is always DefaultSuiteBuilder and the current implementation
+                    // of DefaultSuiteBuilder.BuildFrom handles all exceptions from user code.
+                    Test fixture = _defaultSuiteBuilder.BuildFrom(typeInfo, filter);
+                    fixtures.Add(fixture);
+                    testcases += fixture.TestCaseCount;
                 }
             }
 
-#if LOAD_TIMING
-            log.Debug("Found {0} fixtures with {1} test cases in {2} seconds", fixtures.Count, testcases, timer.Elapsed);
-#else
-            log.Debug("Found {0} fixtures with {1} test cases", fixtures.Count, testcases);
-#endif
+            Log.Debug("Found {0} fixtures with {1} test cases in {2}ms", fixtures.Count, testcases, timer.ElapsedMilliseconds);
 
             return fixtures;
         }
 
-        private IList<Type> GetCandidateFixtureTypes(Assembly assembly, IList names)
+        private IList<Type> GetCandidateFixtureTypes(Assembly assembly, PreFilter filter)
         {
-            var types = assembly.GetTypes();
-
-            if (names == null || names.Count == 0)
-                return types;
-
             var result = new List<Type>();
 
-            foreach (string name in names)
+            foreach (Type type in assembly.GetTypes())
             {
-                Type fixtureType = assembly.GetType(name);
-                if (fixtureType != null)
-                    result.Add(fixtureType);
-                else
-                {
-                    string prefix = name + ".";
-
-                    foreach (Type type in types)
-                        if (type.FullName.StartsWith(prefix))
-                            result.Add(type);
-                }
+                if (filter.IsMatch(type))
+                    result.Add(type);
             }
 
             return result;
         }
 
-        // This method invokes members on the 'System.Diagnostics.Process' class and must satisfy the link demand of
-        // the full-trust 'PermissionSetAttribute' on this class. Callers of this method have no influence on how the
-        // Process class is used, so we can safely satisfy the link demand with a 'SecuritySafeCriticalAttribute' rather
-        // than a 'SecurityCriticalAttribute' and allow use by security transparent callers.
-        [SecuritySafeCritical]
-        private TestSuite BuildTestAssembly(Assembly assembly, string assemblyName, IList<Test> fixtures)
+        private TestSuite BuildTestAssembly(Assembly assembly, string assemblyNameOrPath, IList<Test> fixtures)
         {
-            TestSuite testAssembly = new TestAssembly(assembly, assemblyName);
+            TestSuite testAssembly = new TestAssembly(assembly, assemblyNameOrPath);
 
             if (fixtures.Count == 0)
             {
-                testAssembly.MakeInvalid("Has no TestFixtures");
+                testAssembly.MakeInvalid("No test fixtures were found.");
             }
             else
             {
@@ -275,10 +226,15 @@ namespace NUnit.Framework.Api
 
             testAssembly.ApplyAttributesToTest(assembly);
 
-#if !NETSTANDARD1_3 && !NETSTANDARD1_6
-            testAssembly.Properties.Set(PropertyNames.ProcessID, System.Diagnostics.Process.GetCurrentProcess().Id);
+            try
+            {
+                using var process = System.Diagnostics.Process.GetCurrentProcess();
+                testAssembly.Properties.Set(PropertyNames.ProcessId, process.Id);
+            }
+            catch (PlatformNotSupportedException)
+            {
+            }
             testAssembly.Properties.Set(PropertyNames.AppDomain, AppDomain.CurrentDomain.FriendlyName);
-#endif
 
             // TODO: Make this an option? Add Option to sort assemblies as well?
             testAssembly.Sort();

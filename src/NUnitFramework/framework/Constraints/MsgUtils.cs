@@ -1,33 +1,11 @@
-// ***********************************************************************
-// Copyright (c) 2012 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
-using System.Text;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
-using System.Reflection;
-using NUnit.Compatibility;
+using System.Text;
 using NUnit.Framework.Internal;
 
 namespace NUnit.Framework.Constraints
@@ -53,6 +31,11 @@ namespace NUnit.Framework.Constraints
     internal static class MsgUtils
     {
         /// <summary>
+        /// Default amount of items used by <see cref="FormatCollection"/> method.
+        /// </summary>
+        internal const int DefaultMaxItems = 10;
+
+        /// <summary>
         /// Static string used when strings are clipped
         /// </summary>
         private const string ELLIPSIS = "...";
@@ -61,6 +44,7 @@ namespace NUnit.Framework.Constraints
         /// Formatting strings used for expected and actual values
         /// </summary>
         private static readonly string Fmt_Null = "null";
+
         private static readonly string Fmt_EmptyString = "<string.Empty>";
         private static readonly string Fmt_EmptyCollection = "<empty>";
         private static readonly string Fmt_String = "\"{0}\"";
@@ -69,6 +53,7 @@ namespace NUnit.Framework.Constraints
         private static readonly string Fmt_DateTimeOffset = "yyyy-MM-dd HH:mm:ss.FFFFFFFzzz";
         private static readonly string Fmt_ValueType = "{0}";
         private static readonly string Fmt_Default = "<{0}>";
+        private static readonly string Fmt_ExceptionThrown = "<! {0} !>";
 
         /// <summary>
         /// Current head of chain of value formatters. Public for testing.
@@ -78,31 +63,53 @@ namespace NUnit.Framework.Constraints
         static MsgUtils()
         {
             // Initialize formatter to default for values of indeterminate type.
-            DefaultValueFormatter = val => string.Format(Fmt_Default, val);
+            DefaultValueFormatter = FormatValueWithoutThrowing;
+
+            AddFormatter(next => val => TryFormatTuple(val, TypeHelper.IsTuple, GetValueFromTuple) ?? next(val));
 
             AddFormatter(next => val => val is ValueType ? string.Format(Fmt_ValueType, val) : next(val));
 
-            AddFormatter(next => val => val is DateTime ? FormatDateTime((DateTime)val) : next(val));
+            AddFormatter(next => val => TryFormatKeyValuePair(val) ?? next(val));
 
-            AddFormatter(next => val => val is DateTimeOffset ? FormatDateTimeOffset ((DateTimeOffset)val) : next (val));
+            AddFormatter(next => val => TryFormatTuple(val, TypeHelper.IsValueTuple, GetValueFromValueTuple) ?? next(val));
 
-            AddFormatter(next => val => val is decimal ? FormatDecimal((decimal)val) : next(val));
+            AddFormatter(next => val => val is DateTime value ? FormatDateTime(value) : next(val));
 
-            AddFormatter(next => val => val is float ? FormatFloat((float)val) : next(val));
+            AddFormatter(next => val => val is DateTimeOffset value ? FormatDateTimeOffset(value) : next(val));
 
-            AddFormatter(next => val => val is double ? FormatDouble((double)val) : next(val));
+            AddFormatter(next => val => val is decimal value ? FormatDecimal(value) : next(val));
+
+            AddFormatter(next => val => val is float value ? FormatFloat(value) : next(val));
+
+            AddFormatter(next => val => val is double value ? FormatDouble(value) : next(val));
 
             AddFormatter(next => val => val is char ? string.Format(Fmt_Char, val) : next(val));
 
-            AddFormatter(next => val => val is IEnumerable ? FormatCollection((IEnumerable)val, 0, 10) : next(val));
+            AddFormatter(next => val => val is IEnumerable value ? FormatCollection(value) : next(val));
 
-            AddFormatter(next => val => val is string ? FormatString((string)val) : next(val));
+            AddFormatter(next => val => val is string value ? FormatString(value) : next(val));
 
-            AddFormatter(next => val => val.GetType().IsArray ? FormatArray((Array)val) : next(val));
+            AddFormatter(next => val => val is DictionaryEntry de ? FormatKeyValuePair(de.Key, de.Value) : next(val));
 
-            AddFormatter(next => val => TryFormatKeyValuePair(val) ?? next(val));
+            AddFormatter(next => val => val is Array valArray ? FormatArray(valArray) : next(val));
+        }
 
-            AddFormatter(next => val => TryFormatValueTuple(val) ?? next(val));
+#if NETFRAMEWORK
+        [System.Runtime.ExceptionServices.HandleProcessCorruptedStateExceptions]
+#endif
+        private static string FormatValueWithoutThrowing(object? val)
+        {
+            string? asString;
+            try
+            {
+                asString = val?.ToString();
+            }
+            catch (Exception ex)
+            {
+                return string.Format(Fmt_ExceptionThrown, $"{ex.GetType().Name} was thrown by {val!.GetType().Name}.ToString()");
+            }
+
+            return string.Format(Fmt_Default, asString);
         }
 
         /// <summary>
@@ -119,14 +126,14 @@ namespace NUnit.Framework.Constraints
         /// </summary>
         /// <param name="val">The value</param>
         /// <returns>The formatted text</returns>
-        public static string FormatValue(object val)
+        public static string FormatValue(object? val)
         {
-            if (val == null)
+            if (val is null)
                 return Fmt_Null;
 
             var context = TestExecutionContext.CurrentContext;
 
-            if (context != null)
+            if (context is not null)
                 return context.CurrentValueFormatter(val);
             else
                 return DefaultValueFormatter(val);
@@ -139,19 +146,25 @@ namespace NUnit.Framework.Constraints
         /// <param name="collection">The collection containing elements to write.</param>
         /// <param name="start">The starting point of the elements to write</param>
         /// <param name="max">The maximum number of elements to write</param>
-        public static string FormatCollection(IEnumerable collection, long start, int max)
+        public static string FormatCollection(IEnumerable collection, long start = 0, int max = DefaultMaxItems)
         {
             int count = 0;
             int index = 0;
-            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+            StringBuilder sb = new StringBuilder();
 
-            foreach (object obj in collection)
+            sb.Append("< ");
+
+            if (start > 0)
+                sb.Append("...");
+
+            foreach (object? obj in collection)
             {
                 if (index++ >= start)
                 {
                     if (++count > max)
                         break;
-                    sb.Append(count == 1 ? "< " : ", ");
+                    if (count > 1)
+                        sb.Append(", ");
                     sb.Append(FormatValue(obj));
                 }
             }
@@ -175,7 +188,7 @@ namespace NUnit.Framework.Constraints
             int rank = array.Rank;
             int[] products = new int[rank];
 
-            for (int product = 1, r = rank; --r >= 0; )
+            for (int product = 1, r = rank; --r >= 0;)
                 products[r] = product *= array.GetLength(r);
 
             int count = 0;
@@ -189,7 +202,8 @@ namespace NUnit.Framework.Constraints
                 for (int r = 0; r < rank; r++)
                 {
                     startSegment = startSegment || count % products[r] == 0;
-                    if (startSegment) sb.Append("< ");
+                    if (startSegment)
+                        sb.Append("< ");
                 }
 
                 sb.Append(FormatValue(obj));
@@ -200,51 +214,61 @@ namespace NUnit.Framework.Constraints
                 for (int r = 0; r < rank; r++)
                 {
                     nextSegment = nextSegment || count % products[r] == 0;
-                    if (nextSegment) sb.Append(" >");
+                    if (nextSegment)
+                        sb.Append(" >");
                 }
             }
 
             return sb.ToString();
         }
 
-        private static string TryFormatKeyValuePair(object value)
+        private static string? TryFormatKeyValuePair(object? value)
         {
-            if (value == null)
+            if (value is null)
                 return null;
 
             Type valueType = value.GetType();
-            if (!valueType.GetTypeInfo().IsGenericType)
+            if (!valueType.IsGenericType)
                 return null;
 
             Type baseValueType = valueType.GetGenericTypeDefinition();
             if (baseValueType != typeof(KeyValuePair<,>))
                 return null;
 
-            object k = valueType.GetProperty("Key").GetValue(value, null);
-            object v = valueType.GetProperty("Value").GetValue(value, null);
+            object? k = valueType.GetProperty("Key")?.GetValue(value, null);
+            object? v = valueType.GetProperty("Value")?.GetValue(value, null);
 
             return FormatKeyValuePair(k, v);
         }
 
-        private static string FormatKeyValuePair(object key, object value)
+        private static string FormatKeyValuePair(object? key, object? value)
         {
-            return string.Format("[{0}, {1}]", FormatValue(key), FormatValue(value));
+            return $"[{FormatValue(key)}, {FormatValue(value)}]";
         }
 
-        private static string TryFormatValueTuple(object value)
+        private static object? GetValueFromTuple(Type type, string propertyName, object obj)
         {
-            if (value == null)
+            return type.GetProperty(propertyName)?.GetValue(obj, null);
+        }
+
+        private static object? GetValueFromValueTuple(Type type, string propertyName, object obj)
+        {
+            return type.GetField(propertyName)?.GetValue(obj);
+        }
+
+        private static string? TryFormatTuple(object? value, Func<Type, bool> isTuple, Func<Type, string, object, object?> getValue)
+        {
+            if (value is null)
                 return null;
 
             Type valueType = value.GetType();
-            string typeName = GetTypeNameWithoutGenerics(valueType.FullName);
-            if (typeName != "System.ValueTuple")
+            if (!isTuple(valueType))
                 return null;
 
-            return FormatValueTuple(value, true);
+            return FormatTuple(value, true, getValue);
         }
 
-        private static string FormatValueTuple(object value, bool printParentheses)
+        private static string FormatTuple(object value, bool printParentheses, Func<Type, string, object, object?> getValue)
         {
             Type valueType = value.GetType();
             int numberOfGenericArgs = valueType.GetGenericArguments().Length;
@@ -255,24 +279,19 @@ namespace NUnit.Framework.Constraints
 
             for (int i = 0; i < numberOfGenericArgs; i++)
             {
-                if (i > 0) sb.Append(", ");
+                if (i > 0)
+                    sb.Append(", ");
 
                 bool notLastElement = i < 7;
                 string propertyName = notLastElement ? "Item" + (i + 1) : "Rest";
-                object itemValue = valueType.GetField(propertyName).GetValue(value);
-                string formattedValue = notLastElement ? FormatValue(itemValue) : FormatValueTuple(itemValue, false);
+                object? itemValue = getValue(valueType, propertyName, value);
+                string formattedValue = notLastElement ? FormatValue(itemValue) : FormatTuple(itemValue!, false, getValue);
                 sb.Append(formattedValue);
             }
             if (printParentheses)
                 sb.Append(")");
 
             return sb.ToString();
-        }
-
-        private static string GetTypeNameWithoutGenerics(string fullTypeName)
-        {
-            int index = fullTypeName.IndexOf('`');
-            return index == -1 ? fullTypeName : fullTypeName.Substring(0, index);
         }
 
         private static string FormatString(string s)
@@ -284,9 +303,10 @@ namespace NUnit.Framework.Constraints
 
         private static string FormatDouble(double d)
         {
-
             if (double.IsNaN(d) || double.IsInfinity(d))
+            {
                 return d.ToString();
+            }
             else
             {
                 string s = d.ToString("G17", CultureInfo.InvariantCulture);
@@ -301,7 +321,9 @@ namespace NUnit.Framework.Constraints
         private static string FormatFloat(float f)
         {
             if (float.IsNaN(f) || float.IsInfinity(f))
+            {
                 return f.ToString();
+            }
             else
             {
                 string s = f.ToString("G9", CultureInfo.InvariantCulture);
@@ -313,7 +335,7 @@ namespace NUnit.Framework.Constraints
             }
         }
 
-        private static string FormatDecimal(Decimal d)
+        private static string FormatDecimal(decimal d)
         {
             return d.ToString("G29", CultureInfo.InvariantCulture) + "m";
         }
@@ -337,23 +359,23 @@ namespace NUnit.Framework.Constraints
         /// <returns></returns>
         public static string GetTypeRepresentation(object obj)
         {
-            Array array = obj as Array;
-            if (array == null)
-                return string.Format("<{0}>", obj.GetType());
+            if (!(obj is Array array))
+                return $"<{obj.GetType()}>";
 
             StringBuilder sb = new StringBuilder();
             Type elementType = array.GetType();
             int nest = 0;
             while (elementType.IsArray)
             {
-                elementType = elementType.GetElementType();
+                elementType = elementType.GetElementType()!;
                 ++nest;
             }
-            sb.Append(elementType.ToString());
+            sb.Append(elementType);
             sb.Append('[');
             for (int r = 0; r < array.Rank; r++)
             {
-                if (r > 0) sb.Append(',');
+                if (r > 0)
+                    sb.Append(',');
                 sb.Append(array.GetLength(r));
             }
             sb.Append(']');
@@ -361,62 +383,118 @@ namespace NUnit.Framework.Constraints
             while (--nest > 0)
                 sb.Append("[]");
 
-            return string.Format("<{0}>", sb.ToString());
+            return $"<{sb}>";
         }
+
         /// <summary>
-        /// Converts any control characters in a string 
+        /// Converts any control characters in a string
         /// to their escaped representation.
         /// </summary>
         /// <param name="s">The string to be converted</param>
         /// <returns>The converted string</returns>
-        public static string EscapeControlChars(string s)
+        [return: NotNullIfNotNull("s")]
+        public static string? EscapeControlChars(string? s)
         {
-            if (s != null)
+            int index = 0;
+            return EscapeControlChars(s, ref index);
+        }
+
+        /// <summary>
+        /// Converts any control characters in a string
+        /// to their escaped representation.
+        /// </summary>
+        /// <param name="s">The string to be converted</param>
+        /// <param name="index">The index in the array of a specific spot, which needs to be updated when expanding.</param>
+        /// <returns>The converted string</returns>
+        [return: NotNullIfNotNull("s")]
+        public static string? EscapeControlChars(string? s, ref int index)
+        {
+            if (s is null)
+                return null;
+
+            int originalIndex = index;
+            const int headRoom = 42;
+            StringBuilder sb = new(s.Length + headRoom);
+
+            for (int i = 0; i < s.Length; i++)
             {
-                StringBuilder sb = new StringBuilder();
+                char c = s[i];
+                string? escaped = EscapeControlChars(c);
+                if (escaped is null)
+                {
+                    sb.Append(c);
+                }
+                else
+                {
+                    sb.Append(escaped);
+                    if (originalIndex > i)
+                    {
+                        index += escaped.Length - 1;
+                    }
+                }
+            }
+
+            return sb.ToString();
+        }
+
+        private static string? EscapeControlChars(char c)
+        {
+            switch (c)
+            {
+                //case '\'':
+                //    return "\\\'";
+                //case '\"':
+                //    return ("\\\"");
+                //    break;
+                case '\\':
+                    return "\\\\";
+                case '\0':
+                    return "\\0";
+                case '\a':
+                    return "\\a";
+                case '\b':
+                    return "\\b";
+                case '\f':
+                    return "\\f";
+                case '\n':
+                    return "\\n";
+                case '\r':
+                    return "\\r";
+                case '\t':
+                    return "\\t";
+                case '\v':
+                    return "\\v";
+
+                case '\x0085':
+                case '\x2028':
+                case '\x2029':
+                    return $"\\x{(int)c:X4}";
+
+                default:
+                    return null;
+            }
+        }
+
+        /// <summary>
+        /// Converts any null characters in a string
+        /// to their escaped representation.
+        /// </summary>
+        /// <param name="s">The string to be converted</param>
+        /// <returns>The converted string</returns>
+        [return: NotNullIfNotNull("s")]
+        public static string? EscapeNullCharacters(string? s)
+        {
+            if (s is not null)
+            {
+                const int headRoom = 42;
+                StringBuilder sb = new(s.Length + headRoom);
 
                 foreach (char c in s)
                 {
                     switch (c)
                     {
-                        //case '\'':
-                        //    sb.Append("\\\'");
-                        //    break;
-                        //case '\"':
-                        //    sb.Append("\\\"");
-                        //    break;
-                        case '\\':
-                            sb.Append("\\\\");
-                            break;
                         case '\0':
                             sb.Append("\\0");
-                            break;
-                        case '\a':
-                            sb.Append("\\a");
-                            break;
-                        case '\b':
-                            sb.Append("\\b");
-                            break;
-                        case '\f':
-                            sb.Append("\\f");
-                            break;
-                        case '\n':
-                            sb.Append("\\n");
-                            break;
-                        case '\r':
-                            sb.Append("\\r");
-                            break;
-                        case '\t':
-                            sb.Append("\\t");
-                            break;
-                        case '\v':
-                            sb.Append("\\v");
-                            break;
-
-                        case '\x0085':
-                        case '\x2028':
-                        case '\x2029':
-                            sb.Append(string.Format("\\x{0:X4}", (int)c));
                             break;
 
                         default:
@@ -432,38 +510,6 @@ namespace NUnit.Framework.Constraints
         }
 
         /// <summary>
-        /// Converts any null characters in a string 
-        /// to their escaped representation.
-        /// </summary>
-        /// <param name="s">The string to be converted</param>
-        /// <returns>The converted string</returns>
-        public static string EscapeNullCharacters(string s)
-        {
-            if(s != null)
-            {
-                StringBuilder sb = new StringBuilder();
-
-                foreach(char c in s)
-                {
-                    switch(c)
-                    {
-                        case '\0':
-                            sb.Append("\\0");
-                            break;
-
-                        default:
-                            sb.Append(c);
-                            break;
-                    }
-                }
-
-                s = sb.ToString();               
-            }
-
-            return s;
-        }
-
-        /// <summary>
         /// Return the a string representation for a set of indices into an array
         /// </summary>
         /// <param name="indices">Array of indices for which a string is needed</param>
@@ -473,7 +519,8 @@ namespace NUnit.Framework.Constraints
             sb.Append('[');
             for (int r = 0; r < indices.Length; r++)
             {
-                if (r > 0) sb.Append(',');
+                if (r > 0)
+                    sb.Append(',');
                 sb.Append(indices[r].ToString());
             }
             sb.Append(']');
@@ -489,14 +536,14 @@ namespace NUnit.Framework.Constraints
         /// <returns>Array of indices</returns>
         public static int[] GetArrayIndicesFromCollectionIndex(IEnumerable collection, long index)
         {
-            Array array = collection as Array;
+            Array? array = collection as Array;
 
-            int rank = array == null ? 1 : array.Rank;
+            int rank = array?.Rank ?? 1;
             int[] result = new int[rank];
 
-            for (int r = rank; --r > 0; )
+            for (int r = rank; --r > 0;)
             {
-                int l = array.GetLength(r);
+                int l = array!.GetLength(r);
                 result[r] = (int)index % l;
                 index /= l;
             }
@@ -510,81 +557,147 @@ namespace NUnit.Framework.Constraints
         /// string with ellipses representing the removed parts
         /// </summary>
         /// <param name="s">The string to be clipped</param>
-        /// <param name="maxStringLength">The maximum permitted length of the result string</param>
+        /// <param name="clipLength">The length of the clipped string</param>
         /// <param name="clipStart">The point at which to start clipping</param>
         /// <returns>The clipped string</returns>
-        public static string ClipString(string s, int maxStringLength, int clipStart)
+        public static string ClipString(string s, int clipLength, int clipStart)
         {
-            int clipLength = maxStringLength;
-            StringBuilder sb = new StringBuilder();
+            StringBuilder sb = new StringBuilder(s.Length + 2 * ELLIPSIS.Length);
 
             if (clipStart > 0)
-            {
-                clipLength -= ELLIPSIS.Length;
                 sb.Append(ELLIPSIS);
-            }
 
-            if (s.Length - clipStart > clipLength)
-            {
-                clipLength -= ELLIPSIS.Length;
-                sb.Append(s.Substring(clipStart, clipLength));
+            int remainingLength = s.Length - clipStart;
+            int count = Math.Min(remainingLength, clipLength);
+            sb.Append(s, clipStart, count);
+
+            if (remainingLength > clipLength)
                 sb.Append(ELLIPSIS);
-            }
-            else if (clipStart > 0)
-                sb.Append(s.Substring(clipStart));
-            else
-                sb.Append(s);
 
             return sb.ToString();
         }
 
         /// <summary>
-        /// Clip the expected and actual strings in a coordinated fashion, 
-        /// so that they may be displayed together.
+        /// Clips the <paramref name="s"/> string if it exceeds <paramref name="maxDisplayLength"/>.
         /// </summary>
-        /// <param name="expected"></param>
-        /// <param name="actual"></param>
-        /// <param name="maxDisplayLength"></param>
-        /// <param name="mismatch"></param>
-        public static void ClipExpectedAndActual(ref string expected, ref string actual, int maxDisplayLength, int mismatch)
+        /// <remarks>
+        /// The string ensures that the content around <paramref name="mismatchLocation"/> stays visible
+        /// by either clipping from the front or the back or both. The clipped part is replaced with "...".
+        /// </remarks>
+        /// <param name="s">The string to clip</param>
+        /// <param name="length">The assumed length of the string (needed if called for a pair)</param>
+        /// <param name="maxDisplayLength">The maximum length of the display message.</param>
+        /// <param name="mismatchLocation">The location in <paramref name="s"/> that needs to stay visible.</param>
+        /// <returns>Clip string with a maximum length of <paramref name="maxDisplayLength"/>.</returns>
+        public static string ClipWhenNeeded(string s, int length, int maxDisplayLength, ref int mismatchLocation)
         {
-            // Case 1: Both strings fit on line
-            int maxStringLength = Math.Max(expected.Length, actual.Length);
-            if (maxStringLength <= maxDisplayLength)
-                return;
+            if (length <= maxDisplayLength)
+            {
+                // No need to clip
+                return s;
+            }
 
-            // Case 2: Assume that the tail of each string fits on line
-            int clipLength = maxDisplayLength - ELLIPSIS.Length;
-            int clipStart = maxStringLength - clipLength;
+            // We need to clip at least one side.
+            maxDisplayLength -= ELLIPSIS.Length;
 
-            // Case 3: If it doesn't, center the mismatch position
-            if (clipStart > mismatch)
-                clipStart = Math.Max(0, mismatch - clipLength / 2);
+            const int minimumJoiningMatchingCharacters = 5;
 
-            expected = ClipString(expected, maxDisplayLength, clipStart);
-            actual = ClipString(actual, maxDisplayLength, clipStart);
+            int clipStart;
+
+            if (mismatchLocation + minimumJoiningMatchingCharacters < maxDisplayLength)
+            {
+                // Clip the tail
+                clipStart = 0;
+            }
+            else if (length - mismatchLocation + minimumJoiningMatchingCharacters < maxDisplayLength)
+            {
+                // Show the tail
+                clipStart = length - maxDisplayLength;
+            }
+            else
+            {
+                // We need to clip both sides.
+                maxDisplayLength -= ELLIPSIS.Length;
+
+                // Centre the clip around the mismatchLocation
+                clipStart = mismatchLocation - maxDisplayLength / 2;
+            }
+
+            if (clipStart > 0)
+            {
+                // If clipping off the front, adjust the location
+                // and correct for the ... added to the front.
+                mismatchLocation -= clipStart - ELLIPSIS.Length;
+            }
+
+            return ClipString(s, maxDisplayLength, clipStart);
         }
 
         /// <summary>
-        /// Shows the position two strings start to differ.  Comparison 
-        /// starts at the start index.
+        /// Clip the expected and actual strings in a coordinated fashion,
+        /// so that they may be displayed together.
+        /// </summary>
+        /// <remarks>
+        /// The values of <paramref name="mismatchExpected"/> and <paramref name="mismatchActual"/>
+        /// are assumed to be the same. If <paramref name="expected"/> and <paramref name="actual"/>
+        /// are not linked, then call <see cref="ClipWhenNeeded"/> individually.
+        /// </remarks>
+        /// <param name="expected">The expected string to clip</param>
+        /// <param name="actual">The actual string to clip</param>
+        /// <param name="maxDisplayLength">The maximum length of the display message.</param>
+        /// <param name="mismatchExpected">The location in <paramref name="expected"/> that needs to stay visible.</param>
+        /// <param name="mismatchActual">The location in <paramref name="actual"/> that needs to stay visible.</param>
+        public static void ClipExpectedAndActual(ref string expected, ref string actual, int maxDisplayLength, ref int mismatchExpected, ref int mismatchActual)
+        {
+            if (mismatchExpected != mismatchActual)
+            {
+                throw new ArgumentException($"The values for {nameof(mismatchExpected)} and {nameof(mismatchActual)} should be the same.");
+            }
+
+            // Clip based upon longest length
+            int longestLength = Math.Max(expected.Length, actual.Length);
+            if (longestLength <= maxDisplayLength)
+                return;
+
+            expected = ClipWhenNeeded(expected, longestLength, maxDisplayLength, ref mismatchExpected);
+            actual = ClipWhenNeeded(actual, longestLength, maxDisplayLength, ref mismatchActual);
+        }
+
+        /// <summary>
+        /// Finds the position two strings start to differ.
         /// </summary>
         /// <param name="expected">The expected string</param>
         /// <param name="actual">The actual string</param>
-        /// <param name="istart">The index in the strings at which comparison should start</param>
         /// <param name="ignoreCase">Boolean indicating whether case should be ignored</param>
-        /// <returns>-1 if no mismatch found, or the index where mismatch found</returns>
-        static public int FindMismatchPosition(string expected, string actual, int istart, bool ignoreCase)
+        /// <param name="ignoreWhiteSpace">Boolean indicating whether white space should be ignored</param>
+        /// <returns>(-1,-1) if no mismatch found, or the indices (expected, actual) where mismatches found.</returns>
+        public static (int, int) FindMismatchPosition(string expected, string actual, bool ignoreCase, bool ignoreWhiteSpace)
         {
-            int length = Math.Min(expected.Length, actual.Length);
-
             string s1 = ignoreCase ? expected.ToLower() : expected;
             string s2 = ignoreCase ? actual.ToLower() : actual;
+            int i1 = 0;
+            int i2 = 0;
 
-            for (int i = istart; i < length; i++)
+            while (true)
             {
-                if (s1[i] != s2[i])
-                    return i;
+                if (ignoreWhiteSpace)
+                {
+                    // Find next non-white space character in both s1 and s2.
+                    i1 = FindNonWhiteSpace(s1, i1);
+                    i2 = FindNonWhiteSpace(s2, i2);
+                }
+
+                if (i1 < s1.Length && i2 < s2.Length)
+                {
+                    if (s1[i1] != s2[i2])
+                        return (i1, i2);
+                    i1++;
+                    i2++;
+                }
+                else
+                {
+                    break;
+                }
             }
 
             //
@@ -592,13 +705,21 @@ namespace NUnit.Framework.Constraints
             // Mismatch occurs because string lengths are different, so show
             // that they start differing where the shortest string ends
             //
-            if (expected.Length != actual.Length)
-                return length;
+            if (i1 < s1.Length || i2 < s2.Length)
+                return (i1, i2);
 
             //
             // Same strings : We shouldn't get here
             //
-            return -1;
+            return (-1, -1);
+        }
+
+        private static int FindNonWhiteSpace(string s, int i)
+        {
+            while (i < s.Length && char.IsWhiteSpace(s[i]))
+                i++;
+
+            return i;
         }
     }
 }

@@ -1,27 +1,6 @@
-// ***********************************************************************
-// Copyright (c) 2007 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
-using System;
+using NUnit.Framework.Internal;
 
 namespace NUnit.Framework.Constraints
 {
@@ -35,17 +14,29 @@ namespace NUnit.Framework.Constraints
         /// <summary>
         /// The expected value
         /// </summary>
-        protected string expected;
+#pragma warning disable IDE1006
+        // ReSharper disable once InconsistentNaming
+        // Disregarding naming convention for back-compat
+        protected readonly string expected;
+#pragma warning restore IDE1006
 
         /// <summary>
         /// Indicates whether tests should be case-insensitive
         /// </summary>
+#pragma warning disable IDE1006
+        // ReSharper disable once InconsistentNaming
+        // Disregarding naming convention for back-compat
         protected bool caseInsensitive;
+#pragma warning restore IDE1006
 
         /// <summary>
         /// Description of this constraint
         /// </summary>
-        protected string descriptionText;
+#pragma warning disable IDE1006
+        // ReSharper disable once InconsistentNaming
+        // Disregarding naming convention for back-compat
+        protected string descriptionText = string.Empty;
+#pragma warning restore IDE1006
 
         /// <summary>
         /// The Description of what this constraint tests, for
@@ -53,9 +44,9 @@ namespace NUnit.Framework.Constraints
         /// </summary>
         public override string Description
         {
-            get 
-            { 
-                string desc = string.Format("{0} {1}", descriptionText, MsgUtils.FormatValue(expected));
+            get
+            {
+                string desc = $"{descriptionText} {MsgUtils.FormatValue(expected)}";
                 if (caseInsensitive)
                     desc += ", ignoring case";
                 return desc;
@@ -65,7 +56,10 @@ namespace NUnit.Framework.Constraints
         /// <summary>
         /// Constructs a StringConstraint without an expected value
         /// </summary>
-        protected StringConstraint() { }
+        protected StringConstraint()
+        {
+            expected = string.Empty;
+        }
 
         /// <summary>
         /// Constructs a StringConstraint given an expected value
@@ -80,9 +74,13 @@ namespace NUnit.Framework.Constraints
         /// <summary>
         /// Modify the constraint to ignore case in matching.
         /// </summary>
-        public StringConstraint IgnoreCase
+        public virtual StringConstraint IgnoreCase
         {
-            get { caseInsensitive = true; return this; }
+            get
+            {
+                caseInsensitive = true;
+                return this;
+            }
         }
 
         /// <summary>
@@ -92,11 +90,9 @@ namespace NUnit.Framework.Constraints
         /// <returns>True for success, false for failure</returns>
         public override ConstraintResult ApplyTo<TActual>(TActual actual)
         {
-            string actualAsString = actual as string;
-            if (actual != null && actualAsString == null)
-                throw new ArgumentException("Actual value must be a string", "actual");
+            var stringValue = ConstraintUtils.RequireActual<string>(actual, nameof(actual), allowNull: true);
 
-            return new ConstraintResult(this, actual, Matches(actualAsString));
+            return new ConstraintResult(this, actual, Matches(stringValue));
         }
 
         /// <summary>
@@ -104,6 +100,6 @@ namespace NUnit.Framework.Constraints
         /// </summary>
         /// <param name="actual">The string to be tested</param>
         /// <returns>True for success, false for failure</returns>
-        protected abstract bool Matches(string actual);
+        protected abstract bool Matches(string? actual);
     }
 }

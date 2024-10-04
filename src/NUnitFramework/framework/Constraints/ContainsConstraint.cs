@@ -1,26 +1,6 @@
-// ***********************************************************************
-// Copyright (c) 2007 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
+using System;
 
 namespace NUnit.Framework.Constraints
 {
@@ -34,17 +14,18 @@ namespace NUnit.Framework.Constraints
     /// </summary>
     public class ContainsConstraint : Constraint
     {
-        readonly object _expected;
-        Constraint _realConstraint;
-        bool _ignoreCase;
+        private readonly object? _expected;
+        private Constraint? _realConstraint;
+        private bool _ignoreCase;
+        private bool _ignoreWhiteSpace;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ContainsConstraint"/> class.
         /// </summary>
         /// <param name="expected">The expected value contained within the string/collection.</param>
-        public ContainsConstraint(object expected)
+        public ContainsConstraint(object? expected)
         {
-            this._expected = expected;
+            _expected = expected;
         }
 
         /// <summary>
@@ -53,9 +34,20 @@ namespace NUnit.Framework.Constraints
         /// </summary>
         public override string Description
         {
-            get { return _realConstraint != null ? 
-                    _realConstraint.Description : 
-                    "containing " + MsgUtils.FormatValue(_expected); }
+            get
+            {
+                if (_realConstraint is not null)
+                {
+                    return _realConstraint.Description;
+                }
+
+                var description = "containing " + MsgUtils.FormatValue(_expected);
+
+                if (_ignoreCase)
+                    description += ", ignoring case";
+
+                return description;
+            }
         }
 
         /// <summary>
@@ -63,7 +55,23 @@ namespace NUnit.Framework.Constraints
         /// </summary>
         public ContainsConstraint IgnoreCase
         {
-            get { _ignoreCase = true; return this; }
+            get
+            {
+                _ignoreCase = true;
+                return this;
+            }
+        }
+
+        /// <summary>
+        /// Flag the constraint to ignore white-space and return self.
+        /// </summary>
+        public ContainsConstraint IgnoreWhiteSpace
+        {
+            get
+            {
+                _ignoreWhiteSpace = true;
+                return this;
+            }
         }
 
         /// <summary>
@@ -75,13 +83,27 @@ namespace NUnit.Framework.Constraints
         {
             if (actual is string)
             {
-                StringConstraint constraint = new SubstringConstraint((string)_expected);
+                if (_expected is not string substring)
+                {
+                    throw new InvalidOperationException("Expected value for substring must be a string. Suggest using Contains.Substring to get a compile time error");
+                }
+
+                StringConstraint constraint = new SubstringConstraint(substring);
                 if (_ignoreCase)
                     constraint = constraint.IgnoreCase;
+                if (_ignoreWhiteSpace)
+                    throw new InvalidOperationException("IgnoreWhiteSpace not supported on SubStringConstraint");
                 _realConstraint = constraint;
             }
             else
-                _realConstraint = new CollectionContainsConstraint(_expected);
+            {
+                var itemConstraint = new EqualConstraint(_expected);
+                if (_ignoreCase)
+                    itemConstraint = itemConstraint.IgnoreCase;
+                if (_ignoreWhiteSpace)
+                    itemConstraint = itemConstraint.IgnoreWhiteSpace;
+                _realConstraint = new SomeItemsConstraint(itemConstraint);
+            }
 
             return _realConstraint.ApplyTo(actual);
         }

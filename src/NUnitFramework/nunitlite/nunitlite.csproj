@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>$(NUnitLibraryFrameworks)</TargetFrameworks>
+    <RootNamespace>NUnitLite</RootNamespace>
+    <Nullable>disable</Nullable>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Title>NUnitLite Runner $(AssemblyConfiguration)</Title>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\framework\nunit.framework.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\framework\Schemas\*.xsd" LinkBase="Schemas" CopyToOutputDirectory="Always" />
+    <None Update="Schemas\*.xsd" CopyToOutputDirectory="Always" />
+  </ItemGroup>
+
+</Project>

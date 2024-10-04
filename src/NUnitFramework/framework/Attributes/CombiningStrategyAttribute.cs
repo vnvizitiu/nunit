@@ -1,25 +1,4 @@
-// ***********************************************************************
-// Copyright (c) 2014-2015 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-//
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
 using System.Collections;
@@ -30,19 +9,19 @@ namespace NUnit.Framework
     using Interfaces;
     using Internal;
     using Internal.Builders;
+    using NUnit.Framework.Internal.Extensions;
 
     /// <summary>
-    /// Marks a test to use a particular CombiningStrategy to join
-    /// any parameter data provided. Since this is the default, the
-    /// attribute is optional.
+    /// Marks a test as using a particular CombiningStrategy to join any supplied parameter data.
+    /// Since this is the default, the attribute is optional.
     /// </summary>
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
     public abstract class CombiningStrategyAttribute : NUnitAttribute, ITestBuilder, IApplyToTest
     {
-        private NUnitTestCaseBuilder _builder = new NUnitTestCaseBuilder();
+        private readonly NUnitTestCaseBuilder _builder = new();
 
-        private ICombiningStrategy _strategy;
-        private IParameterDataProvider _dataProvider;
+        private readonly ICombiningStrategy _strategy;
+        private readonly IParameterDataProvider _dataProvider;
 
         /// <summary>
         /// Construct a CombiningStrategyAttribute incorporating an
@@ -71,25 +50,26 @@ namespace NUnit.Framework
         #region ITestBuilder Members
 
         /// <summary>
-        /// Construct one or more TestMethods from a given MethodInfo,
-        /// using available parameter data.
+        /// Builds any number of tests from the specified method and context.
         /// </summary>
         /// <param name="method">The MethodInfo for which tests are to be constructed.</param>
         /// <param name="suite">The suite to which the tests will be added.</param>
-        /// <returns>One or more TestMethods</returns>
-        public IEnumerable<TestMethod> BuildFrom(IMethodInfo method, Test suite)
+        public IEnumerable<TestMethod> BuildFrom(IMethodInfo method, Test? suite)
         {
-            List<TestMethod> tests = new List<TestMethod>();
-            
+            List<TestMethod> tests = new();
+
             IParameterInfo[] parameters = method.GetParameters();
 
             if (parameters.Length > 0)
             {
-                IEnumerable[] sources = new IEnumerable[parameters.Length];
+                int parametersToSupply = parameters.LastParameterAcceptsCancellationToken() ?
+                    parameters.Length - 1 : parameters.Length;
+
+                IEnumerable[] sources = new IEnumerable[parametersToSupply];
 
                 try
                 {
-                    for (int i = 0; i < parameters.Length; i++)
+                    for (int i = 0; i < parametersToSupply; i++)
                         sources[i] = _dataProvider.GetDataFor(parameters[i]);
                 }
                 catch (InvalidDataSourceException ex)
@@ -120,7 +100,7 @@ namespace NUnit.Framework
         public void ApplyToTest(Test test)
         {
             var joinType = _strategy.GetType().Name;
-            if (joinType.EndsWith("Strategy"))
+            if (joinType.EndsWith("Strategy", StringComparison.Ordinal))
                 joinType = joinType.Substring(0, joinType.Length - 8);
 
             test.Properties.Set(PropertyNames.JoinType, joinType);

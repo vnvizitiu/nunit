@@ -1,27 +1,10 @@
-﻿// ***********************************************************************
-// Copyright (c) 2015 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
+using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using NUnit.Framework.Internal;
 
 namespace NUnit.Framework
 {
@@ -36,10 +19,14 @@ namespace NUnit.Framework
         /// </summary>
         /// <param name="value">The value to be tested</param>
         /// <param name="name">The name of the argument</param>
-        public static void ArgumentNotNull(object value, string name)
+        public static void ArgumentNotNull([NotNull] object? value, string name)
         {
-            if (value == null)
-                throw new ArgumentNullException("Argument " + name + " must not be null", name);
+            if (value is null)
+                ThrowArgumentNullException(name);
+
+            [DoesNotReturn]
+            [MethodImpl(MethodImplOptions.NoInlining)]
+            static void ThrowArgumentNullException(string name) => throw new ArgumentNullException(name, "Argument " + name + " must not be null");
         }
 
         /// <summary>
@@ -47,12 +34,16 @@ namespace NUnit.Framework
         /// </summary>
         /// <param name="value">The value to be tested</param>
         /// <param name="name">The name of the argument</param>
-        public static void ArgumentNotNullOrEmpty(string value, string name)
+        public static void ArgumentNotNullOrEmpty([NotNull] string? value, string name)
         {
             ArgumentNotNull(value, name);
 
             if (value == string.Empty)
-                throw new ArgumentException("Argument " + name +" must not be the empty string", name);
+                ThrowArgumentNotNullOrEmpty(name);
+
+            [DoesNotReturn]
+            [MethodImpl(MethodImplOptions.NoInlining)]
+            static void ThrowArgumentNotNullOrEmpty(string name) => throw new ArgumentException("Argument " + name + " must not be the empty string", name);
         }
 
         /// <summary>
@@ -61,10 +52,14 @@ namespace NUnit.Framework
         /// <param name="condition">The condition that must be met</param>
         /// <param name="message">The exception message to be used</param>
         /// <param name="paramName">The name of the argument</param>
-        public static void ArgumentInRange(bool condition, string message, string paramName)
+        public static void ArgumentInRange([DoesNotReturnIf(false)] bool condition, string message, string paramName)
         {
             if (!condition)
-                throw new ArgumentOutOfRangeException(paramName, message);
+                ThrowArgumentOutOfRangeException(message, paramName);
+
+            [DoesNotReturn]
+            [MethodImpl(MethodImplOptions.NoInlining)]
+            static void ThrowArgumentOutOfRangeException(string message, string paramName) => throw new ArgumentOutOfRangeException(paramName, message);
         }
 
         /// <summary>
@@ -73,10 +68,14 @@ namespace NUnit.Framework
         /// <param name="condition">The condition that must be met</param>
         /// <param name="message">The exception message to be used</param>
         /// <param name="paramName">The name of the argument</param>
-        public static void ArgumentValid(bool condition, string message, string paramName)
+        public static void ArgumentValid([DoesNotReturnIf(false)] bool condition, string message, string paramName)
         {
             if (!condition)
-                throw new ArgumentException(message, paramName);
+                ThrowArgumentException(message, paramName);
+
+            [DoesNotReturn]
+            [MethodImpl(MethodImplOptions.NoInlining)]
+            static void ThrowArgumentException(string message, string paramName) => throw new ArgumentException(message, paramName);
         }
 
         /// <summary>
@@ -84,10 +83,39 @@ namespace NUnit.Framework
         /// </summary>
         /// <param name="condition">The condition that must be met</param>
         /// <param name="message">The exception message to be used</param>
-        public static void OperationValid(bool condition, string message)
+        public static void OperationValid([DoesNotReturnIf(false)] bool condition, string message)
         {
             if (!condition)
-                throw new InvalidOperationException(message);
+                ThrowInvalidOperationException(message);
+
+            [DoesNotReturn]
+            [MethodImpl(MethodImplOptions.NoInlining)]
+            static void ThrowInvalidOperationException(string message) => throw new InvalidOperationException(message);
+        }
+
+        /// <summary>
+        /// Throws an <see cref="ArgumentException"/> if the specified delegate is <c>async void</c>.
+        /// </summary>
+        public static void ArgumentNotAsyncVoid(Delegate @delegate, string paramName)
+        {
+            ArgumentNotAsyncVoid(@delegate.GetMethodInfo(), paramName);
+        }
+
+        /// <summary>
+        /// Throws an <see cref="ArgumentException"/> if the specified delegate is <c>async void</c>.
+        /// </summary>
+        public static void ArgumentNotAsyncVoid(MethodInfo method, string paramName)
+        {
+            if (method.ReturnType != typeof(void))
+                return;
+            if (!AsyncToSyncAdapter.IsAsyncOperation(method))
+                return;
+
+            ThrowArgumentNotAsyncVoid(paramName);
+
+            [DoesNotReturn]
+            [MethodImpl(MethodImplOptions.NoInlining)]
+            static void ThrowArgumentNotAsyncVoid(string paramName) => throw new ArgumentException("Async void methods are not supported. Please use 'async Task' instead.", paramName);
         }
     }
 }

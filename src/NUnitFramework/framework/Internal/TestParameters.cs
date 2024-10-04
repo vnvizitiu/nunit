@@ -1,25 +1,4 @@
-// ***********************************************************************
-// Copyright (c) 2015 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
 using NUnit.Framework.Interfaces;
@@ -32,14 +11,14 @@ namespace NUnit.Framework.Internal
     /// </summary>
     public abstract class TestParameters : ITestData, IApplyToTest
     {
-        #region Constructors
+        internal static readonly object[] NoArguments = Array.Empty<object>();
 
         /// <summary>
         /// Default Constructor creates an empty parameter set
         /// </summary>
         public TestParameters()
+            : this(RunState.Runnable, NoArguments)
         {
-            RunState = RunState.Runnable;
             Properties = new PropertyBag();
         }
 
@@ -47,10 +26,9 @@ namespace NUnit.Framework.Internal
         /// Construct a parameter set with a list of arguments
         /// </summary>
         /// <param name="args"></param>
-        public TestParameters(object[] args)
+        public TestParameters(object?[] args)
+            : this(RunState.Runnable, args)
         {
-            RunState = RunState.Runnable;
-            InitializeArguments(args);
             Properties = new PropertyBag();
         }
 
@@ -59,10 +37,9 @@ namespace NUnit.Framework.Internal
         /// the provider exception that made it invalid.
         /// </summary>
         public TestParameters(Exception exception)
+            : this(RunState.NotRunnable, NoArguments)
         {
-            RunState = RunState.NotRunnable;
             Properties = new PropertyBag();
-
             Properties.Set(PropertyNames.SkipReason, ExceptionHelper.BuildMessage(exception));
             Properties.Set(PropertyNames.ProviderStackTrace, ExceptionHelper.BuildStackTrace(exception));
         }
@@ -72,31 +49,27 @@ namespace NUnit.Framework.Internal
         /// </summary>
         /// <param name="data"></param>
         public TestParameters(ITestData data)
+            : this(data.RunState, data.Arguments)
         {
-            RunState = data.RunState;
-            Properties = new PropertyBag();
-
             TestName = data.TestName;
 
-            InitializeArguments(data.Arguments);
-
             foreach (string key in data.Properties.Keys)
-                this.Properties[key] = data.Properties[key];
+                Properties[key] = data.Properties[key];
         }
 
-        private void InitializeArguments(object[] args)
+        private TestParameters(RunState runState, object?[] args)
         {
+            RunState = runState;
+
             OriginalArguments = args;
 
             // We need to copy args, since we may change them
             var numArgs = args.Length;
-            Arguments = new object[numArgs];
+            Arguments = new object?[numArgs];
             Array.Copy(args, Arguments, numArgs);
+
+            Properties = new PropertyBag();
         }
-
-        #endregion
-
-        #region ITestData Members
 
         /// <summary>
         /// The RunState for this set of parameters.
@@ -107,23 +80,29 @@ namespace NUnit.Framework.Internal
         /// The arguments to be used in running the test,
         /// which must match the method signature.
         /// </summary>
-        public object[] Arguments { get; internal set; }
+        public object?[] Arguments { get; internal set; }
+
+        private string? _testName;
 
         /// <summary>
         /// A name to be used for this test case in lieu
         /// of the standard generated name containing
         /// the argument list.
         /// </summary>
-        public string TestName { get; set; }
+        public string? TestName
+        {
+            get => _testName;
+            set
+            {
+                Guard.OperationValid(ArgDisplayNames is null || value is null, "TestName cannot be set when argument display names are set.");
+                _testName = value;
+            }
+        }
 
         /// <summary>
         /// Gets the property dictionary for this test
         /// </summary>
-        public IPropertyBag Properties { get; private set; }
-
-        #endregion
-
-        #region IApplyToTest Members
+        public IPropertyBag Properties { get; protected internal set; }
 
         /// <summary>
         /// Applies ParameterSet values to the test itself.
@@ -131,24 +110,35 @@ namespace NUnit.Framework.Internal
         /// <param name="test">A test.</param>
         public void ApplyToTest(Test test)
         {
-            if (this.RunState != RunState.Runnable)
-                test.RunState = this.RunState;
+            if (RunState != RunState.Runnable)
+                test.RunState = RunState;
 
             foreach (string key in Properties.Keys)
+            {
                 foreach (object value in Properties[key])
                     test.Properties.Add(key, value);
+            }
         }
-
-        #endregion
-
-        #region Other Public Properties
 
         /// <summary>
         /// The original arguments provided by the user,
         /// used for display purposes.
         /// </summary>
-        public object[] OriginalArguments { get; private set; }
+        public object?[] OriginalArguments { get; protected internal set; }
 
-        #endregion
+        private string[]? _argDisplayNames;
+
+        /// <summary>
+        /// The list of display names to use as the parameters in the test name.
+        /// </summary>
+        internal string[]? ArgDisplayNames
+        {
+            get => _argDisplayNames;
+            set
+            {
+                Guard.OperationValid(TestName is null || value is null, "Argument display names cannot be set when TestName is set.");
+                _argDisplayNames = value;
+            }
+        }
     }
 }

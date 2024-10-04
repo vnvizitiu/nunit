@@ -1,39 +1,18 @@
-// ***********************************************************************
-// Copyright (c) 2012-2015 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using NUnit.Compatibility;
 using NUnit.Framework.Interfaces;
+using NUnit.Framework.Internal.Builders;
 
 namespace NUnit.Framework.Internal
 {
     /// <summary>
     /// The Test abstract class represents a test within the framework.
     /// </summary>
-    public abstract class Test : ITest, IComparable
+    public abstract class Test : ITest, IComparable, IComparable<Test>
     {
         #region Fields
 
@@ -46,12 +25,12 @@ namespace NUnit.Framework.Internal
         /// <summary>
         /// Used to cache the declaring type for this MethodInfo
         /// </summary>
-        protected ITypeInfo DeclaringTypeInfo;
+        private ITypeInfo? _declaringTypeInfo;
 
         /// <summary>
         /// Method property backing field
         /// </summary>
-        private IMethodInfo _method;
+        private IMethodInfo? _method;
 
         #endregion
 
@@ -61,11 +40,9 @@ namespace NUnit.Framework.Internal
         /// Constructs a test given its name
         /// </summary>
         /// <param name="name">The name of the test</param>
-        protected Test( string name )
+        protected Test(string name)
+            : this(pathName: null, name, typeInfo: null, method: null)
         {
-            Guard.ArgumentNotNullOrEmpty(name, "name");
-
-            Initialize(name);
         }
 
         /// <summary>
@@ -74,53 +51,47 @@ namespace NUnit.Framework.Internal
         /// </summary>
         /// <param name="pathName">The parent tests full name</param>
         /// <param name="name">The name of the test</param>
-        protected Test( string pathName, string name ) 
+        protected Test(string? pathName, string name)
+            : this(pathName, name, typeInfo: null, method: null)
         {
-            Initialize(name);
-
-            if (!string.IsNullOrEmpty(pathName))
-                FullName = pathName + "." + name;
         }
 
         /// <summary>
-        ///  TODO: Documentation needed for constructor
+        /// Constructs a test for a specific type.
         /// </summary>
-        /// <param name="typeInfo"></param>
         protected Test(ITypeInfo typeInfo)
+            : this(pathName: typeInfo.Namespace, name: typeInfo.GetDisplayName(), typeInfo: typeInfo, method: null)
         {
-            Initialize(typeInfo.GetDisplayName());
-
-            string nspace = typeInfo.Namespace;
-            if (nspace != null && nspace != "")
-                FullName = nspace + "." + Name;
-            TypeInfo = typeInfo;
         }
 
         /// <summary>
-        /// Construct a test from a MethodInfo
+        /// Constructs a test for a specific method.
         /// </summary>
-        /// <param name="method"></param>
         protected Test(IMethodInfo method)
+            : this(pathName: method.TypeInfo.FullName, name: method.Name, typeInfo: method.TypeInfo, method: method)
         {
-            Initialize(method.Name);
-
-            Method = method;
-            TypeInfo = method.TypeInfo;
-            FullName = method.TypeInfo.FullName + "." + Name;
         }
 
-        private void Initialize(string name)
+        private Test(string? pathName, string name, ITypeInfo? typeInfo, IMethodInfo? method)
         {
-            FullName = Name = name;
+            Guard.ArgumentNotNullOrEmpty(name, nameof(name));
+
             Id = GetNextId();
+            Name = name;
+            FullName = !string.IsNullOrEmpty(pathName)
+                ? pathName + '.' + name
+                : name;
+
+            TypeInfo = typeInfo;
+            Method = method;
             Properties = new PropertyBag();
             RunState = RunState.Runnable;
-            SetUpMethods = new MethodInfo[0];
-            TearDownMethods = new MethodInfo[0];
+            SetUpMethods = Array.Empty<IMethodInfo>();
+            TearDownMethods = Array.Empty<IMethodInfo>();
         }
 
         private static string GetNextId()
-        {            
+        {
             return IdPrefix + unchecked(_nextID++);
         }
 
@@ -149,21 +120,21 @@ namespace NUnit.Framework.Internal
         /// Gets the name of the class where this test was declared.
         /// Returns null if the test is not associated with a class.
         /// </summary>
-        public string ClassName
+        public string? ClassName
         {
             get
             {
-                ITypeInfo typeInfo = TypeInfo;
+                ITypeInfo? typeInfo = TypeInfo;
 
-                if (Method != null)
+                if (Method is not null)
                 {
-                    if (DeclaringTypeInfo == null)
-                        DeclaringTypeInfo = new TypeWrapper(Method.MethodInfo.DeclaringType);
+                    if (_declaringTypeInfo is null)
+                        _declaringTypeInfo = new TypeWrapper(Method.MethodInfo.DeclaringType!);
 
-                    typeInfo = DeclaringTypeInfo;
+                    typeInfo = _declaringTypeInfo;
                 }
 
-                if (typeInfo == null)
+                if (typeInfo is null)
                     return null;
 
                 return typeInfo.IsGenericType
@@ -176,32 +147,29 @@ namespace NUnit.Framework.Internal
         /// Gets the name of the method implementing this test.
         /// Returns null if the test is not implemented as a method.
         /// </summary>
-        public virtual string MethodName
-        {
-            get { return null; }
-        }
+        public virtual string? MethodName => null;
 
         /// <summary>
         /// The arguments to use in creating the test or empty array if none required.
         /// </summary>
-        public abstract object[] Arguments { get; }
+        public abstract object?[] Arguments { get; }
 
         /// <summary>
         /// Gets the TypeInfo of the fixture used in running this test
         /// or null if no fixture type is associated with it.
         /// </summary>
-        public ITypeInfo TypeInfo { get; private set; }
+        public ITypeInfo? TypeInfo { get; }
 
         /// <summary>
         /// Gets a MethodInfo for the method implementing this test.
         /// Returns null if the test is not implemented as a method.
         /// </summary>
-        public IMethodInfo Method
+        public IMethodInfo? Method
         {
-            get { return _method; }
+            get => _method;
             set
             {
-                DeclaringTypeInfo = null;
+                _declaringTypeInfo = null;
                 _method = value;
             }
         } // public setter needed by NUnitTestCaseBuilder
@@ -222,32 +190,23 @@ namespace NUnit.Framework.Internal
         /// value in the XML representation of a test and has no other
         /// function in the framework.
         /// </summary>
-        public virtual string TestType
-        {
-            get { return this.GetType().Name; }
-        }
+        public virtual string TestType => GetType().Name;
 
         /// <summary>
         /// Gets a count of test cases represented by
         /// or contained under this test.
         /// </summary>
-        public virtual int TestCaseCount 
-        { 
-            get { return 1; } 
-        }
+        public virtual int TestCaseCount => 1;
 
         /// <summary>
         /// Gets the properties for this test
         /// </summary>
-        public IPropertyBag Properties { get; private set; }
+        public IPropertyBag Properties { get; }
 
         /// <summary>
         /// Returns true if this is a TestSuite
         /// </summary>
-        public bool IsSuite
-        {
-            get { return this is TestSuite; }
-        }
+        public bool IsSuite => this is TestSuite;
 
         /// <summary>
         /// Gets a bool indicating whether the current test
@@ -259,7 +218,7 @@ namespace NUnit.Framework.Internal
         /// Gets the parent as a Test object.
         /// Used by the core to set the parent.
         /// </summary>
-        public ITest Parent { get; set; }
+        public ITest? Parent { get; set; }
 
         /// <summary>
         /// Gets this test's child tests
@@ -270,7 +229,7 @@ namespace NUnit.Framework.Internal
         /// <summary>
         /// Gets or sets a fixture object for running this test.
         /// </summary>
-        public virtual object Fixture { get; set; }
+        public virtual object? Fixture { get; set; }
 
         #endregion
 
@@ -280,7 +239,7 @@ namespace NUnit.Framework.Internal
         /// Static prefix used for ids in this AppDomain.
         /// Set by FrameworkController.
         /// </summary>
-        public static string IdPrefix { get; set; }
+        public static string? IdPrefix { get; set; }
 
         /// <summary>
         /// Gets or Sets the Int value representing the seed for the RandomGenerator
@@ -291,38 +250,47 @@ namespace NUnit.Framework.Internal
         /// <summary>
         /// The SetUp methods.
         /// </summary>
-        public MethodInfo[] SetUpMethods { get; protected set; }
+        public IMethodInfo[] SetUpMethods { get; protected set; }
 
         /// <summary>
         /// The teardown methods
         /// </summary>
-        public MethodInfo[] TearDownMethods { get; protected set; }
+        public IMethodInfo[] TearDownMethods { get; protected set; }
 
-        #endregion 
+        #endregion
 
         #region Internal Properties
 
         internal bool RequiresThread { get; set; }
 
-        private ITestAction[] _actions;
+        private ITestAction[]? _actions;
 
         internal ITestAction[] Actions
         {
             get
             {
-                if (_actions == null)
+                if (_actions is null)
                 {
                     // For fixtures, we use special rules to get actions
                     // Otherwise we just get the attributes
-                    _actions = Method == null && TypeInfo != null
-                        ? GetActionsForType(TypeInfo.Type)
-                        : GetCustomAttributes<ITestAction>(false);
+                    if (Method is null && TypeInfo is not null)
+                    {
+                        _actions = TestMetadataCache.Get(TypeInfo.Type).TestActionAttributes;
+                    }
+                    else if (Method is not null)
+                    {
+                        _actions = MethodInfoCache.Get(Method).TestActionAttributes;
+                    }
+                    else
+                    {
+                        _actions = GetCustomAttributes<ITestAction>(false);
+                    }
                 }
 
                 return _actions;
             }
         }
-        
+
         #endregion
 
         #region Other Public Methods
@@ -333,49 +301,42 @@ namespace NUnit.Framework.Internal
         /// <returns>A TestResult suitable for this type of test.</returns>
         public abstract TestResult MakeTestResult();
 
-#if NETSTANDARD1_3 || NETSTANDARD1_6
         /// <summary>
         /// Modify a newly constructed test by applying any of NUnit's common
-        /// attributes, based on a supplied ICustomAttributeProvider, which is
+        /// attributes, based on a supplied <see cref="ICustomAttributeProvider"/>, which is
         /// usually the reflection element from which the test was constructed,
-        /// but may not be in some instances. The attributes retrieved are 
+        /// but may not be in some instances. The attributes retrieved are
         /// saved for use in subsequent operations.
         /// </summary>
-        /// <param name="provider">An object deriving from MemberInfo</param>
-        public void ApplyAttributesToTest(MemberInfo provider)
+        public void ApplyAttributesToTest(ICustomAttributeProvider provider)
         {
-            foreach (IApplyToTest iApply in provider.GetAttributes<IApplyToTest>(true))
-                iApply.ApplyToTest(this);
+#if NET6_0_OR_GREATER
+            ApplyAttributesToTest(OSPlatformConverter.RetrieveAndConvert(provider));
+#else
+            ApplyAttributesToTest(provider.GetAttributes<IApplyToTest>(inherit: true));
+#endif
         }
 
         /// <summary>
-        /// Modify a newly constructed test by applying any of NUnit's common
-        /// attributes, based on a supplied ICustomAttributeProvider, which is
-        /// usually the reflection element from which the test was constructed,
-        /// but may not be in some instances. The attributes retrieved are 
-        /// saved for use in subsequent operations.
+        /// Recursively apply the attributes on <paramref name="type"/> to this test,
+        /// including attributes on nesting types.
         /// </summary>
-        /// <param name="provider">An object deriving from MemberInfo</param>
-        public void ApplyAttributesToTest(Assembly provider)
+        /// <param name="type">The </param>
+        public void ApplyAttributesToTest(Type type)
         {
-            foreach (IApplyToTest iApply in provider.GetAttributes<IApplyToTest>())
-                iApply.ApplyToTest(this);
+            foreach (var t in GetNestedTypes(type).Reverse())
+                ApplyAttributesToTest((ICustomAttributeProvider)t);
         }
-#else
+
         /// <summary>
-        /// Modify a newly constructed test by applying any of NUnit's common
-        /// attributes, based on a supplied ICustomAttributeProvider, which is
-        /// usually the reflection element from which the test was constructed,
-        /// but may not be in some instances. The attributes retrieved are 
-        /// saved for use in subsequent operations.
+        /// Apply the attributes to the test.
         /// </summary>
-        /// <param name="provider">An object implementing ICustomAttributeProvider</param>
-        public void ApplyAttributesToTest(ICustomAttributeProvider provider)
+        /// <param name="attributes"></param>
+        public void ApplyAttributesToTest(IEnumerable<IApplyToTest> attributes)
         {
-            foreach (IApplyToTest iApply in provider.GetCustomAttributes(typeof(IApplyToTest), true))
+            foreach (IApplyToTest iApply in attributes)
                 iApply.ApplyToTest(this);
         }
-#endif
 
         /// <summary>
         /// Mark the test as Invalid (not runnable) specifying a reason
@@ -383,28 +344,39 @@ namespace NUnit.Framework.Internal
         /// <param name="reason">The reason the test is not runnable</param>
         public void MakeInvalid(string reason)
         {
-            Guard.ArgumentNotNullOrEmpty(reason, "reason");
+            Guard.ArgumentNotNullOrEmpty(reason, nameof(reason));
 
             RunState = RunState.NotRunnable;
             Properties.Add(PropertyNames.SkipReason, reason);
         }
 
         /// <summary>
+        /// Mark the test as Invalid (not runnable) specifying a reason and an exception.
+        /// </summary>
+        /// <param name="exception">The exception that was the cause.</param>
+        /// <param name="reason">The reason the test is not runnable</param>
+        public void MakeInvalid(Exception exception, string reason)
+        {
+            Guard.ArgumentNotNull(exception, nameof(exception));
+            Guard.ArgumentNotNullOrEmpty(reason, nameof(reason));
+
+            MakeInvalid(reason + Environment.NewLine + ExceptionHelper.BuildMessage(exception));
+            Properties.Add(PropertyNames.ProviderStackTrace, ExceptionHelper.BuildStackTrace(exception));
+        }
+
+        /// <summary>
         /// Get custom attributes applied to a test
         /// </summary>
-        public virtual TAttr[] GetCustomAttributes<TAttr>(bool inherit) where TAttr : class
+        public virtual TAttr[] GetCustomAttributes<TAttr>(bool inherit)
+            where TAttr : class
         {
-            if (Method != null)
-#if NETSTANDARD1_3 || NETSTANDARD1_6
-                return Method.GetCustomAttributes<TAttr>(inherit).ToArray();
-#else
-                return (TAttr[])Method.MethodInfo.GetCustomAttributes(typeof(TAttr), inherit);
-#endif
+            if (Method is not null)
+                return Method.GetCustomAttributes<TAttr>(inherit);
 
-            if (TypeInfo != null)
-                return TypeInfo.GetCustomAttributes<TAttr>(inherit).ToArray();
+            if (TypeInfo is not null)
+                return TypeInfo.GetCustomAttributes<TAttr>(inherit);
 
-            return new TAttr[0];
+            return Array.Empty<TAttr>();
         }
 
         #endregion
@@ -418,45 +390,30 @@ namespace NUnit.Framework.Internal
         /// <param name="recursive"></param>
         protected void PopulateTestNode(TNode thisNode, bool recursive)
         {
-            thisNode.AddAttribute("id", this.Id.ToString());
-            thisNode.AddAttribute("name", this.Name);
-            thisNode.AddAttribute("fullname", this.FullName);
-            if (this.MethodName != null)
-                thisNode.AddAttribute("methodname", this.MethodName);
-            if (this.ClassName != null)
-                thisNode.AddAttribute("classname", this.ClassName);
-            thisNode.AddAttribute("runstate", this.RunState.ToString());
+            thisNode.AddAttribute("id", Id);
+            thisNode.AddAttribute("name", Name);
+            thisNode.AddAttribute("fullname", FullName);
+            if (MethodName is not null)
+                thisNode.AddAttribute("methodname", MethodName);
+            if (ClassName is not null)
+                thisNode.AddAttribute("classname", ClassName);
+            thisNode.AddAttribute("runstate", RunState.ToString());
 
             if (Properties.Keys.Count > 0)
                 Properties.AddToXml(thisNode, recursive);
         }
 
-        #endregion
-
-        #region Private Methods
-
-        private static ITestAction[] GetActionsForType(Type type)
+        /// <summary>
+        /// Returns all nested types, inner first.
+        /// </summary>
+        protected IEnumerable<Type> GetNestedTypes(Type inner)
         {
-            var actions = new List<ITestAction>();
-
-            if (type != null && type != typeof(object))
+            var current = inner;
+            while (current is not null)
             {
-                actions.AddRange(GetActionsForType(type.GetTypeInfo().BaseType));
-
-#if NETSTANDARD1_3 || NETSTANDARD1_6
-                foreach (Type interfaceType in TypeHelper.GetDeclaredInterfaces(type))
-                    actions.AddRange(interfaceType.GetTypeInfo().GetAttributes<ITestAction>(false).ToArray());
-
-                actions.AddRange(type.GetTypeInfo().GetAttributes<ITestAction>(false).ToArray());
-#else
-                foreach (Type interfaceType in TypeHelper.GetDeclaredInterfaces(type))
-                    actions.AddRange((ITestAction[])interfaceType.GetTypeInfo().GetCustomAttributes(typeof(ITestAction), false));
-
-                actions.AddRange((ITestAction[])type.GetTypeInfo().GetCustomAttributes(typeof(ITestAction), false));
-#endif
+                yield return current;
+                current = current.DeclaringType;
             }
-
-            return actions.ToArray();
         }
 
         #endregion
@@ -464,7 +421,7 @@ namespace NUnit.Framework.Internal
         #region IXmlNodeBuilder Members
 
         /// <summary>
-        /// Returns the Xml representation of the test
+        /// Returns the XML representation of the test
         /// </summary>
         /// <param name="recursive">If true, include child tests recursively</param>
         /// <returns></returns>
@@ -486,19 +443,18 @@ namespace NUnit.Framework.Internal
 
         #region IComparable Members
 
-        /// <summary>
-        /// Compares this test to another test for sorting purposes
-        /// </summary>
-        /// <param name="obj">The other test</param>
-        /// <returns>Value of -1, 0 or +1 depending on whether the current test is less than, equal to or greater than the other test</returns>
-        public int CompareTo(object obj)
+        /// <summary>Compares the current instance with another object of the same type and returns an integer that indicates whether the current instance precedes, follows, or occurs in the same position in the sort order as the other object.</summary>
+        /// <param name="obj">An object to compare with this instance. </param>
+        public int CompareTo(object? obj)
         {
-            Test other = obj as Test;
+            return CompareTo(obj as Test);
+        }
 
-            if (other == null)
-                return -1;
-
-            return this.FullName.CompareTo(other.FullName);
+        /// <summary>Compares the current instance with another object of the same type and returns an integer that indicates whether the current instance precedes, follows, or occurs in the same position in the sort order as the other object. </summary>
+        /// <param name="other">An object to compare with this instance.</param>
+        public int CompareTo(Test? other)
+        {
+            return other is null ? -1 : FullName.CompareTo(other.FullName);
         }
 
         #endregion

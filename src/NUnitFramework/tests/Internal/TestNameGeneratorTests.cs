@@ -1,60 +1,38 @@
-﻿// ***********************************************************************
-// Copyright (c) 2015 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
-using System.Reflection;
-using NUnit.Compatibility;
+using NUnit.Framework.Internal;
 
-namespace NUnit.Framework.Internal.Tests
+namespace NUnit.Framework.Tests.Internal
 {
     public class TestNameGeneratorTests
     {
         private TestMethod _simpleTest;
+        private TestMethod _simpleTestWithArgs;
         private TestMethod _genericTest;
 
         [SetUp]
         public void InitializeMethodInfos()
         {
             Type thisType = GetType();
-            var simpleMethod = thisType.GetMethod("TestMethod", BindingFlags.NonPublic | BindingFlags.Instance);
-            var genericMethod = thisType.GetMethod("GenericTest", BindingFlags.NonPublic | BindingFlags.Instance);
-            _simpleTest = new TestMethod(new MethodWrapper(thisType, simpleMethod));
-            _genericTest = new TestMethod(new MethodWrapper(thisType, genericMethod));
+            _simpleTest = new TestMethod(new MethodWrapper(thisType, nameof(TestMethod)));
+            _simpleTestWithArgs = new TestMethod(new MethodWrapper(thisType, nameof(TestMethodWithArgs)));
+            _genericTest = new TestMethod(new MethodWrapper(thisType, nameof(GenericTest)));
             _simpleTest.Id = "THE_ID";
         }
 
         [TestCase("FIXED", ExpectedResult = "FIXED")]
         [TestCase("{m}", ExpectedResult = "TestMethod")]
-        [TestCase("{n}", ExpectedResult = "NUnit.Framework.Internal.Tests")]
+        [TestCase("{n}", ExpectedResult = "NUnit.Framework.Tests.Internal")]
         [TestCase("{c}", ExpectedResult = "TestNameGeneratorTests")]
-        [TestCase("{C}", ExpectedResult = "NUnit.Framework.Internal.Tests.TestNameGeneratorTests")]
-        [TestCase("{M}", ExpectedResult = "NUnit.Framework.Internal.Tests.TestNameGeneratorTests.TestMethod")]
+        [TestCase("{C}", ExpectedResult = "NUnit.Framework.Tests.Internal.TestNameGeneratorTests")]
+        [TestCase("{M}", ExpectedResult = "NUnit.Framework.Tests.Internal.TestNameGeneratorTests.TestMethod")]
         [TestCase("{m}_SpecialCase", ExpectedResult = "TestMethod_SpecialCase")]
-        [TestCase("{n}.{c}.{m}", ExpectedResult = "NUnit.Framework.Internal.Tests.TestNameGeneratorTests.TestMethod")]
+        [TestCase("{n}.{c}.{m}", ExpectedResult = "NUnit.Framework.Tests.Internal.TestNameGeneratorTests.TestMethod")]
         [TestCase("{x}", ExpectedResult = "{x}")]
-        [TestCase("{n}.{c.{m}", ExpectedResult = "NUnit.Framework.Internal.Tests.{c.{m}")]
+        [TestCase("{n}.{c.{m}", ExpectedResult = "NUnit.Framework.Tests.Internal.{c.{m}")]
         [TestCase("{m}{a}", ExpectedResult = "TestMethod")]
-        [TestCase("{i}", ExpectedResult="THE_ID")]
+        [TestCase("{i}", ExpectedResult = "THE_ID")]
         public string SimpleTestNames(string pattern)
         {
             return new TestNameGenerator(pattern).GetDisplayName(_simpleTest);
@@ -80,19 +58,30 @@ namespace NUnit.Framework.Internal.Tests
         [TestCase("{m}({3})", new object[] { 1, 2, 3 }, ExpectedResult = "TestMethod()")]
         [TestCase("{m}({1:20})", new object[] { 42, "Now is the time for all good men to come to the aid of their country.", 5.2 },
             ExpectedResult = "TestMethod(\"Now is the time f...\")")]
+        [TestCase("{m}({0})", new object[] { "Now is the time for all good men to come to the aid of their country." },
+            ExpectedResult = "TestMethod(\"Now is the time for all good men to come to the aid of their country.\")")]
         public string ParameterizedTests(string pattern, object[] args)
         {
             return new TestNameGenerator(pattern).GetDisplayName(_simpleTest, args);
         }
 
-        [TestCase("FIXED", ExpectedResult="FIXED")]
-        [TestCase("{m}",   ExpectedResult="GenericTest<T,U,V>")]
-        [TestCase("{n}", ExpectedResult = "NUnit.Framework.Internal.Tests")]
+        [TestCase("{m}{p}", new object[] { 1 }, ExpectedResult = "TestMethodWithArgs(a: 1)")]
+        [TestCase("{m}{p}", new object[] { 1, 2 }, ExpectedResult = "TestMethodWithArgs(a: 1, b: 2)")]
+        [TestCase("{m}{p}", new object[] { 1, 2, 3 }, ExpectedResult = "TestMethodWithArgs(a: 1, b: 2, c: 3)")]
+        [TestCase("{m}{p}", new object[] { 1, 2, 3, 4 }, ExpectedResult = "TestMethodWithArgs(a: 1, b: 2, c: 3, 4)")]
+        public string ParameterizedTestsWithArgs(string pattern, object[] args)
+        {
+            return new TestNameGenerator(pattern).GetDisplayName(_simpleTestWithArgs, args);
+        }
+
+        [TestCase("FIXED", ExpectedResult = "FIXED")]
+        [TestCase("{m}", ExpectedResult = "GenericTest<T1,T2,T3>")]
+        [TestCase("{n}", ExpectedResult = "NUnit.Framework.Tests.Internal")]
         [TestCase("{c}", ExpectedResult = "TestNameGeneratorTests")]
-        [TestCase("{C}", ExpectedResult = "NUnit.Framework.Internal.Tests.TestNameGeneratorTests")]
-        [TestCase("{M}", ExpectedResult = "NUnit.Framework.Internal.Tests.TestNameGeneratorTests.GenericTest<T,U,V>")]
-        [TestCase("{m}_SpecialCase", ExpectedResult = "GenericTest<T,U,V>_SpecialCase")]
-        [TestCase("{n}.{c}.{m}", ExpectedResult = "NUnit.Framework.Internal.Tests.TestNameGeneratorTests.GenericTest<T,U,V>")]
+        [TestCase("{C}", ExpectedResult = "NUnit.Framework.Tests.Internal.TestNameGeneratorTests")]
+        [TestCase("{M}", ExpectedResult = "NUnit.Framework.Tests.Internal.TestNameGeneratorTests.GenericTest<T1,T2,T3>")]
+        [TestCase("{m}_SpecialCase", ExpectedResult = "GenericTest<T1,T2,T3>_SpecialCase")]
+        [TestCase("{n}.{c}.{m}", ExpectedResult = "NUnit.Framework.Tests.Internal.TestNameGeneratorTests.GenericTest<T1,T2,T3>")]
         public string GenericTestNames(string pattern)
         {
             return new TestNameGenerator(pattern).GetDisplayName(_genericTest);
@@ -102,7 +91,7 @@ namespace NUnit.Framework.Internal.Tests
         [TestCase("{xy}", ExpectedResult = "{xy}")]
         [TestCase("{x:}", ExpectedResult = "{x:}")]
         [TestCase("{x:50}", ExpectedResult = "{x:50}")]
-        [TestCase("{n}.{c.{m}", ExpectedResult = "NUnit.Framework.Internal.Tests.{c.{m}")]
+        [TestCase("{n}.{c.{m}", ExpectedResult = "NUnit.Framework.Tests.Internal.{c.{m}")]
         [TestCase("{m}{a:X}", ExpectedResult = "TestMethod{a:X}")]
         [TestCase("{m}{0:X}", ExpectedResult = "TestMethod{0:X}")]
         [TestCase("{m}{a:}", ExpectedResult = "TestMethod{a:}")]
@@ -140,14 +129,22 @@ namespace NUnit.Framework.Internal.Tests
         [TestCase(sbyte.MinValue, ExpectedResult = "sbyte.MinValue")]
         public string SpecialNamedValues(object arg)
         {
-            return new TestNameGenerator("{0}").GetDisplayName(_simpleTest, new[] { arg } );
+            return new TestNameGenerator("{0}").GetDisplayName(_simpleTest, new[] { arg });
         }
 
         #region Methods Used as Data
 
-        private void TestMethod() { }
+        private void TestMethod()
+        {
+        }
 
-        private void GenericTest<T, U, V>() { }
+        private void TestMethodWithArgs(int a, int b, int c = 0)
+        {
+        }
+
+        private void GenericTest<T1, T2, T3>()
+        {
+        }
 
         #endregion
     }

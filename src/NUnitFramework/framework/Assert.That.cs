@@ -1,29 +1,12 @@
-// ***********************************************************************
-// Copyright (c) 2011 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
+using System.Runtime.CompilerServices;
 using NUnit.Framework.Constraints;
 using NUnit.Framework.Internal;
+
+// Disabled because of the CallerArgumentExpression attributes which are only for the compiler.
+#pragma warning disable CS1573 // Parameter has no matching param tag in the XML comment (but other parameters do)
 
 namespace NUnit.Framework
 {
@@ -31,124 +14,137 @@ namespace NUnit.Framework
     /// The Assert class contains a collection of static methods that
     /// implement the most common assertions used in NUnit.
     /// </summary>
-    public partial class Assert
+    public abstract partial class Assert
     {
         #region Assert.That
+
+        internal const string IsTrueExpression = "Is.True";
 
         #region Boolean
 
         /// <summary>
-        /// Asserts that a condition is true. If the condition is false the method throws
-        /// an <see cref="AssertionException"/>.
-        /// </summary> 
-        /// <param name="condition">The evaluated condition</param>
-        /// <param name="message">The message to display if the condition is false</param>
-        /// <param name="args">Arguments to be used in formatting the message</param>
-        public static void That(bool condition, string message, params object[] args)
-        {
-            Assert.That(condition, Is.True, message, args);
-        }
-
-        /// <summary>
-        /// Asserts that a condition is true. If the condition is false the method throws
-        /// an <see cref="AssertionException"/>.
+        /// Asserts that a condition is true. Returns without throwing an exception when inside a multiple assert block.
         /// </summary>
         /// <param name="condition">The evaluated condition</param>
-        public static void That(bool condition)
+        /// <param name="message">The message to display if the condition is false</param>
+        /// <param name="actualExpression"></param>
+        public static void That(bool condition,
+            NUnitString message = default,
+            [CallerArgumentExpression(nameof(condition))] string actualExpression = "")
         {
-            Assert.That(condition, Is.True, null, null);
+            That(condition, Is.True, message, actualExpression, IsTrueExpression);
         }
 
-#if !NET_2_0
         /// <summary>
-        /// Asserts that a condition is true. If the condition is false the method throws
-        /// an <see cref="AssertionException"/>.
-        /// </summary> 
+        /// Asserts that a condition is true. Returns without throwing an exception when inside a multiple assert block.
+        /// </summary>
+        /// <param name="condition">The evaluated condition</param>
+        /// <param name="message">The message to display if the condition is false</param>
+        public static void That(bool condition,
+            FormattableString message,
+            [CallerArgumentExpression(nameof(condition))] string actualExpression = "")
+        {
+            That(condition, Is.True, message, actualExpression, IsTrueExpression);
+        }
+
+        /// <summary>
+        /// Asserts that a condition is true. Returns without throwing an exception when inside a multiple assert block.
+        /// </summary>
         /// <param name="condition">The evaluated condition</param>
         /// <param name="getExceptionMessage">A function to build the message included with the Exception</param>
-        public static void That(bool condition, Func<string> getExceptionMessage)
+        public static void That(bool condition,
+            Func<string> getExceptionMessage,
+            [CallerArgumentExpression(nameof(condition))] string actualExpression = "")
         {
-            Assert.That(condition, Is.True, getExceptionMessage);
+            That(condition, Is.True, getExceptionMessage, actualExpression, IsTrueExpression);
         }
-#endif
 
         #endregion
 
         #region Lambda returning Boolean
 
-#if !NET_2_0
         /// <summary>
-        /// Asserts that a condition is true. If the condition is false the method throws
-        /// an <see cref="AssertionException"/>.
-        /// </summary> 
-        /// <param name="condition">A lambda that returns a Boolean</param>
-        /// <param name="message">The message to display if the condition is false</param>
-        /// <param name="args">Arguments to be used in formatting the message</param>
-        public static void That(Func<bool> condition, string message, params object[] args)
-        {
-            Assert.That(condition.Invoke(), Is.True, message, args);
-        }
-
-        /// <summary>
-        /// Asserts that a condition is true. If the condition is false the method throws
-        /// an <see cref="AssertionException"/>.
+        /// Asserts that a condition is true. Returns without throwing an exception when inside a multiple assert block.
         /// </summary>
         /// <param name="condition">A lambda that returns a Boolean</param>
-        public static void That(Func<bool> condition)
+        /// <param name="message">The message to display if the condition is false</param>
+        public static void That(Func<bool> condition,
+            NUnitString message = default,
+            [CallerArgumentExpression(nameof(condition))] string actualExpression = "")
         {
-            Assert.That(condition.Invoke(), Is.True, null, null);
+            That(condition.Invoke(), Is.True, message, actualExpression, IsTrueExpression);
         }
 
         /// <summary>
-        /// Asserts that a condition is true. If the condition is false the method throws
-        /// an <see cref="AssertionException"/>.
-        /// </summary> 
+        /// Asserts that a condition is true. Returns without throwing an exception when inside a multiple assert block.
+        /// </summary>
+        /// <param name="condition">A lambda that returns a Boolean</param>
+        /// <param name="message">The message to display if the condition is false</param>
+        public static void That(Func<bool> condition,
+            FormattableString message,
+            [CallerArgumentExpression(nameof(condition))] string actualExpression = "")
+        {
+            That(condition.Invoke(), Is.True, message, actualExpression, IsTrueExpression);
+        }
+
+        /// <summary>
+        /// Asserts that a condition is true. Returns without throwing an exception when inside a multiple assert block.
+        /// </summary>
         /// <param name="condition">A lambda that returns a Boolean</param>
         /// <param name="getExceptionMessage">A function to build the message included with the Exception</param>
-        public static void That(Func<bool> condition, Func<string> getExceptionMessage)
+        public static void That(Func<bool> condition,
+            Func<string> getExceptionMessage,
+            [CallerArgumentExpression(nameof(condition))] string actualExpression = "")
         {
-            Assert.That(condition.Invoke(), Is.True, getExceptionMessage);
+            That(condition.Invoke(), Is.True, getExceptionMessage, actualExpression, IsTrueExpression);
         }
-#endif
+
         #endregion
 
         #region ActualValueDelegate
 
         /// <summary>
-        /// Apply a constraint to an actual value, succeeding if the constraint
-        /// is satisfied and throwing an assertion exception on failure.
-        /// </summary>
-        /// <typeparam name="TActual">The Type being compared.</typeparam>
-        /// <param name="del">An ActualValueDelegate returning the value to be tested</param>
-        /// <param name="expr">A Constraint expression to be applied</param>
-        public static void That<TActual>(ActualValueDelegate<TActual> del, IResolveConstraint expr)
-        {
-            Assert.That(del, expr.Resolve(), null, null);
-        }
-
-        /// <summary>
-        /// Apply a constraint to an actual value, succeeding if the constraint
-        /// is satisfied and throwing an assertion exception on failure.
+        /// Apply a constraint to a delegate. Returns without throwing an exception when inside a multiple assert block.
         /// </summary>
         /// <typeparam name="TActual">The Type being compared.</typeparam>
         /// <param name="del">An ActualValueDelegate returning the value to be tested</param>
         /// <param name="expr">A Constraint expression to be applied</param>
         /// <param name="message">The message that will be displayed on failure</param>
-        /// <param name="args">Arguments to be used in formatting the message</param>
-        public static void That<TActual>(ActualValueDelegate<TActual> del, IResolveConstraint expr, string message, params object[] args)
+        public static void That<TActual>(ActualValueDelegate<TActual> del, IResolveConstraint expr,
+            NUnitString message = default,
+            [CallerArgumentExpression(nameof(del))] string actualExpression = "",
+            [CallerArgumentExpression(nameof(expr))] string constraintExpression = "")
         {
             var constraint = expr.Resolve();
 
             IncrementAssertCount();
             var result = constraint.ApplyTo(del);
             if (!result.IsSuccess)
-                ReportFailure(result, message, args);
+                ReportFailure(result, message.ToString(), actualExpression, constraintExpression);
         }
 
-#if !NET_2_0
         /// <summary>
-        /// Apply a constraint to an actual value, succeeding if the constraint
-        /// is satisfied and throwing an assertion exception on failure.
+        /// Apply a constraint to a delegate. Returns without throwing an exception when inside a multiple assert block.
+        /// </summary>
+        /// <typeparam name="TActual">The Type being compared.</typeparam>
+        /// <param name="del">An ActualValueDelegate returning the value to be tested</param>
+        /// <param name="expr">A Constraint expression to be applied</param>
+        /// <param name="message">The message that will be displayed on failure</param>
+        public static void That<TActual>(ActualValueDelegate<TActual> del, IResolveConstraint expr,
+            FormattableString message,
+            [CallerArgumentExpression(nameof(del))] string actualExpression = "",
+            [CallerArgumentExpression(nameof(expr))] string constraintExpression = "")
+        {
+            var constraint = expr.Resolve();
+
+            IncrementAssertCount();
+            var result = constraint.ApplyTo(del);
+            if (!result.IsSuccess)
+                ReportFailure(result, message.ToString(), actualExpression, constraintExpression);
+        }
+
+        /// <summary>
+        /// Apply a constraint to a delegate. Returns without throwing an exception when inside a multiple assert block.
         /// </summary>
         /// <typeparam name="TActual">The Type being compared.</typeparam>
         /// <param name="del">An ActualValueDelegate returning the value to be tested</param>
@@ -157,58 +153,63 @@ namespace NUnit.Framework
         public static void That<TActual>(
             ActualValueDelegate<TActual> del,
             IResolveConstraint expr,
-            Func<string> getExceptionMessage)
+            Func<string> getExceptionMessage,
+            [CallerArgumentExpression(nameof(del))] string actualExpression = "",
+            [CallerArgumentExpression(nameof(expr))] string constraintExpression = "")
         {
             var constraint = expr.Resolve();
 
             IncrementAssertCount();
             var result = constraint.ApplyTo(del);
             if (!result.IsSuccess)
-                ReportFailure(result, getExceptionMessage());
+                ReportFailure(result, getExceptionMessage(), actualExpression, constraintExpression);
         }
-#endif
 
         #endregion
 
         #region TestDelegate
 
         /// <summary>
-        /// Asserts that the code represented by a delegate throws an exception
-        /// that satisfies the constraint provided.
+        /// Apply a constraint to a delegate. Returns without throwing an exception when inside a multiple assert block.
         /// </summary>
         /// <param name="code">A TestDelegate to be executed</param>
-        /// <param name="constraint">A ThrowsConstraint used in the test</param>
-        public static void That(TestDelegate code, IResolveConstraint constraint)
-        {
-            Assert.That(code, constraint, null, null);
-        }
-
-        /// <summary>
-        /// Asserts that the code represented by a delegate throws an exception
-        /// that satisfies the constraint provided.
-        /// </summary>
-        /// <param name="code">A TestDelegate to be executed</param>
-        /// <param name="constraint">A ThrowsConstraint used in the test</param>
+        /// <param name="constraint">A Constraint expression to be applied</param>
         /// <param name="message">The message that will be displayed on failure</param>
-        /// <param name="args">Arguments to be used in formatting the message</param>
-        public static void That(TestDelegate code, IResolveConstraint constraint, string message, params object[] args)
+        public static void That(TestDelegate code, IResolveConstraint constraint,
+            NUnitString message = default,
+            [CallerArgumentExpression(nameof(code))] string actualExpression = "",
+            [CallerArgumentExpression(nameof(constraint))] string constraintExpression = "")
         {
-            Assert.That((object)code, constraint, message, args);
+            That((object)code, constraint, message, actualExpression, constraintExpression);
         }
 
-#if !NET_2_0
         /// <summary>
-        /// Asserts that the code represented by a delegate throws an exception
-        /// that satisfies the constraint provided.
+        /// Apply a constraint to a delegate. Returns without throwing an exception when inside a multiple assert block.
         /// </summary>
         /// <param name="code">A TestDelegate to be executed</param>
-        /// <param name="constraint">A ThrowsConstraint used in the test</param>
-        /// <param name="getExceptionMessage">A function to build the message included with the Exception</param>
-        public static void That(TestDelegate code, IResolveConstraint constraint, Func<string> getExceptionMessage)
+        /// <param name="constraint">A Constraint expression to be applied</param>
+        /// <param name="message">The message that will be displayed on failure</param>
+        public static void That(TestDelegate code, IResolveConstraint constraint,
+            FormattableString message,
+            [CallerArgumentExpression(nameof(code))] string actualExpression = "",
+            [CallerArgumentExpression(nameof(constraint))] string constraintExpression = "")
         {
-            Assert.That((object)code, constraint, getExceptionMessage);
+            That((object)code, constraint, message, actualExpression, constraintExpression);
         }
-#endif
+
+        /// <summary>
+        /// Apply a constraint to a delegate. Returns without throwing an exception when inside a multiple assert block.
+        /// </summary>
+        /// <param name="code">A TestDelegate to be executed</param>
+        /// <param name="constraint">A Constraint expression to be applied</param>
+        /// <param name="getExceptionMessage">A function to build the message included with the Exception</param>
+        public static void That(TestDelegate code, IResolveConstraint constraint,
+            Func<string> getExceptionMessage,
+            [CallerArgumentExpression(nameof(code))] string actualExpression = "",
+            [CallerArgumentExpression(nameof(constraint))] string constraintExpression = "")
+        {
+            That((object)code, constraint, getExceptionMessage, actualExpression, constraintExpression);
+        }
 
         #endregion
 
@@ -217,40 +218,50 @@ namespace NUnit.Framework
         #region Assert.That<TActual>
 
         /// <summary>
-        /// Apply a constraint to an actual value, succeeding if the constraint
-        /// is satisfied and throwing an assertion exception on failure.
-        /// </summary>
-        /// <typeparam name="TActual">The Type being compared.</typeparam>
-        /// <param name="actual">The actual value to test</param>
-        /// <param name="expression">A Constraint to be applied</param>
-        public static void That<TActual>(TActual actual, IResolveConstraint expression)
-        {
-            Assert.That(actual, expression, null, null);
-        }
-
-        /// <summary>
-        /// Apply a constraint to an actual value, succeeding if the constraint
-        /// is satisfied and throwing an assertion exception on failure.
+        /// Apply a constraint to an actual value. Returns without throwing an exception when inside a multiple assert
+        /// block.
         /// </summary>
         /// <typeparam name="TActual">The Type being compared.</typeparam>
         /// <param name="actual">The actual value to test</param>
         /// <param name="expression">A Constraint expression to be applied</param>
         /// <param name="message">The message that will be displayed on failure</param>
-        /// <param name="args">Arguments to be used in formatting the message</param>
-        public static void That<TActual>(TActual actual, IResolveConstraint expression, string message, params object[] args)
+        public static void That<TActual>(TActual actual, IResolveConstraint expression,
+            NUnitString message = default,
+            [CallerArgumentExpression(nameof(actual))] string actualExpression = "",
+            [CallerArgumentExpression(nameof(expression))] string constraintExpression = "")
         {
             var constraint = expression.Resolve();
 
             IncrementAssertCount();
             var result = constraint.ApplyTo(actual);
             if (!result.IsSuccess)
-                ReportFailure(result, message, args);
+                ReportFailure(result, message.ToString(), actualExpression, constraintExpression);
         }
 
-#if !NET_2_0
         /// <summary>
-        /// Apply a constraint to an actual value, succeeding if the constraint
-        /// is satisfied and throwing an assertion exception on failure.
+        /// Apply a constraint to an actual value. Returns without throwing an exception when inside a multiple assert
+        /// block.
+        /// </summary>
+        /// <typeparam name="TActual">The Type being compared.</typeparam>
+        /// <param name="actual">The actual value to test</param>
+        /// <param name="expression">A Constraint expression to be applied</param>
+        /// <param name="message">The message that will be displayed on failure</param>
+        public static void That<TActual>(TActual actual, IResolveConstraint expression,
+            FormattableString message,
+            [CallerArgumentExpression(nameof(actual))] string actualExpression = "",
+            [CallerArgumentExpression(nameof(expression))] string constraintExpression = "")
+        {
+            var constraint = expression.Resolve();
+
+            IncrementAssertCount();
+            var result = constraint.ApplyTo(actual);
+            if (!result.IsSuccess)
+                ReportFailure(result, message.ToString(), actualExpression, constraintExpression);
+        }
+
+        /// <summary>
+        /// Apply a constraint to an actual value. Returns without throwing an exception when inside a multiple assert
+        /// block.
         /// </summary>
         /// <typeparam name="TActual">The Type being compared.</typeparam>
         /// <param name="actual">The actual value to test</param>
@@ -259,51 +270,54 @@ namespace NUnit.Framework
         public static void That<TActual>(
             TActual actual,
             IResolveConstraint expression,
-            Func<string> getExceptionMessage)
+            Func<string> getExceptionMessage,
+            [CallerArgumentExpression(nameof(actual))] string actualExpression = "",
+            [CallerArgumentExpression(nameof(expression))] string constraintExpression = "")
         {
             var constraint = expression.Resolve();
 
             IncrementAssertCount();
             var result = constraint.ApplyTo(actual);
             if (!result.IsSuccess)
-                ReportFailure(result, getExceptionMessage());
+                ReportFailure(result, getExceptionMessage(), actualExpression, constraintExpression);
         }
-#endif
 
         #endregion
 
         #region Assert.ByVal
 
         /// <summary>
-        /// Apply a constraint to an actual value, succeeding if the constraint
-        /// is satisfied and throwing an assertion exception on failure.
-        /// Used as a synonym for That in rare cases where a private setter 
-        /// causes a Visual Basic compilation error.
-        /// </summary>
-        /// <param name="actual">The actual value to test</param>
-        /// <param name="expression">A Constraint to be applied</param>
-        public static void ByVal(object actual, IResolveConstraint expression)
-        {
-            Assert.That(actual, expression, null, null);
-        }
-
-        /// <summary>
-        /// Apply a constraint to an actual value, succeeding if the constraint
-        /// is satisfied and throwing an assertion exception on failure. 
-        /// Used as a synonym for That in rare cases where a private setter 
-        /// causes a Visual Basic compilation error.
+        /// Apply a constraint to an actual value. Returns without throwing an exception when inside a multiple assert
+        /// block. Used as a synonym for That in rare cases where a private setter causes a Visual Basic compilation
+        /// error.
         /// </summary>
         /// <remarks>
-        /// This method is provided for use by VB developers needing to test
-        /// the value of properties with private setters.
+        /// This method is provided for use by VB developers needing to test the value of properties with private
+        /// setters.
         /// </remarks>
         /// <param name="actual">The actual value to test</param>
         /// <param name="expression">A Constraint expression to be applied</param>
         /// <param name="message">The message that will be displayed on failure</param>
-        /// <param name="args">Arguments to be used in formatting the message</param>
-        public static void ByVal(object actual, IResolveConstraint expression, string message, params object[] args)
+        public static void ByVal(object? actual, IResolveConstraint expression,
+            string message = "",
+            [CallerArgumentExpression(nameof(actual))] string actualExpression = "",
+            [CallerArgumentExpression(nameof(expression))] string constraintExpression = "")
         {
-            Assert.That(actual, expression, message, args);
+            That(actual, expression, message, actualExpression, constraintExpression);
+        }
+
+        #endregion
+
+        #region Helper Method
+
+        private static void ReportFailure(ConstraintResult result, string message, string actualExpression, string constraintExpression)
+        {
+            MessageWriter writer = new TextMessageWriter(
+                ExtendedMessage($"{nameof(Assert)}.{nameof(Assert.That)}",
+                message, actualExpression, constraintExpression));
+            result.WriteMessageTo(writer);
+
+            ReportFailure(writer.ToString());
         }
 
         #endregion

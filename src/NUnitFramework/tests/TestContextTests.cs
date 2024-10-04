@@ -1,36 +1,14 @@
-﻿// ***********************************************************************
-// Copyright (c) 2011 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-//
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
-using System.IO;
 using System.Collections.Generic;
-#if ASYNC
+using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
-#endif
 using NUnit.Framework.Interfaces;
-using NUnit.TestData.TestContextData;
-using NUnit.TestUtilities;
 using NUnit.Framework.Internal;
+using NUnit.TestData.TestContextData;
+using NUnit.Framework.Tests.TestUtilities;
 
 namespace NUnit.Framework.Tests
 {
@@ -39,27 +17,19 @@ namespace NUnit.Framework.Tests
     {
         private TestContext _setupContext;
 
-        private string _name;
+        private readonly string _name = TestContext.CurrentContext.Test.Name;
 
-        private string _testDirectory;
-        private string _workDirectory;
+        private readonly string _testDirectory = TestContext.CurrentContext.TestDirectory;
+        private readonly string _workDirectory = TestContext.CurrentContext.WorkDirectory;
 
         private string _tempFilePath;
 
         private const string TempFileName = "TestContextTests.tmp";
 
-        public TestContextTests()
-        {
-            _name = TestContext.CurrentContext.Test.Name;
-
-            _testDirectory = TestContext.CurrentContext.TestDirectory;
-            _workDirectory = TestContext.CurrentContext.WorkDirectory;
-        }
-
         [OneTimeSetUp]
         public void CreateTempFile()
         {
-            _tempFilePath = Path.Combine(TestContext.CurrentContext.WorkDirectory, TempFileName);
+            _tempFilePath = Path.Combine(_workDirectory, TempFileName);
             File.Create(_tempFilePath).Dispose();
         }
 
@@ -83,13 +53,13 @@ namespace NUnit.Framework.Tests
             Assert.That(_testDirectory, Is.Not.Null);
         }
 
-        [TestCaseSource("TestDirectorySource")]
+        [TestCaseSource(nameof(TestDirectorySource))]
         public void TestCaseSourceCanAccessTestDirectory(string testDirectory)
         {
             Assert.That(testDirectory, Is.EqualTo(_testDirectory));
         }
 
-        static IEnumerable<string> TestDirectorySource()
+        private static IEnumerable<string> TestDirectorySource()
         {
             yield return TestContext.CurrentContext.TestDirectory;
         }
@@ -108,28 +78,28 @@ namespace NUnit.Framework.Tests
         public void TestCanAccessWorkDirectory()
         {
             string workDirectory = TestContext.CurrentContext.WorkDirectory;
-            Assert.NotNull(workDirectory);
-            Assert.That(Directory.Exists(workDirectory), string.Format("Directory {0} does not exist", workDirectory));
+            Assert.That(workDirectory, Is.Not.Null);
+            Assert.That(Directory.Exists(workDirectory), $"Directory {workDirectory} does not exist");
         }
 
-        [TestCaseSource("WorkDirectorySource")]
+        [TestCaseSource(nameof(WorkDirectorySource))]
         public void TestCaseSourceCanAccessWorkDirectory(string workDirectory)
         {
             Assert.That(workDirectory, Is.EqualTo(_workDirectory));
         }
 
-        static IEnumerable<string> WorkDirectorySource()
+        private static IEnumerable<string> WorkDirectorySource()
         {
             yield return TestContext.CurrentContext.WorkDirectory;
         }
 
-    #endregion
+        #endregion
 
-    #region Test
+        #region Test
 
-    #region Name
+        #region Name
 
-    [Test]
+        [Test]
         public void ConstructorCanAccessFixtureName()
         {
             Assert.That(_name, Is.EqualTo("TestContextTests"));
@@ -220,10 +190,10 @@ namespace NUnit.Framework.Tests
         #region Properties
 
         [Test]
-        [Property("Answer", 42)]
+        [Property("Answer", "42")]
         public void TestCanAccessItsOwnProperties()
         {
-            Assert.That(TestContext.CurrentContext.Test.Properties.Get("Answer"), Is.EqualTo(42));
+            Assert.That(TestContext.CurrentContext.Test.Properties.Get("Answer"), Is.EqualTo("42"));
         }
 
         #endregion
@@ -239,7 +209,7 @@ namespace NUnit.Framework.Tests
         [Test]
         public void TestCanAccessEmptyArgumentsArrayWhenDoesNotHaveArguments()
         {
-            Assert.That(TestContext.CurrentContext.Test.Arguments, Is.EqualTo(new object[0]));
+            Assert.That(TestContext.CurrentContext.Test.Arguments, Is.EqualTo(Array.Empty<object>()));
         }
 
         #endregion
@@ -249,38 +219,80 @@ namespace NUnit.Framework.Tests
         #region Result
 
         [Test]
+        public void TestCanAccessAssertCount()
+        {
+            var context = TestExecutionContext.CurrentContext;
+
+            // These are counted as asserts
+            Assert.That(context.AssertCount, Is.EqualTo(0));
+            Assert.That(2 + 2, Is.EqualTo(4));
+            Warn.Unless(2 + 2, Is.EqualTo(4));
+
+            // This one is counted below
+            Assert.That(context.AssertCount, Is.EqualTo(3));
+
+            // Assumptions are not counted are not counted
+            Assume.That(2 + 2, Is.EqualTo(4));
+
+            Assert.That(TestContext.CurrentContext.AssertCount, Is.EqualTo(4));
+        }
+
+        [TestCase("ThreeAsserts_TwoFailed", AssertionStatus.Failed, AssertionStatus.Failed)]
+        [TestCase("WarningPlusFailedAssert", AssertionStatus.Warning, AssertionStatus.Failed)]
+        public void TestCanAccessAssertionResults(string testName, params AssertionStatus[] expectedStatus)
+        {
+            AssertionResultFixture fixture = new AssertionResultFixture();
+            TestBuilder.RunTestCase(fixture, testName);
+            var assertions = fixture.Assertions?.ToList();
+
+            Assert.That(assertions, Is.Not.Null);
+            Assert.That(assertions.Select((o) => o.Status),
+                Is.EqualTo(expectedStatus));
+            Assert.That(assertions.Select((o) => o.Message),
+                Has.All.Contains("Expected: 5"));
+            Assert.That(assertions.Select((o) => o.StackTrace),
+                Has.All.Contains(testName));
+        }
+
+        [Test]
         public void TestCanAccessTestState_PassingTest()
         {
             TestStateRecordingFixture fixture = new TestStateRecordingFixture();
             TestBuilder.RunTestFixture(fixture);
-            Assert.That(fixture.stateList, Is.EqualTo("Inconclusive=>Inconclusive=>Passed"));
+            Assert.That(fixture.StateList, Is.EqualTo("Inconclusive=>Inconclusive=>Passed"));
         }
 
         [Test]
         public void TestCanAccessTestState_FailureInSetUp()
         {
-            TestStateRecordingFixture fixture = new TestStateRecordingFixture();
-            fixture.setUpFailure = true;
+            TestStateRecordingFixture fixture = new TestStateRecordingFixture
+            {
+                SetUpFailure = true
+            };
             TestBuilder.RunTestFixture(fixture);
-            Assert.That(fixture.stateList, Is.EqualTo("Inconclusive=>=>Failed"));
+            Assert.That(fixture.StateList, Is.EqualTo("Inconclusive=>=>Failed"));
         }
 
         [Test]
         public void TestCanAccessTestState_FailingTest()
         {
-            TestStateRecordingFixture fixture = new TestStateRecordingFixture();
-            fixture.testFailure = true;
+            TestStateRecordingFixture fixture = new TestStateRecordingFixture
+            {
+                TestFailure = true
+            };
             TestBuilder.RunTestFixture(fixture);
-            Assert.That(fixture.stateList, Is.EqualTo("Inconclusive=>Inconclusive=>Failed"));
+            Assert.That(fixture.StateList, Is.EqualTo("Inconclusive=>Inconclusive=>Failed"));
         }
 
         [Test]
         public void TestCanAccessTestState_IgnoredInSetUp()
         {
-            TestStateRecordingFixture fixture = new TestStateRecordingFixture();
-            fixture.setUpIgnore = true;
+            TestStateRecordingFixture fixture = new TestStateRecordingFixture
+            {
+                SetUpIgnore = true
+            };
             TestBuilder.RunTestFixture(fixture);
-            Assert.That(fixture.stateList, Is.EqualTo("Inconclusive=>=>Skipped:Ignored"));
+            Assert.That(fixture.StateList, Is.EqualTo("Inconclusive=>=>Skipped:Ignored"));
         }
 
         [Test]
@@ -290,7 +302,11 @@ namespace NUnit.Framework.Tests
             TestBuilder.RunTestFixture(fixture);
             Assert.That(fixture.FailCount, Is.EqualTo(1));
             Assert.That(fixture.Message, Is.EqualTo("Deliberate failure"));
-            Assert.That(fixture.StackTrace, Does.Contain("NUnit.TestData.TestContextData.TestTestContextInTearDown.FailingTest"));
+
+            PlatformInconsistency.MonoMethodInfoInvokeLosesStackTrace.SkipOnAffectedPlatform(() =>
+            {
+                Assert.That(fixture.StackTrace, Does.Contain("NUnit.TestData.TestContextData.TestTestContextInTearDown.FailingTest"));
+            });
         }
 
         [Test]
@@ -298,26 +314,28 @@ namespace NUnit.Framework.Tests
         {
             var fixture = new TestTestContextInOneTimeTearDown();
             TestBuilder.RunTestFixture(fixture);
-            Assert.That(fixture.PassCount, Is.EqualTo(2));
-            Assert.That(fixture.FailCount, Is.EqualTo(1));
-            Assert.That(fixture.WarningCount, Is.EqualTo(0));
-            Assert.That(fixture.SkipCount, Is.EqualTo(3));
-            Assert.That(fixture.InconclusiveCount, Is.EqualTo(4));
-            Assert.That(fixture.Message, Is.EqualTo(TestResult.CHILD_ERRORS_MESSAGE));
-            Assert.That(fixture.StackTrace, Is.Null);
+            Assert.Multiple(() =>
+            {
+                Assert.That(fixture.PassCount, Is.EqualTo(2));
+                Assert.That(fixture.FailCount, Is.EqualTo(1));
+                Assert.That(fixture.WarningCount, Is.EqualTo(0));
+                Assert.That(fixture.SkipCount, Is.EqualTo(3));
+                Assert.That(fixture.InconclusiveCount, Is.EqualTo(4));
+                Assert.That(fixture.Message, Is.EqualTo(TestResult.CHILD_ERRORS_MESSAGE));
+                Assert.That(fixture.StackTrace, Is.Null);
+            });
         }
 
         #endregion
 
         #region Out
 
-#if ASYNC
         [Test]
         public async Task TestContextOut_ShouldFlowWithAsyncExecution()
         {
             var expected = TestContext.Out;
             await YieldAsync();
-            Assert.AreEqual(expected, TestContext.Out);
+            Assert.That(TestContext.Out, Is.EqualTo(expected));
         }
 
         [Test]
@@ -334,20 +352,15 @@ namespace NUnit.Framework.Tests
             var isTestContextOutAvailable = false;
             Task.Factory.StartNew(() =>
             {
-                isTestContextOutAvailable = TestContext.Out != null;
+                isTestContextOutAvailable = TestContext.Out is not null;
             }).Wait();
-            Assert.True(isTestContextOutAvailable);
+            Assert.That(isTestContextOutAvailable, Is.True);
         }
 
         private async Task YieldAsync()
         {
-#if NET_4_0
-            await TaskEx.Yield();
-#else
             await Task.Yield();
-#endif
         }
-#endif
 
         #endregion
 
@@ -365,13 +378,12 @@ namespace NUnit.Framework.Tests
             Assert.That(() => TestContext.AddTestAttachment(_tempFilePath, "Description"), Throws.Nothing);
         }
 
+        // TODO: Update when https://github.com/nunit/nunit.analyzers/issues/631 is fixed and released.
         [TestCase(null)]
-#if !NETSTANDARD1_3 && !NETSTANDARD1_6
-        [TestCase("bad<>path.png", IncludePlatform = "Win")]
-#endif
-        public void InvalidFilePathsThrowsArgumentException(string filePath)
+        [TestCase("bad|path.png", IncludePlatform = "Win")]
+        public void InvalidFilePathsThrowsArgumentException(string? filePath)
         {
-            Assert.That(() => TestContext.AddTestAttachment(filePath), Throws.InstanceOf<ArgumentException>());
+            Assert.That(() => TestContext.AddTestAttachment(filePath!), Throws.InstanceOf<ArgumentException>());
         }
 
         [Test]
@@ -380,18 +392,51 @@ namespace NUnit.Framework.Tests
             Assert.That(() => TestContext.AddTestAttachment("NotAFile.txt"), Throws.InstanceOf<FileNotFoundException>());
         }
 
+        [TestCase(IncludePlatform = "Net")]
+        public void LogFilePathDoesNotThrow()
+        {
+            string longPathPrefix = string.Empty;
+
+            if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+                longPathPrefix = $@"\\?\";
+
+            /* Absolute file path length greater than 260 are considered long paths for .NET Framework
+             * Creating 261 length file path */
+            string tempLongFilePath = Path.Combine(_workDirectory, new string('A', (260 - _workDirectory.Length) - 4) + ".tmp");
+            try
+            {
+                File.Create($"{longPathPrefix}{tempLongFilePath}").Dispose();
+
+                Assert.That(() => TestContext.AddTestAttachment(tempLongFilePath), Throws.Nothing);
+            }
+            finally
+            {
+                File.Delete($"{longPathPrefix}{tempLongFilePath}");
+            }
+        }
+
+        #endregion
+
+        #region Retry
+        [Test]
+        public void TestCanAccessCurrentRepeatCount()
+        {
+            var context = TestExecutionContext.CurrentContext;
+
+            Assert.That(context.CurrentRepeatCount, Is.EqualTo(0), "expected TestContext.CurrentRepeatCount to be accessible and be zero on first execution of test");
+        }
         #endregion
     }
 
     [TestFixture]
     public class TestContextTearDownTests
     {
-        private const int THE_MEANING_OF_LIFE = 42;
+        private const int TheMeaningOfLife = 42;
 
         [Test]
         public void TestTheMeaningOfLife()
         {
-            Assert.That(THE_MEANING_OF_LIFE, Is.EqualTo(42));
+            Assert.That(TheMeaningOfLife, Is.EqualTo(42));
         }
 
         [TearDown]
@@ -443,6 +488,49 @@ namespace NUnit.Framework.Tests
             Assert.That(context.Result.PassCount, Is.EqualTo(2));
             Assert.That(context.Result.FailCount, Is.EqualTo(0));
             Assert.That(context.Result.SkipCount, Is.EqualTo(1));
+        }
+    }
+
+    [TestFixture]
+    [Category("CatA")]
+    [Property("Whatever", "Hi")]
+    public class TestContextHierarchies
+    {
+        [Test, Category("CatB")]
+        public void TestAb()
+        {
+            var test = TestContext.CurrentContext.Test;
+            Assert.That(test.AllCategories().ToList(), Has.Count.EqualTo(2));
+            Assert.That(test.AllPropertyValues("Whatever").ToList(), Has.Count.EqualTo(1));
+            Assert.That(test.AllPropertyValues("Whatever").First(), Is.EqualTo("Hi"));
+        }
+
+        [Test, Category("CatC")]
+        public void TestAc()
+        {
+            var test = TestContext.CurrentContext.Test;
+            Assert.That(test.AllCategories().ToList(), Has.Count.EqualTo(2));
+        }
+
+        [Test, Category("CatA")]
+        public void TestAa()
+        {
+            var test = TestContext.CurrentContext.Test;
+            Assert.That(test.AllCategories().ToList(), Has.Count.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Check that properties are inherited from the class
+        /// Check that we get all properties out, that includes the ones from the class and the method (3), but also the one defined in the assembly (ParallelScope) and the two defined by default, _PID and _APPDOMAIN.
+        /// </summary>
+        [Test, Property("Whatever", "Ok")]
+        public void TestProps()
+        {
+            var test = TestContext.CurrentContext.Test;
+            Assert.That(test.AllPropertyValues("Whatever").ToList(), Has.Count.EqualTo(2));
+            Assert.That(test.AllCategories().ToList(), Has.Count.EqualTo(1));
+            var itemList = test.PropertyHierarchy();
+            Assert.That(itemList, Has.Count.EqualTo(3 + 1 + 2));
         }
     }
 }

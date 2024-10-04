@@ -1,40 +1,41 @@
-﻿// ***********************************************************************
-// Copyright (c) 2009 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
-using System.Collections.Generic;
-using System.Text;
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
 
-namespace NUnit.Framework.Attributes
+namespace NUnit.Framework.Tests.Attributes
 {
     public class SetUpFixtureAttributeTests
     {
-        [TestCase(typeof(Class1))]
-        [TestCase(typeof(Class2))]
-        [TestCase(typeof(Class3))]
-        [TestCase(typeof(Class4))]
+        [Test]
+        public void SetUpFixtureCanBeIgnored()
+        {
+            var fixtures = new SetUpFixtureAttribute().BuildFrom(new TypeWrapper(typeof(IgnoredSetUpFixture)));
+            foreach (var fixture in fixtures)
+                Assert.That(fixture.RunState, Is.EqualTo(RunState.Ignored));
+        }
+
+        [Ignore("Just Because")]
+        private class IgnoredSetUpFixture
+        {
+        }
+
+        [Test]
+        public void SetUpFixtureMayBeParallelizable()
+        {
+            var fixtures = new SetUpFixtureAttribute().BuildFrom(new TypeWrapper(typeof(ParallelizableSetUpFixture)));
+            foreach (var fixture in fixtures)
+                Assert.That(fixture.Properties.Get(PropertyNames.ParallelScope), Is.EqualTo(ParallelScope.Self));
+        }
+
+        [Parallelizable]
+        private class ParallelizableSetUpFixture
+        {
+        }
+
+        [TestCase(typeof(TestSetupClass))]
+        [TestCase(typeof(TestTearDownClass))]
         public void CertainAttributesAreNotAllowed(Type type)
         {
             var fixtures = new SetUpFixtureAttribute().BuildFrom(new TypeWrapper(type));
@@ -42,30 +43,68 @@ namespace NUnit.Framework.Attributes
                 Assert.That(fixture.RunState, Is.EqualTo(RunState.NotRunnable));
         }
 
-#pragma warning disable 618 // Obsolete Attributes
-        private class Class1
+        [Test]
+        public void AbstractClassNotAllowed()
         {
-            [TestFixtureSetUp]
-            public void SomeMethod() { }
+            var abstractType = typeof(AbstractSetupClass);
+            var fixtures = new SetUpFixtureAttribute().BuildFrom(new TypeWrapper(abstractType));
+            foreach (var fixture in fixtures)
+                Assert.That(fixture.RunState, Is.EqualTo(RunState.NotRunnable));
         }
 
-        private class Class2
+        [Test]
+        public void StaticClassIsAllowed()
         {
-            [TestFixtureTearDown]
-            public void SomeMethod() { }
+            var abstractType = typeof(StaticSetupClass);
+            var fixtures = new SetUpFixtureAttribute().BuildFrom(new TypeWrapper(abstractType));
+            foreach (var fixture in fixtures)
+                Assert.That(fixture.RunState, Is.EqualTo(RunState.Runnable));
         }
-#pragma warning restore
 
-        private class Class3
+        [Test]
+        public void AttributeUsage_NoInheritance()
+        {
+            var usageAttrib = Attribute.GetCustomAttribute(typeof(SetUpFixtureAttribute), typeof(AttributeUsageAttribute)) as AttributeUsageAttribute;
+
+            Assert.That(usageAttrib, Is.Not.Null);
+            Assert.That(usageAttrib.Inherited, Is.True);
+        }
+
+        private static class StaticSetupClass
+        {
+            [OneTimeSetUp]
+            public static void SomeSetUpMethod()
+            {
+            }
+
+            [OneTimeTearDown]
+            public static void SomeTearDownMethod()
+            {
+            }
+        }
+
+        private abstract class AbstractSetupClass
+        {
+            [OneTimeSetUp]
+            public void SomeSetUpMethod()
+            {
+            }
+        }
+
+        private class TestSetupClass
         {
             [SetUp]
-            public void SomeMethod() { }
+            public void SomeMethod()
+            {
+            }
         }
 
-        private class Class4
+        private class TestTearDownClass
         {
             [TearDown]
-            public void SomeMethod() { }
+            public void SomeMethod()
+            {
+            }
         }
     }
 }

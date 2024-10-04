@@ -1,27 +1,5 @@
-// ***********************************************************************
-// Copyright (c) 2008 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
-using System;
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
 
@@ -35,15 +13,14 @@ namespace NUnit.Framework
     /// </summary>
     public class TestFixtureData : TestFixtureParameters
     {
-
         #region Constructors
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TestFixtureData"/> class.
         /// </summary>
         /// <param name="args">The arguments.</param>
-        public TestFixtureData(params object[] args)
-            : base(args == null ? new object[] { null } : args)
+        public TestFixtureData(params object?[]? args)
+            : base(args ?? new object?[] { null })
         {
         }
 
@@ -51,8 +28,8 @@ namespace NUnit.Framework
         /// Initializes a new instance of the <see cref="TestFixtureData"/> class.
         /// </summary>
         /// <param name="arg">The argument.</param>
-        public TestFixtureData(object arg)
-            : base(new object[] { arg })
+        public TestFixtureData(object? arg)
+            : base(new object?[] { arg })
         {
         }
 
@@ -61,8 +38,8 @@ namespace NUnit.Framework
         /// </summary>
         /// <param name="arg1">The first argument.</param>
         /// <param name="arg2">The second argument.</param>
-        public TestFixtureData(object arg1, object arg2)
-            : base(new object[] { arg1, arg2 })
+        public TestFixtureData(object? arg1, object? arg2)
+            : base(new object?[] { arg1, arg2 })
         {
         }
 
@@ -72,8 +49,8 @@ namespace NUnit.Framework
         /// <param name="arg1">The first argument.</param>
         /// <param name="arg2">The second argument.</param>
         /// <param name="arg3">The third argument.</param>
-        public TestFixtureData(object arg1, object arg2, object arg3)
-            : base( new object[] { arg1, arg2, arg3 })
+        public TestFixtureData(object? arg1, object? arg2, object? arg3)
+            : base(new object?[] { arg1, arg2, arg3 })
         {
         }
 
@@ -82,10 +59,30 @@ namespace NUnit.Framework
         #region Fluent Instance Modifiers
 
         /// <summary>
+        /// Sets the name of the test fixture
+        /// </summary>
+        /// <returns>The modified TestFixtureData instance</returns>
+        internal TestFixtureData SetName(string? name)
+        {
+            TestName = name;
+            return this;
+        }
+
+        /// <summary>
+        /// Sets the list of display names to use as the parameters in the test name.
+        /// </summary>
+        public TestFixtureData SetArgDisplayNames(params string[]? displayNames)
+        {
+            ArgDisplayNames = displayNames;
+            return this;
+        }
+
+        /// <summary>
         /// Marks the test fixture as explicit.
         /// </summary>
-        public TestFixtureData Explicit()	{
-            this.RunState = RunState.Explicit;
+        public TestFixtureData Explicit()
+        {
+            RunState = RunState.Explicit;
             return this;
         }
 
@@ -94,8 +91,8 @@ namespace NUnit.Framework
         /// </summary>
         public TestFixtureData Explicit(string reason)
         {
-            this.RunState = RunState.Explicit;
-            this.Properties.Set(PropertyNames.SkipReason, reason);
+            RunState = RunState.Explicit;
+            Properties.Set(PropertyNames.SkipReason, reason);
             return this;
         }
 
@@ -106,8 +103,8 @@ namespace NUnit.Framework
         /// <returns></returns>
         public TestFixtureData Ignore(string reason)
         {
-            this.RunState = RunState.Ignored;
-            this.Properties.Set(PropertyNames.SkipReason, reason);
+            RunState = RunState.Ignored;
+            Properties.Set(PropertyNames.SkipReason, reason);
             return this;
         }
 

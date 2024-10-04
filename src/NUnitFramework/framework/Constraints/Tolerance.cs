@@ -1,25 +1,4 @@
-﻿// ***********************************************************************
-// Copyright (c) 2008 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
 
@@ -29,10 +8,11 @@ namespace NUnit.Framework.Constraints
     /// The Tolerance class generalizes the notion of a tolerance
     /// within which an equality test succeeds. Normally, it is
     /// used with numeric types, but it can be used with any
-    /// type that supports taking a difference between two 
+    /// type that supports taking a difference between two
     /// objects and comparing that difference to a value.
     /// </summary>
-    public class Tolerance
+    [Serializable]
+    public sealed class Tolerance
     {
         #region Constants and Static Properties
 
@@ -41,20 +21,14 @@ namespace NUnit.Framework.Constraints
         private const string NumericToleranceRequired = "A numeric tolerance is required";
 
         /// <summary>
-        /// Returns a default Tolerance object, equivalent to an exact match.
+        /// Returns a default Tolerance object, equivalent to a default matching rules.
         /// </summary>
-        public static Tolerance Default
-        {
-            get { return new Tolerance(0, ToleranceMode.Unset); }
-        }
+        public static readonly Tolerance Default = new(0, ToleranceMode.Unset);
 
         /// <summary>
         /// Returns an empty Tolerance object, equivalent to an exact match.
         /// </summary>
-        public static Tolerance Exact
-        {
-            get { return new Tolerance(0, ToleranceMode.Linear); }
-        }
+        public static readonly Tolerance Exact = new(0, ToleranceMode.Linear);
 
         #endregion
 
@@ -63,7 +37,9 @@ namespace NUnit.Framework.Constraints
         /// <summary>
         /// Constructs a linear tolerance of a specified amount
         /// </summary>
-        public Tolerance(object amount) : this(amount, ToleranceMode.Linear) { }
+        public Tolerance(object amount) : this(amount, ToleranceMode.Linear)
+        {
+        }
 
         /// <summary>
         /// Constructs a tolerance given an amount and <see cref="ToleranceMode"/>
@@ -103,7 +79,7 @@ namespace NUnit.Framework.Constraints
         }
 
         /// <summary>
-        /// Returns a new tolerance with a <see cref="TimeSpan"/> as the amount, using 
+        /// Returns a new tolerance with a <see cref="TimeSpan"/> as the amount, using
         /// the current amount as a number of days.
         /// </summary>
         public Tolerance Days
@@ -116,7 +92,7 @@ namespace NUnit.Framework.Constraints
         }
 
         /// <summary>
-        /// Returns a new tolerance with a <see cref="TimeSpan"/> as the amount, using 
+        /// Returns a new tolerance with a <see cref="TimeSpan"/> as the amount, using
         /// the current amount as a number of hours.
         /// </summary>
         public Tolerance Hours
@@ -129,7 +105,7 @@ namespace NUnit.Framework.Constraints
         }
 
         /// <summary>
-        /// Returns a new tolerance with a <see cref="TimeSpan"/> as the amount, using 
+        /// Returns a new tolerance with a <see cref="TimeSpan"/> as the amount, using
         /// the current amount as a number of minutes.
         /// </summary>
         public Tolerance Minutes
@@ -142,7 +118,7 @@ namespace NUnit.Framework.Constraints
         }
 
         /// <summary>
-        /// Returns a new tolerance with a <see cref="TimeSpan"/> as the amount, using 
+        /// Returns a new tolerance with a <see cref="TimeSpan"/> as the amount, using
         /// the current amount as a number of seconds.
         /// </summary>
         public Tolerance Seconds
@@ -155,7 +131,7 @@ namespace NUnit.Framework.Constraints
         }
 
         /// <summary>
-        /// Returns a new tolerance with a <see cref="TimeSpan"/> as the amount, using 
+        /// Returns a new tolerance with a <see cref="TimeSpan"/> as the amount, using
         /// the current amount as a number of milliseconds.
         /// </summary>
         public Tolerance Milliseconds
@@ -168,7 +144,7 @@ namespace NUnit.Framework.Constraints
         }
 
         /// <summary>
-        /// Returns a new tolerance with a <see cref="TimeSpan"/> as the amount, using 
+        /// Returns a new tolerance with a <see cref="TimeSpan"/> as the amount, using
         /// the current amount as a number of clock ticks.
         /// </summary>
         public Tolerance Ticks
@@ -195,13 +171,14 @@ namespace NUnit.Framework.Constraints
         public object Amount { get; }
 
         /// <summary>
-        /// Returns true if the current tolerance has not been set or is using the .
+        /// Returns true if the current tolerance has not been set or is using the default.
         /// </summary>
-        public bool IsUnsetOrDefault
-        {
-            get { return Mode == ToleranceMode.Unset; }
-        }
+        public bool IsUnsetOrDefault => Mode == ToleranceMode.Unset;
 
+        /// <summary>
+        /// Returns true if the current tolerance varies from exact and default. Indicating tolerance needs processing.
+        /// </summary>
+        public bool HasVariance => Mode != ToleranceMode.Unset && this != Exact && this != Default;
         #endregion
 
         #region Public Methods
@@ -234,15 +211,17 @@ namespace NUnit.Framework.Constraints
         #region Helper Methods
 
         /// <summary>
-        /// Tests that the current Tolerance is linear with a 
+        /// Tests that the current Tolerance is linear with a
         /// numeric value, throwing an exception if it is not.
         /// </summary>
         private void CheckLinearAndNumeric()
         {
             if (Mode != ToleranceMode.Linear)
+            {
                 throw new InvalidOperationException(Mode == ToleranceMode.Unset
                     ? ModeMustFollowTolerance
                     : MultipleToleranceModes);
+            }
 
             if (!Numerics.IsNumericType(Amount))
                 throw new InvalidOperationException(NumericToleranceRequired);
@@ -299,6 +278,11 @@ namespace NUnit.Framework.Constraints
                 return new Range(v - amount, v + amount);
             }
 
+            if (Amount is TimeSpan interval && value is DateTime dateTime)
+            {
+                return new Range(dateTime - interval, dateTime + interval);
+            }
+
             throw new InvalidOperationException("Cannot create range for a non-numeric value");
         }
 
@@ -321,7 +305,7 @@ namespace NUnit.Framework.Constraints
         /// Tolerance.Range represents the range of values that match
         /// a specific tolerance, when applied to a specific value.
         /// </summary>
-        public class Range
+        public readonly struct Range
         {
             /// <summary>
             /// The lower bound of the range
@@ -329,12 +313,12 @@ namespace NUnit.Framework.Constraints
             public readonly object LowerBound;
 
             /// <summary>
-            /// The Upper bound of the range
+            /// The upper bound of the range
             /// </summary>
             public readonly object UpperBound;
 
             /// <summary>
-            ///  Construct a Range
+            /// Constructs a range
             /// </summary>
             public Range(object lowerBound, object upperBound)
             {
@@ -344,5 +328,36 @@ namespace NUnit.Framework.Constraints
         }
 
         #endregion
+
+        /// <summary>
+        /// Returns a string that represents the current object.
+        /// </summary>
+        /// <returns>
+        /// A string that represents the current object.
+        /// </returns>
+        public override string? ToString()
+        {
+            if (Amount == Exact.Amount && Mode == Exact.Mode)
+            {
+                return "Exact";
+            }
+            switch (Mode)
+            {
+                case ToleranceMode.Unset:
+                    return "Unset";
+
+                case ToleranceMode.Linear:
+                    return Amount.ToString();
+
+                case ToleranceMode.Percent:
+                    return Amount.ToString() + " Percent";
+
+                case ToleranceMode.Ulps:
+                    return Amount.ToString() + " Ulps";
+
+                default:
+                    return "Unknown"; // Unreachable without reflection
+            }
+        }
     }
 }

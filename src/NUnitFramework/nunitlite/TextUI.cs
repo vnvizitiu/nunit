@@ -1,25 +1,4 @@
-// ***********************************************************************
-// Copyright (c) 2015 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-//
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
 using System.Collections.Generic;
@@ -27,18 +6,14 @@ using System.Globalization;
 using System.IO;
 using System.Reflection;
 using NUnit.Common;
-using NUnit.Compatibility;
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
-#if NETSTANDARD1_3 || NETSTANDARD1_6
-using System.Runtime.InteropServices;
-#endif
 
 namespace NUnitLite
 {
     public class TextUI
     {
-        public ExtendedTextWriter Writer { get; private set; }
+        public ExtendedTextWriter Writer { get; }
 
         private readonly TextReader _reader;
         private readonly NUnitLiteOptions _options;
@@ -73,21 +48,21 @@ namespace NUnitLite
         /// </summary>
         public void DisplayHeader()
         {
-            Assembly executingAssembly = GetType().GetTypeInfo().Assembly;
+            Assembly executingAssembly = GetType().Assembly;
             AssemblyName assemblyName = AssemblyHelper.GetAssemblyName(executingAssembly);
             Version version = assemblyName.Version;
-            string copyright = "Copyright (C) 2017 Charlie Poole, Rob Prouse";
-            string build = "";
+            string copyright = "Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt";
+            string build = string.Empty;
 
             var copyrightAttr = executingAssembly.GetCustomAttribute<AssemblyCopyrightAttribute>();
-            if (copyrightAttr != null)
+            if (copyrightAttr is not null)
                 copyright = copyrightAttr.Copyright;
 
             var configAttr = executingAssembly.GetCustomAttribute<AssemblyConfigurationAttribute>();
-            if (configAttr != null)
-                build = string.Format("({0})", configAttr.Configuration);
+            if (configAttr is not null)
+                build = $"({configAttr.Configuration})";
 
-            WriteHeader(String.Format("NUnitLite {0} {1}", version.ToString(3), build));
+            WriteHeader($"NUnitLite {version.ToString(3)} {build}");
             WriteSubHeader(copyright);
             Writer.WriteLine();
         }
@@ -134,8 +109,7 @@ namespace NUnitLite
             WriteSectionHeader("Notes:");
             WriteHelpLine("    * File names may be listed by themselves, with a relative path or ");
             WriteHelpLine("      using an absolute path. Any relative path is based on the current ");
-            WriteHelpLine("      directory or on the Documents folder if running on a under the ");
-            WriteHelpLine("      compact framework.");
+            WriteHelpLine("      directory.");
             Writer.WriteLine();
             WriteHelpLine("    * On Windows, options may be prefixed by a '/' character if desired");
             Writer.WriteLine();
@@ -158,6 +132,9 @@ namespace NUnitLite
             WriteHelpLine("      If --explore is used without any specification following, a list of");
             WriteHelpLine("      test cases is output to the console.");
             Writer.WriteLine();
+            WriteHelpLine("      The --where option documentation can be found here:");
+            WriteHelpLine("          https://docs.nunit.org/articles/nunit/running-tests/Test-Selection-Language.html");
+            Writer.WriteLine();
         }
 
         #endregion
@@ -170,13 +147,27 @@ namespace NUnitLite
         public void DisplayRuntimeEnvironment()
         {
             WriteSectionHeader("Runtime Environment");
-#if NETSTANDARD1_3 || NETSTANDARD1_6
-            Writer.WriteLabelLine("   OS Version: ", RuntimeInformation.OSDescription);
-            Writer.WriteLabelLine("  CLR Version: ", RuntimeInformation.FrameworkDescription);
-#else
-            Writer.WriteLabelLine("   OS Version: ", Environment.OSVersion);
+            Writer.WriteLabelLine("   OS Version: ", OSPlatform.OSDescription);
             Writer.WriteLabelLine("  CLR Version: ", Environment.Version);
-#endif
+            Writer.WriteLine();
+        }
+
+        #endregion
+
+        #region Test Discovery Report
+
+        public void DisplayDiscoveryReport(TimeStamp startTime, TimeStamp endTime)
+        {
+            WriteSectionHeader("Test Discovery");
+
+            foreach (string filter in _options.PreFilters)
+                Writer.WriteLabelLine("  Pre-Filter: ", filter);
+
+            Writer.WriteLabelLine("  Start time: ", startTime.DateTime.ToString("u"));
+            Writer.WriteLabelLine("    End time: ", endTime.DateTime.ToString("u"));
+            double elapsedSeconds = TimeStamp.TicksToSeconds(endTime.Ticks - startTime.Ticks);
+            Writer.WriteLabelLine("    Duration: ", string.Format(NumberFormatInfo.InvariantInfo, "{0:0.000} seconds", elapsedSeconds));
+
             Writer.WriteLine();
         }
 
@@ -190,9 +181,8 @@ namespace NUnitLite
             {
                 WriteSectionHeader("Test Filters");
 
-                if (_options.TestList.Count > 0)
-                    foreach (string testName in _options.TestList)
-                        Writer.WriteLabelLine("    Test: ", testName);
+                foreach (string testName in _options.TestList)
+                    Writer.WriteLabelLine("    Test: ", testName);
 
                 if (_options.WhereClauseSpecified)
                     Writer.WriteLabelLine("    Where: ", _options.WhereClause.Trim());
@@ -212,13 +202,11 @@ namespace NUnitLite
             if (_options.DefaultTimeout >= 0)
                 Writer.WriteLabelLine("    Default timeout: ", _options.DefaultTimeout);
 
-#if PARALLEL
             Writer.WriteLabelLine(
                 "    Number of Test Workers: ",
                 _options.NumberOfTestWorkers >= 0
                     ? _options.NumberOfTestWorkers
                     : Math.Max(Environment.ProcessorCount, 2));
-#endif
 
             Writer.WriteLabelLine("    Work Directory: ", _options.WorkDirectory ?? Directory.GetCurrentDirectory());
             Writer.WriteLabelLine("    Internal Trace: ", _options.InternalTraceLevel ?? "Off");
@@ -255,7 +243,7 @@ namespace NUnitLite
 
                 WriteOutput(result.Output);
 
-                if (!result.Output.EndsWith("\n"))
+                if (!result.Output.EndsWith("\n", StringComparison.Ordinal))
                     Writer.WriteLine();
             }
 
@@ -278,7 +266,7 @@ namespace NUnitLite
 
         public void TestOutput(TestOutput output)
         {
-            if (_displayBeforeOutput && output.TestName != null)
+            if (_displayBeforeOutput && output.TestName is not null)
                 WriteLabelLine(output.TestName);
 
             WriteOutput(output.Stream == "Error" ? ColorStyle.Error : ColorStyle.Output, output.Text);
@@ -291,7 +279,7 @@ namespace NUnitLite
         public void WaitForUser(string message)
         {
             // Ignore if we don't have a TextReader
-            if (_reader != null)
+            if (_reader is not null)
             {
                 Writer.WriteLine(ColorStyle.Label, message);
                 _reader.ReadLine();
@@ -466,23 +454,30 @@ namespace NUnitLite
                     var site = result.ResultState.Site;
                     if (suite.TestType == "Theory" || site == FailureSite.SetUp || site == FailureSite.TearDown)
                         DisplayTestResult(result);
-                    if (site == FailureSite.SetUp) return;
+                    if (site == FailureSite.SetUp)
+                        return;
                 }
 
                 foreach (ITestResult childResult in result.Children)
                     DisplayErrorsFailuresAndWarnings(childResult);
             }
             else if (display)
+            {
                 DisplayTestResult(result);
+            }
         }
 
         private void DisplayNotRunResults(ITestResult result)
         {
             if (result.HasChildren)
+            {
                 foreach (ITestResult childResult in result.Children)
                     DisplayNotRunResults(childResult);
+            }
             else if (result.ResultState.Status == TestStatus.Skipped)
+            {
                 DisplayTestResult(result);
+            }
         }
 
         private static readonly char[] TRIM_CHARS = new char[] { '\r', '\n' };
@@ -494,41 +489,35 @@ namespace NUnitLite
             string fullName = result.FullName;
             string message = result.Message;
             string stackTrace = result.StackTrace;
-            string reportID = (++_reportIndex).ToString();
+            string reportId = (++_reportIndex).ToString();
             int numAsserts = result.AssertionResults.Count;
 
-#if NETSTANDARD1_3 && !NETSTANDARD1_6
-            ColorStyle style = GetColorStyle(resultState);
-            string status = GetResultStatus(resultState);
-            DisplayTestResult(style, reportID, status, fullName, message, stackTrace);
-#else
             if (numAsserts > 0)
             {
                 int assertionCounter = 0;
-                string assertID = reportID;
+                string assertId = reportId;
                 foreach (var assertion in result.AssertionResults)
                 {
                     if (numAsserts > 1)
-                        assertID = string.Format("{0}-{1}", reportID, ++assertionCounter);
+                        assertId = $"{reportId}-{++assertionCounter}";
                     ColorStyle style = GetColorStyle(resultState);
                     string status = assertion.Status.ToString();
-                    DisplayTestResult(style, assertID, status, fullName, assertion.Message, assertion.StackTrace);
+                    DisplayTestResult(style, assertId, status, fullName, assertion.Message, assertion.StackTrace);
                 }
             }
             else
             {
                 ColorStyle style = GetColorStyle(resultState);
                 string status = GetResultStatus(resultState);
-                DisplayTestResult(style, reportID, status, fullName, message, stackTrace);
+                DisplayTestResult(style, reportId, status, fullName, message, stackTrace);
             }
-#endif
         }
 
         private void DisplayTestResult(ColorStyle style, string prefix, string status, string fullName, string message, string stackTrace)
         {
             Writer.WriteLine();
             Writer.WriteLine(
-                style, string.Format("{0}) {1} : {2}", prefix, status, fullName));
+                style, $"{prefix}) {status} : {fullName}");
 
             if (!string.IsNullOrEmpty(message))
                 Writer.WriteLine(style, message.TrimEnd(TRIM_CHARS));
@@ -684,10 +673,10 @@ namespace NUnitLite
             Writer.Write(color, text);
 
             _testCreatedOutput = true;
-            _needsNewLine = !text.EndsWith("\n");
+            _needsNewLine = !text.EndsWith("\n", StringComparison.Ordinal);
         }
 
-         private static ColorStyle GetColorForResultStatus(string status)
+        private static ColorStyle GetColorForResultStatus(string status)
         {
             switch (status)
             {

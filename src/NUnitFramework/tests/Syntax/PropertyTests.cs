@@ -1,39 +1,15 @@
-﻿// ***********************************************************************
-// Copyright (c) 2009 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
-using System;
-using System.Collections;
-
-namespace NUnit.Framework.Syntax
+namespace NUnit.Framework.Tests.Syntax
 {
     public class PropertyExistsTest : SyntaxTest
     {
         [SetUp]
         public void SetUp()
         {
-            parseTree = "<propertyexists X>";
-            staticSyntax = Has.Property("X");
-            builderSyntax = Builder().Property("X");
+            ParseTree = "<propertyexists X>";
+            StaticSyntax = Has.Property("X");
+            BuilderSyntax = Builder().Property("X");
         }
     }
 
@@ -42,9 +18,9 @@ namespace NUnit.Framework.Syntax
         [SetUp]
         public void SetUp()
         {
-            parseTree = "<and <propertyexists X> <equal 7>>";
-            staticSyntax = Has.Property("X").And.EqualTo(7);
-            builderSyntax = Builder().Property("X").And.EqualTo(7);
+            ParseTree = "<and <propertyexists X> <equal 7>>";
+            StaticSyntax = Has.Property("X").And.EqualTo(7);
+            BuilderSyntax = Builder().Property("X").And.EqualTo(7);
         }
     }
 
@@ -53,9 +29,9 @@ namespace NUnit.Framework.Syntax
         [SetUp]
         public void SetUp()
         {
-            parseTree = "<property X <greaterthan 5>>";
-            staticSyntax = Has.Property("X").GreaterThan(5);
-            builderSyntax = Builder().Property("X").GreaterThan(5);
+            ParseTree = "<property X <greaterthan 5>>";
+            StaticSyntax = Has.Property("X").GreaterThan(5);
+            BuilderSyntax = Builder().Property("X").GreaterThan(5);
         }
     }
 
@@ -64,9 +40,9 @@ namespace NUnit.Framework.Syntax
         [SetUp]
         public void SetUp()
         {
-            parseTree = "<property X <not <greaterthan 5>>>";
-            staticSyntax = Has.Property("X").Not.GreaterThan(5);
-            builderSyntax = Builder().Property("X").Not.GreaterThan(5);
+            ParseTree = "<property X <not <greaterthan 5>>>";
+            StaticSyntax = Has.Property("X").Not.GreaterThan(5);
+            BuilderSyntax = Builder().Property("X").Not.GreaterThan(5);
         }
     }
 
@@ -75,9 +51,9 @@ namespace NUnit.Framework.Syntax
         [SetUp]
         public void SetUp()
         {
-            parseTree = "<property Length <greaterthan 5>>";
-            staticSyntax = Has.Length.GreaterThan(5);
-            builderSyntax = Builder().Length.GreaterThan(5);
+            ParseTree = "<property Length <greaterthan 5>>";
+            StaticSyntax = Has.Length.GreaterThan(5);
+            BuilderSyntax = Builder().Length.GreaterThan(5);
         }
     }
 
@@ -86,9 +62,9 @@ namespace NUnit.Framework.Syntax
         [SetUp]
         public void SetUp()
         {
-            parseTree = "<property Count <equal 5>>";
-            staticSyntax = Has.Count.EqualTo(5);
-            builderSyntax = Builder().Count.EqualTo(5);
+            ParseTree = "<property Count <equal 5>>";
+            StaticSyntax = Has.Count.EqualTo(5);
+            BuilderSyntax = Builder().Count.EqualTo(5);
         }
     }
 
@@ -97,28 +73,28 @@ namespace NUnit.Framework.Syntax
         [SetUp]
         public void SetUp()
         {
-            parseTree = @"<property Message <startswith ""Expected"">>";
-            staticSyntax = Has.Message.StartsWith("Expected");
-            builderSyntax = Builder().Message.StartsWith("Expected");
+            ParseTree = @"<property Message <startswith ""Expected"">>";
+            StaticSyntax = Has.Message.StartsWith("Expected");
+            BuilderSyntax = Builder().Message.StartsWith("Expected");
         }
     }
 
     public class PropertySyntaxVariations
     {
-        private readonly int[] ints = new int[] { 1, 2, 3 };
+        private readonly int[] _ints = new int[] { 1, 2, 3 };
 
         [Test]
         public void ExistenceTest()
         {
-            Assert.That(ints, Has.Property("Length"));
-            Assert.That(ints, Has.Length);
+            Assert.That(_ints, Has.Property("Length"));
+            Assert.That(_ints, Has.Length);
         }
 
         [Test]
         public void SeparateConstraintTest()
         {
-            Assert.That(ints, Has.Property("Length").EqualTo(3));
-            Assert.That(ints, Has.Length.EqualTo(3));
+            Assert.That(_ints, Has.Property("Length").EqualTo(3));
+            Assert.That(_ints, Has.Length.EqualTo(3));
         }
     }
 }

@@ -1,28 +1,8 @@
-// ***********************************************************************
-// Copyright (c) 2007 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using NUnit.Framework;
 
 namespace NUnit.TestData.OneTimeSetUpTearDownData
@@ -30,47 +10,51 @@ namespace NUnit.TestData.OneTimeSetUpTearDownData
     [TestFixture]
     public class SetUpAndTearDownFixture
     {
-        public int setUpCount = 0;
-        public int tearDownCount = 0;
-        public bool throwInBaseSetUp = false;
+        public int SetUpCount = 0;
+        public int TearDownCount = 0;
+        public bool ThrowInBaseSetUp = false;
 
         [OneTimeSetUp]
         public virtual void Init()
         {
-            setUpCount++;
-            if (throwInBaseSetUp)
+            SetUpCount++;
+            if (ThrowInBaseSetUp)
                 throw new Exception("Error in base OneTimeSetUp");
         }
 
         [OneTimeTearDown]
         public virtual void Destroy()
         {
-            tearDownCount++;
+            TearDownCount++;
         }
 
         [Test]
-        public void Success() { }
+        public void Success()
+        {
+        }
 
         [Test]
-        public void EvenMoreSuccess() { }
+        public void EvenMoreSuccess()
+        {
+        }
     }
 
     [TestFixture]
     public class SetUpAndTearDownFixtureWithTestCases
     {
-        public int setUpCount = 0;
-        public int tearDownCount = 0;
+        public int SetUpCount = 0;
+        public int TearDownCount = 0;
 
         [OneTimeSetUp]
         public virtual void Init()
         {
-            setUpCount++;
+            SetUpCount++;
         }
 
         [OneTimeTearDown]
         public virtual void Destroy()
         {
-            tearDownCount++;
+            TearDownCount++;
         }
 
         [TestCase(1)]
@@ -79,26 +63,26 @@ namespace NUnit.TestData.OneTimeSetUpTearDownData
         [TestCase(4)]
         public void Success(int i)
         {
-            Assert.Pass("Passed with test case {0}", i);
+            Assert.Pass($"Passed with test case {i}");
         }
     }
 
     [TestFixture]
     public class SetUpAndTearDownFixtureWithTheories
     {
-        public int setUpCount = 0;
-        public int tearDownCount = 0;
+        public int SetUpCount = 0;
+        public int TearDownCount = 0;
 
         [OneTimeSetUp]
         public virtual void Init()
         {
-            setUpCount++;
+            SetUpCount++;
         }
 
         [OneTimeTearDown]
         public virtual void Destroy()
         {
-            tearDownCount++;
+            TearDownCount++;
         }
 
         public struct Data
@@ -107,7 +91,7 @@ namespace NUnit.TestData.OneTimeSetUpTearDownData
         }
 
         [DatapointSource]
-        public IEnumerable<Data> fetchAllRows()
+        public IEnumerable<Data> FetchAllRows()
         {
             yield return new Data { Id = 1 };
             yield return new Data { Id = 2 };
@@ -118,170 +102,191 @@ namespace NUnit.TestData.OneTimeSetUpTearDownData
         [Theory]
         public void TheoryTest(Data entry)
         {
-            Assert.Pass("Passed with theory id {0}", entry.Id);
+            Assert.Pass($"Passed with theory id {entry.Id}");
         }
     }
 
     [TestFixture, Explicit]
     public class ExplicitSetUpAndTearDownFixture
     {
-        public int setUpCount = 0;
-        public int tearDownCount = 0;
+        public int SetUpCount = 0;
+        public int TearDownCount = 0;
 
         [OneTimeSetUp]
         public virtual void Init()
         {
-            setUpCount++;
+            SetUpCount++;
         }
 
         [OneTimeTearDown]
         public virtual void Destroy()
         {
-            tearDownCount++;
+            TearDownCount++;
         }
 
         [Test]
-        public void Success() { }
+        public void Success()
+        {
+        }
 
         [Test]
-        public void EvenMoreSuccess() { }
+        public void EvenMoreSuccess()
+        {
+        }
     }
 
     [TestFixture]
     public class InheritSetUpAndTearDown : SetUpAndTearDownFixture
     {
         [Test]
-        public void AnotherTest() { }
+        public void AnotherTest()
+        {
+        }
 
         [Test]
-        public void YetAnotherTest() { }
+        public void YetAnotherTest()
+        {
+        }
     }
 
     [TestFixture]
     public class OverrideSetUpAndTearDown : SetUpAndTearDownFixture
     {
-        public int derivedSetUpCount;
-        public int derivedTearDownCount;
+        public int DerivedSetUpCount;
+        public int DerivedTearDownCount;
 
         [OneTimeSetUp]
         public override void Init()
         {
-            derivedSetUpCount++;
+            DerivedSetUpCount++;
         }
 
         [OneTimeTearDown]
         public override void Destroy()
         {
-            derivedTearDownCount++;
+            DerivedTearDownCount++;
         }
 
         [Test]
-        public void AnotherTest() { }
+        public void AnotherTest()
+        {
+        }
 
         [Test]
-        public void YetAnotherTest() { }
+        public void YetAnotherTest()
+        {
+        }
     }
 
     [TestFixture]
     public class DerivedSetUpAndTearDownFixture : SetUpAndTearDownFixture
     {
-        public int derivedSetUpCount;
-        public int derivedTearDownCount;
+        public int DerivedSetUpCount;
+        public int DerivedTearDownCount;
 
-        public bool baseSetUpCalledFirst;
-        public bool baseTearDownCalledLast;
+        public bool BaseSetUpCalledFirst;
+        public bool BaseTearDownCalledLast;
 
         [OneTimeSetUp]
         public void Init2()
         {
-            derivedSetUpCount++;
-            baseSetUpCalledFirst = this.setUpCount > 0;
+            DerivedSetUpCount++;
+            BaseSetUpCalledFirst = SetUpCount > 0;
         }
 
         [OneTimeTearDown]
         public void Destroy2()
         {
-            derivedTearDownCount++;
-            baseTearDownCalledLast = this.tearDownCount == 0;
+            DerivedTearDownCount++;
+            BaseTearDownCalledLast = TearDownCount == 0;
         }
 
         [Test]
-        public void AnotherTest() { }
+        public void AnotherTest()
+        {
+        }
 
         [Test]
-        public void YetAnotherTest() { }
+        public void YetAnotherTest()
+        {
+        }
     }
 
     [TestFixture]
     public class StaticSetUpAndTearDownFixture
     {
-        public static int setUpCount = 0;
-        public static int tearDownCount = 0;
+        public static int SetUpCount = 0;
+        public static int TearDownCount = 0;
 
         [OneTimeSetUp]
         public static void Init()
         {
-            setUpCount++;
+            SetUpCount++;
         }
 
         [OneTimeTearDown]
         public static void Destroy()
         {
-            tearDownCount++;
+            TearDownCount++;
         }
 
         [Test]
-        public static void MyTest() { }
+        public static void MyTest()
+        {
+        }
     }
 
     [TestFixture]
     public class DerivedStaticSetUpAndTearDownFixture : StaticSetUpAndTearDownFixture
     {
-        public static int derivedSetUpCount;
-        public static int derivedTearDownCount;
+        public static int DerivedSetUpCount;
+        public static int DerivedTearDownCount;
 
-        public static bool baseSetUpCalledFirst;
-        public static bool baseTearDownCalledLast;
-
+        public static bool BaseSetUpCalledFirst;
+        public static bool BaseTearDownCalledLast;
 
         [OneTimeSetUp]
         public static void Init2()
         {
-            derivedSetUpCount++;
-            baseSetUpCalledFirst = setUpCount > 0;
+            DerivedSetUpCount++;
+            BaseSetUpCalledFirst = SetUpCount > 0;
         }
 
         [OneTimeTearDown]
         public static void Destroy2()
         {
-            derivedTearDownCount++;
-            baseTearDownCalledLast = tearDownCount == 0;
+            DerivedTearDownCount++;
+            BaseTearDownCalledLast = TearDownCount == 0;
         }
 
         [Test]
-        public static void SomeTest() { }
+        public static void SomeTest()
+        {
+        }
     }
 
     [TestFixture]
     public static class StaticClassSetUpAndTearDownFixture
     {
-        public static int setUpCount = 0;
-        public static int tearDownCount = 0;
+        public static int SetUpCount = 0;
+        public static int TearDownCount = 0;
 
         [OneTimeSetUp]
         public static void Init()
         {
-            setUpCount++;
+            SetUpCount++;
         }
 
         [OneTimeTearDown]
         public static void Destroy()
         {
-            tearDownCount++;
+            TearDownCount++;
         }
 
         [Test]
-        public static void MyTest() { }
+        public static void MyTest()
+        {
+        }
     }
 
     [TestFixture]
@@ -289,51 +294,55 @@ namespace NUnit.TestData.OneTimeSetUpTearDownData
     {
         [OneTimeSetUp]
         [Parallelizable]
-        public void BadOneTimeSetup() { }
+        public void BadOneTimeSetup()
+        {
+        }
 
         [Test]
-        public void Test() { }
+        public void Test()
+        {
+        }
     }
 
     [TestFixture]
-    public class MisbehavingFixture 
+    public class MisbehavingFixture
     {
-        public bool blowUpInSetUp = false;
-        public bool blowUpInTest = false;
-        public bool blowUpInTearDown = false;
+        public bool BlowUpInSetUp = false;
+        public bool BlowUpInTest = false;
+        public bool BlowUpInTearDown = false;
 
-        public int setUpCount = 0;
-        public int tearDownCount = 0;
+        public int SetUpCount = 0;
+        public int TearDownCount = 0;
 
         public void Reinitialize()
         {
-            setUpCount = 0;
-            tearDownCount = 0;
+            SetUpCount = 0;
+            TearDownCount = 0;
 
-            blowUpInSetUp = false;
-            blowUpInTearDown = false;
+            BlowUpInSetUp = false;
+            BlowUpInTearDown = false;
         }
 
         [OneTimeSetUp]
-        public void BlowUpInSetUp() 
+        public void SetUp()
         {
-            setUpCount++;
-            if (blowUpInSetUp)
+            SetUpCount++;
+            if (BlowUpInSetUp)
                 throw new Exception("This was thrown from fixture setup");
         }
 
         [OneTimeTearDown]
-        public void BlowUpInTearDown()
+        public void TearDown()
         {
-            tearDownCount++;
-            if ( blowUpInTearDown )
+            TearDownCount++;
+            if (BlowUpInTearDown)
                 throw new Exception("This was thrown from fixture teardown");
         }
 
         [Test]
-        public void BlowUpInTest() 
+        public void Test()
         {
-            if (blowUpInTest)
+            if (BlowUpInTest)
                 throw new Exception("This was thrown from a test");
         }
     }
@@ -343,11 +352,11 @@ namespace NUnit.TestData.OneTimeSetUpTearDownData
     {
         public ExceptionInConstructor()
         {
-            throw new Exception( "This was thrown in constructor" );
+            throw new Exception("This was thrown in constructor");
         }
 
         [Test]
-        public void nothingToTest()
+        public void NothingToTest()
         {
         }
     }
@@ -356,13 +365,13 @@ namespace NUnit.TestData.OneTimeSetUpTearDownData
     public class IgnoreInFixtureSetUp
     {
         [OneTimeSetUp]
-        public void SetUpCallsIgnore() 
+        public void SetUpCallsIgnore()
         {
-            Assert.Ignore( "TestFixtureSetUp called Ignore" );
+            Assert.Ignore("OneTimeSetUp called Ignore");
         }
 
         [Test]
-        public void nothingToTest() 
+        public void NothingToTest()
         {
         }
     }
@@ -370,78 +379,86 @@ namespace NUnit.TestData.OneTimeSetUpTearDownData
     [TestFixture]
     public class SetUpAndTearDownWithTestInName
     {
-        public int setUpCount = 0;
-        public int tearDownCount = 0;
+        public int SetUpCount = 0;
+        public int TearDownCount = 0;
 
         [OneTimeSetUp]
-        public virtual void TestFixtureSetUp()
+        public virtual void OneTimeSetUp()
         {
-            setUpCount++;
+            SetUpCount++;
         }
 
         [OneTimeTearDown]
-        public virtual void TestFixtureTearDown()
+        public virtual void OneTimeTearDown()
         {
-            tearDownCount++;
+            TearDownCount++;
         }
 
         [Test]
-        public void Success(){}
+        public void Success()
+        {
+        }
 
         [Test]
-        public void EvenMoreSuccess(){}
+        public void EvenMoreSuccess()
+        {
+        }
     }
 
-    [TestFixture, Ignore( "Do Not Run This" )]
+    [TestFixture, Ignore("Do Not Run This")]
     public class IgnoredFixture
     {
-        public bool setupCalled = false;
-        public bool teardownCalled = false;
+        public bool SetupCalled = false;
+        public bool TeardownCalled = false;
 
         [OneTimeSetUp]
         public virtual void ShouldNotRun()
         {
-            setupCalled = true;
+            SetupCalled = true;
         }
 
         [OneTimeTearDown]
         public virtual void NeitherShouldThis()
         {
-            teardownCalled = true;
+            TeardownCalled = true;
         }
 
         [Test]
-        public void Success(){}
+        public void Success()
+        {
+        }
 
         [Test]
-        public void EvenMoreSuccess(){}
+        public void EvenMoreSuccess()
+        {
+        }
     }
 
     [TestFixture]
     public class FixtureWithNoTests
     {
-        public bool setupCalled = false;
-        public bool teardownCalled = false;
+        public bool SetupCalled = false;
+        public bool TeardownCalled = false;
 
         [OneTimeSetUp]
         public virtual void Init()
         {
-            setupCalled = true;
+            SetupCalled = true;
         }
 
         [OneTimeTearDown]
         public virtual void Destroy()
         {
-            teardownCalled = true;
+            TeardownCalled = true;
         }
     }
 
     [TestFixture]
     public class DisposableFixture : IDisposable
     {
-        public int disposeCalled = 0;
-        public List<String> Actions = new List<String>();
-        
+        public int DisposeCalled = 0;
+        public List<string> Actions = new();
+
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
@@ -455,29 +472,105 @@ namespace NUnit.TestData.OneTimeSetUpTearDownData
         }
 
         [Test]
-        public void OneTest() { }
+        public void OneTest()
+        {
+        }
 
         public void Dispose()
         {
             Actions.Add("Dispose");
-            disposeCalled++;
+            DisposeCalled++;
+        }
+    }
+
+    [TestFixture]
+    public class AsyncDisposableFixture : IAsyncDisposable
+    {
+        public int DisposeCalled = 0;
+        public List<string> Actions = new();
+
+        [OneTimeSetUp]
+        public void OneTimeSetUp()
+        {
+            Actions.Add(nameof(OneTimeSetUp));
+        }
+
+        [OneTimeTearDown]
+        public void OneTimeTearDown()
+        {
+            Actions.Add(nameof(OneTimeTearDown));
+        }
+
+        [Test]
+        public void OneTest()
+        {
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            Actions.Add(nameof(DisposeAsync));
+            DisposeCalled++;
+            return new ValueTask(Task.CompletedTask);
+        }
+    }
+
+    public class InheritedAsyncDisposableFixture : AsyncDisposableFixture
+    {
+    }
+
+    [TestFixture]
+    public class AsyncAndSyncDisposableFixture : IAsyncDisposable, IDisposable
+    {
+        public int DisposeCalled = 0;
+        public List<string> Actions = new();
+
+        [OneTimeSetUp]
+        public void OneTimeSetUp()
+        {
+            Actions.Add(nameof(OneTimeSetUp));
+        }
+
+        [OneTimeTearDown]
+        public void OneTimeTearDown()
+        {
+            Actions.Add(nameof(OneTimeTearDown));
+        }
+
+        [Test]
+        public void OneTest()
+        {
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            Actions.Add(nameof(DisposeAsync));
+            DisposeCalled++;
+            return new ValueTask(Task.CompletedTask);
+        }
+
+        public void Dispose()
+        {
+            Actions.Add(nameof(Dispose));
+            DisposeCalled++;
         }
     }
 
     [TestFixture]
     public class DisposableFixtureWithTestCases : IDisposable
     {
-        public int disposeCalled = 0;
+        public int DisposeCalled = 0;
 
         [TestCase(1)]
         [TestCase(2)]
         [TestCase(3)]
         [TestCase(4)]
-        public void TestCaseTest(int data) { }
-        
+        public void TestCaseTest(int data)
+        {
+        }
+
         public void Dispose()
         {
-            disposeCalled++;
+            DisposeCalled++;
         }
     }
 }

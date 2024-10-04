@@ -1,34 +1,15 @@
-﻿// ***********************************************************************
-// Copyright (c) 2008 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-//
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
-#if !NETSTANDARD1_3 && !NETSTANDARD1_6
-using System;
 using System.Runtime.InteropServices;
 using System.Threading;
 using NUnit.Framework;
 
 namespace NUnit.TestData
 {
+#if !NETFRAMEWORK
+#pragma warning disable CS0618 // Type or member is obsolete
+#endif
+
     [TestFixture]
     public class TimeoutFixture
     {
@@ -47,11 +28,10 @@ namespace NUnit.TestData
         }
 
         [Test, Timeout(50)]
-        public void InfiniteLoopWith50msTimeout()
+        public void VeryLongTestWith50msTimeout()
         {
-            while (true) { }
+            Thread.Sleep(2000);
         }
-
 
         [Test, Timeout(500)]
         public void TimeoutWithMessagePumpShouldAbort()
@@ -70,13 +50,15 @@ namespace NUnit.TestData
     public class TimeoutFixtureWithTimeoutInSetUp : TimeoutFixture
     {
         [SetUp]
-        public bool SetUp2()
+        public void SetUp2()
         {
-            while (true) { }
+            Thread.Sleep(2000);
         }
 
         [Test, Timeout(50)]
-        public void Test1() { }
+        public void Test1()
+        {
+        }
     }
 
     public class TimeoutFixtureWithTimeoutInTearDown : TimeoutFixture
@@ -84,46 +66,38 @@ namespace NUnit.TestData
         [TearDown]
         public void TearDown2()
         {
-            while (true) { }
+            Thread.Sleep(2000);
         }
 
         [Test, Timeout(50)]
-        public void Test1() { }
+        public void Test1()
+        {
+        }
     }
 
     [TestFixture, Timeout(50)]
     public class TimeoutFixtureWithTimeoutOnFixture
     {
         [Test]
-        public void Test1() { }
-        [Test]
-        public void Test2WithInfiniteLoop()
+        public void Test1()
         {
-            while (true) { }
         }
         [Test]
-        public void Test3() { }
+        public void Test2WithLongDuration()
+        {
+            Thread.Sleep(2000);
+        }
+        [Test]
+        public void Test3()
+        {
+        }
     }
 
     public class TimeoutTestCaseFixture
     {
-        const int TIME_OUT_TIME = 100;
-        const int NOT_TIMEOUTED_TIME = 10;
-        const int TIMEOUTED_TIME = 500;
-
-        [Test]
-        [Timeout(TIME_OUT_TIME)]
-        public void TestTimeOutNotElapsed()
-        {
-            TestTimeOutTestCase(NOT_TIMEOUTED_TIME);
-        }
-
-        [Test]
-        [Timeout(TIME_OUT_TIME)]
-        public void TestTimeOutElapsed()
-        {
-            TestTimeOutTestCase(TIMEOUTED_TIME);
-        }
+        private const int TIME_OUT_TIME = 100;
+        private const int NOT_TIMEOUTED_TIME = 10;
+        private const int TIMEOUTED_TIME = 500;
 
         [Test]
         [Timeout(TIME_OUT_TIME)]
@@ -134,5 +108,73 @@ namespace NUnit.TestData
             Thread.Sleep(delay);
         }
     }
+
+    [TestFixture]
+    public class TimeoutWithSetupAndOutputAfterTimeoutFixture
+    {
+        [SetUp]
+        public void Setup()
+        {
+            TestContext.WriteLine("setup");
+        }
+
+        [Test, Timeout(600)]
+        public void Test2()
+        {
+            TestContext.WriteLine("method output before pause");
+            Thread.Sleep(1_000);
+            TestContext.WriteLine("method output after pause");
+            Assert.That(1, Is.EqualTo(0));
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+        }
+    }
+
+    [TestFixture]
+    public class TimeoutWithSetupAndOutputFixture
+    {
+        [SetUp]
+        public void Setup()
+        {
+            TestContext.WriteLine("setup");
+        }
+
+        [Test, Timeout(2_000)]
+        public void Test2()
+        {
+            TestContext.WriteLine("method output");
+            Assert.That(1, Is.EqualTo(0));
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+        }
+    }
+
+    [TestFixture]
+    public class TimeoutWithSetupTestAndTeardownOutputFixture
+    {
+        [SetUp]
+        public void Setup()
+        {
+            TestContext.WriteLine("setup");
+        }
+
+        [Test, Timeout(2_000)]
+        public void Test2()
+        {
+            TestContext.WriteLine("method output");
+            Assert.That(1, Is.EqualTo(0));
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            TestContext.WriteLine("teardown");
+        }
+    }
 }
-#endif

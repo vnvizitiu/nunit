@@ -1,41 +1,16 @@
-﻿// ***********************************************************************
-// Copyright (c) 2015 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
-using System.Reflection;
 using System.Text;
 
-namespace NUnit.Framework.Internal.Tests
+namespace NUnit.Framework.Tests.Internal
 {
     public abstract class TestNamingTests
     {
-        protected const string OUTER_CLASS = "NUnit.Framework.Internal.Tests.TestNamingTests";
+        protected const string OUTER_CLASS = "NUnit.Framework.Tests.Internal.TestNamingTests";
 
         protected abstract string FixtureName { get; }
 
-        protected TestContext.TestAdapter CurrentTest
-        {
-            get { return TestContext.CurrentContext.Test; }
-        }
+        protected TestContext.TestAdapter CurrentTest => TestContext.CurrentContext.Test;
 
         [Test]
         public void SimpleTest()
@@ -52,8 +27,8 @@ namespace NUnit.Framework.Internal.Tests
         public void ParameterizedTest(int x, int y, string s)
         {
             CheckNames(
-                string.Format("ParameterizedTest({0},{1},\"{2}\")", x, y, s.Replace("\"", "\\\"")),
-                "ParameterizedTest", 
+                $"ParameterizedTest({x},{y},\"{s.Replace("\"", "\\\"")}\")",
+                "ParameterizedTest",
                 OUTER_CLASS);
         }
 
@@ -79,7 +54,8 @@ namespace NUnit.Framework.Internal.Tests
 
             foreach (int n in array)
             {
-                if (n > 1) sb.Append(",");
+                if (n > 1)
+                    sb.Append(",");
                 sb.Append(n.ToString());
             }
 
@@ -106,10 +82,7 @@ namespace NUnit.Framework.Internal.Tests
                 CheckNames("SimpleTestInDerivedClass", "SimpleTestInDerivedClass", OUTER_CLASS + "+" + CURRENT_CLASS);
             }
 
-            protected override string FixtureName
-            {
-                get { return "SimpleFixture"; }
-            }
+            protected override string FixtureName => "SimpleFixture";
         }
 
         [TestFixture(typeof(int))]
@@ -123,10 +96,7 @@ namespace NUnit.Framework.Internal.Tests
                 CheckNames("SimpleTestInDerivedClass", "SimpleTestInDerivedClass", OUTER_CLASS + "+" + CURRENT_CLASS);
             }
 
-            protected override string FixtureName
-            {
-                get { return "GenericFixture<Int32>"; }
-            }
+            protected override string FixtureName => "GenericFixture<Int32>";
         }
 
         [TestFixture(42, "Forty-two")]
@@ -140,12 +110,11 @@ namespace NUnit.Framework.Internal.Tests
                 CheckNames("SimpleTestInDerivedClass", "SimpleTestInDerivedClass", OUTER_CLASS + "+" + CURRENT_CLASS);
             }
 
-            public ParameterizedFixture(int x, string s) { }
-
-            protected override string FixtureName
+            public ParameterizedFixture(int x, string s)
             {
-                get { return "ParameterizedFixture(42,\"Forty-two\")"; }
             }
+
+            protected override string FixtureName => "ParameterizedFixture(42,\"Forty-two\")";
         }
 
         [TestFixture("This is really much too long to be used in the test name!")]
@@ -159,16 +128,15 @@ namespace NUnit.Framework.Internal.Tests
                 CheckNames("SimpleTestInDerivedClass", "SimpleTestInDerivedClass", OUTER_CLASS + "+" + CURRENT_CLASS);
             }
 
-            public ParameterizedFixtureWithLongStringArgument(string s) { }
-
-            protected override string FixtureName
+            public ParameterizedFixtureWithLongStringArgument(string s)
             {
-                get { return "ParameterizedFixtureWithLongStringArgument(\"This is really much too long to be us...\")"; }
             }
+
+            protected override string FixtureName => "ParameterizedFixtureWithLongStringArgument(\"This is really much too long to be us...\")";
         }
 
         [TestFixture(typeof(int), typeof(string), 42, "Forty-two")]
-        public class GenericParameterizedFixture<T1,T2> : TestNamingTests
+        public class GenericParameterizedFixture<T1, T2> : TestNamingTests
         {
             protected const string CURRENT_CLASS = "GenericParameterizedFixture`2";
 
@@ -178,12 +146,11 @@ namespace NUnit.Framework.Internal.Tests
                 CheckNames("SimpleTestInDerivedClass", "SimpleTestInDerivedClass", OUTER_CLASS + "+" + CURRENT_CLASS);
             }
 
-            public GenericParameterizedFixture(T1 x, T2 y) { }
-
-            protected override string FixtureName
+            public GenericParameterizedFixture(T1 x, T2 y)
             {
-                get { return "GenericParameterizedFixture<Int32,String>(42,\"Forty-two\")"; }
             }
+
+            protected override string FixtureName => "GenericParameterizedFixture<Int32,String>(42,\"Forty-two\")";
         }
     }
 }

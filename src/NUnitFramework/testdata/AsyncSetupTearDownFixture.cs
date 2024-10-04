@@ -1,10 +1,7 @@
-#if ASYNC
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
+
 using System;
 using System.Threading.Tasks;
-
-#if NET_4_0
-using Task = System.Threading.Tasks.TaskEx;
-#endif
 
 namespace NUnit.TestData
 {
@@ -37,4 +34,3 @@ namespace NUnit.TestData
         }
     }
 }
-#endif

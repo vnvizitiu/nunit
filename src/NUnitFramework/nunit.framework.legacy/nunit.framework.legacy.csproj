@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>$(NUnitLibraryFrameworks)</TargetFrameworks>
+    <RootNamespace>NUnit.Framework.Legacy</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\framework\nunit.framework.csproj" />
+  </ItemGroup>
+  <PropertyGroup>
+    <Title>NUnit Framework Classic $(AssemblyConfiguration)</Title>
+  </PropertyGroup>
+
+ 
+</Project>
+

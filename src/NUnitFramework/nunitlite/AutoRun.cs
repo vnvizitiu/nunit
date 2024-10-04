@@ -1,32 +1,8 @@
-﻿// ***********************************************************************
-// Copyright (c) 2015 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-//
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
-using System;
-using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using NUnit.Common;
-using NUnit.Framework.Internal;
 
 namespace NUnitLite
 {
@@ -53,7 +29,7 @@ namespace NUnitLite
     /// </summary>
     public class AutoRun
     {
-        private Assembly _testAssembly;
+        private readonly Assembly _testAssembly;
 
         /// <summary>
         /// Constructor for use where GetCallingAssembly is not
@@ -65,12 +41,12 @@ namespace NUnitLite
             _testAssembly = testAssembly;
         }
 
-#if !NETSTANDARD1_3 && !NETSTANDARD1_6
         /// <summary>
         /// Default Constructor, only used where GetCallingAssembly is available
         /// </summary>
-        public AutoRun() : this(Assembly.GetCallingAssembly()) { }
-#endif
+        public AutoRun() : this(Assembly.GetCallingAssembly())
+        {
+        }
 
         /// <summary>
         /// Execute the tests in the assembly, passing in

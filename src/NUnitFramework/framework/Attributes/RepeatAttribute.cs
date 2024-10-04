@@ -1,25 +1,4 @@
-// ***********************************************************************
-// Copyright (c) 2007-2015 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 // TODO: Rework this
 // RepeatAttribute should either
@@ -36,13 +15,12 @@ using NUnit.Framework.Internal.Commands;
 namespace NUnit.Framework
 {
     /// <summary>
-    /// RepeatAttribute may be applied to test case in order
-    /// to run it multiple times.
+    /// Specifies that a test should be run multiple times.
     /// </summary>
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
-    public class RepeatAttribute : PropertyAttribute, IWrapSetUpTearDown
+    public class RepeatAttribute : PropertyAttribute, IRepeatTest
     {
-        private int _count;
+        private readonly int _count;
 
         /// <summary>
         /// Construct a RepeatAttribute
@@ -53,7 +31,7 @@ namespace NUnit.Framework
             _count = count;
         }
 
-        #region IWrapSetUpTearDown Members
+        #region IRepeatTest Members
 
         /// <summary>
         /// Wrap a command and return the result.
@@ -74,7 +52,7 @@ namespace NUnit.Framework
         /// </summary>
         public class RepeatedTestCommand : DelegatingTestCommand
         {
-            private int repeatCount;
+            private readonly int _repeatCount;
 
             /// <summary>
             /// Initializes a new instance of the <see cref="RepeatedTestCommand"/> class.
@@ -84,7 +62,7 @@ namespace NUnit.Framework
             public RepeatedTestCommand(TestCommand innerCommand, int repeatCount)
                 : base(innerCommand)
             {
-                this.repeatCount = repeatCount;
+                _repeatCount = repeatCount;
             }
 
             /// <summary>
@@ -94,7 +72,7 @@ namespace NUnit.Framework
             /// <returns>A TestResult</returns>
             public override TestResult Execute(TestExecutionContext context)
             {
-                int count = repeatCount;
+                int count = _repeatCount;
 
                 while (count-- > 0)
                 {
@@ -103,6 +81,8 @@ namespace NUnit.Framework
                     // TODO: We may want to change this so that all iterations are run
                     if (context.CurrentResult.ResultState != ResultState.Success)
                         break;
+
+                    context.CurrentRepeatCount++;
                 }
 
                 return context.CurrentResult;

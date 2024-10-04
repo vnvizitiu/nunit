@@ -1,38 +1,18 @@
-// ***********************************************************************
-// Copyright (c) 2008 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
+using System.Threading.Tasks;
 using NUnit.Framework.Internal;
 
 namespace NUnit.Framework.Constraints
 {
     /// <summary>
-    /// ThrowsConstraint is used to test the exception thrown by 
+    /// ThrowsConstraint is used to test the exception thrown by
     /// a delegate by applying a constraint to it.
     /// </summary>
     public class ThrowsConstraint : PrefixConstraint
     {
-        private Exception caughtException;
+        private Exception? _caughtException;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ThrowsConstraint"/> class,
@@ -40,25 +20,21 @@ namespace NUnit.Framework.Constraints
         /// </summary>
         /// <param name="baseConstraint">A constraint to apply to the caught exception.</param>
         public ThrowsConstraint(IConstraint baseConstraint)
-            : base(baseConstraint) { }
+            : base(baseConstraint, string.Empty)
+        {
+        }
 
         /// <summary>
         /// Get the actual exception thrown - used by Assert.Throws.
         /// </summary>
-        public Exception ActualException
-        {
-            get { return caughtException; }
-        }
+        public Exception? ActualException => _caughtException;
 
         #region Constraint Overrides
 
         /// <summary>
         /// Gets text describing a constraint
         /// </summary>
-        public override string Description
-        {
-            get { return BaseConstraint.Description; }
-        }
+        public override string Description => BaseConstraint.Description;
 
         /// <summary>
         /// Executes the code of the delegate and captures any exception.
@@ -69,30 +45,18 @@ namespace NUnit.Framework.Constraints
         /// <returns>True if an exception is thrown and the constraint succeeds, otherwise false</returns>
         public override ConstraintResult ApplyTo<TActual>(TActual actual)
         {
-            //TestDelegate code = actual as TestDelegate;
-            //if (code == null)
-            //    throw new ArgumentException(
-            //        string.Format("The actual value must be a TestDelegate but was {0}", actual.GetType().Name), "actual");
+            var @delegate = ConstraintUtils.RequireActual<Delegate>(actual, nameof(actual));
 
-            //caughtException = null;
+            _caughtException = ExceptionHelper.RecordException(@delegate, nameof(actual));
 
-            //try
-            //{
-            //    code();
-            //}
-            //catch (Exception ex)
-            //{
-            //    caughtException = ex;
-            //}
-
-            caughtException = ExceptionInterceptor.Intercept(actual);
-
-            return new ThrowsConstraintResult(
-                this,
-                caughtException,
-                caughtException != null
-                    ? BaseConstraint.ApplyTo(caughtException)
-                    : null);
+            if (_caughtException is not null)
+            {
+                return new ThrowsConstraintResult(
+                    this,
+                    _caughtException,
+                    BaseConstraint.ApplyTo(_caughtException));
+            }
+            return new ThrowsConstraintResult(this);
         }
 
         /// <summary>
@@ -103,30 +67,49 @@ namespace NUnit.Framework.Constraints
         /// <returns></returns>
         public override ConstraintResult ApplyTo<TActual>(ActualValueDelegate<TActual> del)
         {
-            //TestDelegate testDelegate = new TestDelegate(delegate { del(); });
-            //return ApplyTo((object)testDelegate);
-            return ApplyTo(new GenericInvocationDescriptor<TActual>(del));
+            return ApplyTo((Delegate)del);
+        }
+
+        /// <inheritdoc/>
+        public override async Task<ConstraintResult> ApplyToAsync<TActual>(Func<Task<TActual>> actual)
+        {
+            _caughtException = await ExceptionHelper.RecordExceptionAsync(actual, nameof(actual));
+
+            if (_caughtException is not null)
+            {
+                return new ThrowsConstraintResult(
+                    this,
+                    _caughtException,
+                    BaseConstraint.ApplyTo(_caughtException));
+            }
+            return new ThrowsConstraintResult(this);
         }
 
         #endregion
 
         #region Nested Result Class
 
-        private class ThrowsConstraintResult : ConstraintResult
+        private sealed class ThrowsConstraintResult : ConstraintResult
         {
-            private readonly ConstraintResult baseResult;
+            private readonly ConstraintResult? _baseResult;
+
+            public ThrowsConstraintResult(ThrowsConstraint constraint)
+                : base(constraint, null)
+            {
+                Status = ConstraintStatus.Failure;
+            }
 
             public ThrowsConstraintResult(ThrowsConstraint constraint,
                 Exception caughtException,
                 ConstraintResult baseResult)
                 : base(constraint, caughtException)
             {
-                if (caughtException != null && baseResult.IsSuccess)
+                if (baseResult.IsSuccess)
                     Status = ConstraintStatus.Success;
                 else
                     Status = ConstraintStatus.Failure;
 
-                this.baseResult = baseResult;
+                _baseResult = baseResult;
             }
 
             /// <summary>
@@ -137,146 +120,13 @@ namespace NUnit.Framework.Constraints
             /// <param name="writer">The writer on which the actual value is displayed</param>
             public override void WriteActualValueTo(MessageWriter writer)
             {
-                if (ActualValue == null)
+                if (_baseResult is null)
                     writer.Write("no exception thrown");
                 else
-                    baseResult.WriteActualValueTo(writer);
+                    _baseResult.WriteActualValueTo(writer);
             }
         }
 
         #endregion
-
-        #region ExceptionInterceptor
-
-        internal class ExceptionInterceptor
-        {
-            private ExceptionInterceptor() { }
-
-            internal static Exception Intercept(object invocation)
-            {
-                var invocationDescriptor = GetInvocationDescriptor(invocation);
-
-#if ASYNC
-                if (AsyncInvocationRegion.IsAsyncOperation(invocationDescriptor.Delegate))
-                {
-                    using (var region = AsyncInvocationRegion.Create(invocationDescriptor.Delegate))
-                    {
-                        try
-                        {
-                            object result = invocationDescriptor.Invoke();
-                            region.WaitForPendingOperationsToComplete(result);
-                            return null;
-                        }
-                        catch (Exception ex)
-                        {
-                            return ex;
-                        }
-                    }
-                }
-                else
-#endif
-                {
-                    using (new TestExecutionContext.IsolatedContext())
-                    {
-                        try
-                        {
-                            invocationDescriptor.Invoke();
-                            return null;
-                        }
-                        catch (Exception ex)
-                        {
-                            return ex;
-                        }
-                    }
-                }
-            }
-
-            private static IInvocationDescriptor GetInvocationDescriptor(object actual)
-            {
-                var invocationDescriptor = actual as IInvocationDescriptor;
-
-                if (invocationDescriptor == null)
-                {
-                    var testDelegate = actual as TestDelegate;
-
-                    if (testDelegate != null)
-                    {
-                        invocationDescriptor = new VoidInvocationDescriptor(testDelegate);
-                    }
-
-#if ASYNC
-                    else
-                    {
-                        var asyncTestDelegate = actual as AsyncTestDelegate;
-                        if (asyncTestDelegate != null)
-                        {
-                            invocationDescriptor = new GenericInvocationDescriptor<System.Threading.Tasks.Task>(() => asyncTestDelegate());
-                        }
-                    }
-#endif
-                }
-                if (invocationDescriptor == null)
-                    throw new ArgumentException(
-                        String.Format(
-                            "The actual value must be a TestDelegate or AsyncTestDelegate but was {0}",
-                            actual.GetType().Name),
-                        "actual");
-
-                return invocationDescriptor;
-            }
-        }
-
-#endregion
-
-#region InvocationDescriptor
-
-        internal class GenericInvocationDescriptor<T> : IInvocationDescriptor
-        {
-            private readonly ActualValueDelegate<T> _del;
-
-            public GenericInvocationDescriptor(ActualValueDelegate<T> del)
-            {
-                _del = del;
-            }
-
-            public object Invoke()
-            {
-                return _del();
-            }
-
-            public Delegate Delegate
-            {
-                get { return _del; }
-            }
-        }
-
-        private interface IInvocationDescriptor
-        {
-            Delegate Delegate { get; }
-            object Invoke();
-        }
-
-        private class VoidInvocationDescriptor : IInvocationDescriptor
-        {
-            private readonly TestDelegate _del;
-
-            public VoidInvocationDescriptor(TestDelegate del)
-            {
-                _del = del;
-            }
-
-            public object Invoke()
-            {
-                _del();
-                return null;
-            }
-
-            public Delegate Delegate
-            {
-                get { return _del; }
-            }
-        }
-
-#endregion
     }
 }

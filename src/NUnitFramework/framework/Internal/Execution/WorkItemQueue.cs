@@ -1,34 +1,9 @@
-// ***********************************************************************
-// Copyright (c) 2012 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-//
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
-#if PARALLEL
-using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
-#if NET_2_0 || NET_3_5
-using ManualResetEventSlim = System.Threading.ManualResetEvent;
-#endif
 
 namespace NUnit.Framework.Internal.Execution
 {
@@ -60,18 +35,40 @@ namespace NUnit.Framework.Internal.Execution
     /// </summary>
     public class WorkItemQueue
     {
-        private const int spinCount = 5;
+        private const int SPIN_COUNT = 5;
 
-        private Logger log = InternalTrace.GetLogger("WorkItemQueue");
+        // Although the code makes the number of levels relatively
+        // easy to change, it is still baked in as a constant at
+        // this time. If we wanted to make it variable, that would
+        // be a bit more work, which does not now seem necessary.
+        private const int HIGH_PRIORITY = 0;
+        private const int NORMAL_PRIORITY = 1;
+        private const int PRIORITY_LEVELS = 2;
 
-        private ConcurrentQueue<WorkItem> _innerQueue = new ConcurrentQueue<WorkItem>();
+        private readonly Logger _log = InternalTrace.GetLogger("WorkItemQueue");
 
-        private Stack<ConcurrentQueue<WorkItem>> _savedQueues = new Stack<ConcurrentQueue<WorkItem>>();
+        private ConcurrentQueue<WorkItem>[] _innerQueues;
+
+        private class SavedState
+        {
+            public readonly ConcurrentQueue<WorkItem>[] InnerQueues;
+            public readonly int AddId;
+            public readonly int RemoveId;
+
+            public SavedState(WorkItemQueue queue)
+            {
+                InnerQueues = queue._innerQueues;
+                AddId = queue._addId;
+                RemoveId = queue._removeId;
+            }
+        }
+
+        private readonly Stack<SavedState> _savedState = new();
 
         /* This event is used solely for the purpose of having an optimized sleep cycle when
          * we have to wait on an external event (Add or Remove for instance)
          */
-        private readonly ManualResetEventSlim _mreAdd = new ManualResetEventSlim(false);
+        private readonly ManualResetEventSlim _mreAdd = new();
 
         /* The whole idea is to use these two values in a transactional
          * way to track and manage the actual data inside the underlying lock-free collection
@@ -88,15 +85,28 @@ namespace NUnit.Framework.Internal.Execution
         /// </summary>
         /// <param name="name">The name of the queue.</param>
         /// <param name="isParallel">Flag indicating whether this is a parallel queue</param>
-        /// "<param name="apartment">ApartmentState to use for items on this queue</param>
+        /// <param name="apartment">ApartmentState to use for items on this queue</param>
         public WorkItemQueue(string name, bool isParallel, ApartmentState apartment)
         {
             Name = name;
             IsParallelQueue = isParallel;
             TargetApartment = apartment;
             State = WorkItemQueueState.Paused;
-            MaxCount = 0;
             ItemsProcessed = 0;
+
+            InitializeQueues();
+        }
+
+        [MemberNotNull(nameof(_innerQueues))]
+        private void InitializeQueues()
+        {
+            ConcurrentQueue<WorkItem>[] newQueues = new ConcurrentQueue<WorkItem>[PRIORITY_LEVELS];
+
+            for (int i = 0; i < PRIORITY_LEVELS; i++)
+                newQueues[i] = new ConcurrentQueue<WorkItem>();
+
+            _innerQueues = newQueues;
+            _addId = _removeId = 0;
         }
 
         #region Properties
@@ -104,17 +114,17 @@ namespace NUnit.Framework.Internal.Execution
         /// <summary>
         /// Gets the name of the work item queue.
         /// </summary>
-        public string Name { get; private set; }
+        public string Name { get; }
 
         /// <summary>
         /// Gets a flag indicating whether this queue is used for parallel execution
         /// </summary>
-        public bool IsParallelQueue { get; private set; }
+        public bool IsParallelQueue { get; }
 
         /// <summary>
         /// Gets the target ApartmentState for work items on this queue
         /// </summary>
-        public ApartmentState TargetApartment { get; private set; }
+        public ApartmentState TargetApartment { get; }
 
         private int _itemsProcessed;
         /// <summary>
@@ -122,19 +132,8 @@ namespace NUnit.Framework.Internal.Execution
         /// </summary>
         public int ItemsProcessed
         {
-            get { return _itemsProcessed; }
-            private set { _itemsProcessed = value; }
-        }
-
-        private int _maxCount;
-
-        /// <summary>
-        /// Gets the maximum number of work items.
-        /// </summary>
-        public int MaxCount
-        {
-            get { return _maxCount; }
-            private set { _maxCount = value; }
+            get => _itemsProcessed;
+            private set => _itemsProcessed = value;
         }
 
         private int _state;
@@ -143,8 +142,8 @@ namespace NUnit.Framework.Internal.Execution
         /// </summary>
         public WorkItemQueueState State
         {
-            get { return (WorkItemQueueState)_state; }
-            private set { _state = (int)value; }
+            get => (WorkItemQueueState)_state;
+            private set => _state = (int)value;
         }
 
         /// <summary>
@@ -152,7 +151,16 @@ namespace NUnit.Framework.Internal.Execution
         /// </summary>
         public bool IsEmpty
         {
-            get { return _innerQueue.IsEmpty; }
+            get
+            {
+                foreach (var q in _innerQueues)
+                {
+                    if (!q.IsEmpty)
+                        return false;
+                }
+
+                return true;
+            }
         }
 
         #endregion
@@ -165,6 +173,19 @@ namespace NUnit.Framework.Internal.Execution
         /// <param name="work">The WorkItem to process</param>
         public void Enqueue(WorkItem work)
         {
+            Enqueue(work, work is CompositeWorkItem.OneTimeTearDownWorkItem ? HIGH_PRIORITY : NORMAL_PRIORITY);
+        }
+
+        /// <summary>
+        /// Enqueue a WorkItem to be processed - internal for testing
+        /// </summary>
+        /// <param name="work">The WorkItem to process</param>
+        /// <param name="priority">The priority at which to process the item</param>
+        internal void Enqueue(WorkItem work, int priority)
+        {
+            Guard.ArgumentInRange(priority >= 0 && priority < PRIORITY_LEVELS,
+                "Invalid priority specified", nameof(priority));
+
             do
             {
                 int cachedAddId = _addId;
@@ -174,29 +195,21 @@ namespace NUnit.Framework.Internal.Execution
                     continue;
 
                 // Add to the collection
-                _innerQueue.Enqueue(work);
-
-                // Set MaxCount using CAS
-                int i, j = _maxCount;
-                do
-                {
-                    i = j;
-                    j = Interlocked.CompareExchange(ref _maxCount, Math.Max(i, _innerQueue.Count), i);
-                }
-                while (i != j);
+                _innerQueues[priority].Enqueue(work);
 
                 // Wake up threads that may have been sleeping
                 _mreAdd.Set();
 
                 return;
-            } while (true);
+            }
+            while (true);
         }
 
         /// <summary>
         /// Dequeue a WorkItem for processing
         /// </summary>
         /// <returns>A WorkItem or null if the queue has stopped</returns>
-        public WorkItem Dequeue()
+        public WorkItem? Dequeue()
         {
             SpinWait sw = new SpinWait();
 
@@ -214,7 +227,7 @@ namespace NUnit.Framework.Internal.Execution
                 if (cachedRemoveId == cachedAddId || cachedState == WorkItemQueueState.Paused)
                 {
                     // Spin a few times to see if something changes
-                    if (sw.Count <= spinCount)
+                    if (sw.Count <= SPIN_COUNT)
                     {
                         sw.SpinOnce();
                     }
@@ -242,16 +255,23 @@ namespace NUnit.Framework.Internal.Execution
                 if (Interlocked.CompareExchange(ref _removeId, cachedRemoveId + 1, cachedRemoveId) != cachedRemoveId)
                     continue;
 
-
                 // Dequeue our work item
-                WorkItem work;
-                while (!_innerQueue.TryDequeue(out work)) { };
+                WorkItem? work = null;
+                while (work is null)
+                {
+                    foreach (var q in _innerQueues)
+                    {
+                        if (q.TryDequeue(out work))
+                            break;
+                    }
+                }
 
                 // Add to items processed using CAS
                 Interlocked.Increment(ref _itemsProcessed);
 
                 return work;
-            } while (true);
+            }
+            while (true);
         }
 
         /// <summary>
@@ -259,7 +279,7 @@ namespace NUnit.Framework.Internal.Execution
         /// </summary>
         public void Start()
         {
-            log.Info("{0}.{1} starting", Name, _savedQueues.Count);
+            _log.Info("{0}.{1} starting", Name, _savedState.Count);
 
             if (Interlocked.CompareExchange(ref _state, (int)WorkItemQueueState.Running, (int)WorkItemQueueState.Paused) == (int)WorkItemQueueState.Paused)
                 _mreAdd.Set();
@@ -270,7 +290,7 @@ namespace NUnit.Framework.Internal.Execution
         /// </summary>
         public void Stop()
         {
-            log.Info("{0}.{1} stopping - {2} WorkItems processed, max size {3}", Name, _savedQueues.Count, ItemsProcessed, MaxCount);
+            _log.Info("{0}.{1} stopping - {2} WorkItems processed", Name, _savedState.Count, ItemsProcessed);
 
             if (Interlocked.Exchange(ref _state, (int)WorkItemQueueState.Stopped) != (int)WorkItemQueueState.Stopped)
                 _mreAdd.Set();
@@ -281,7 +301,7 @@ namespace NUnit.Framework.Internal.Execution
         /// </summary>
         public void Pause()
         {
-            log.Debug("{0}.{1} pausing", Name, _savedQueues.Count);
+            _log.Debug("{0}.{1} pausing", Name, _savedState.Count);
 
             Interlocked.CompareExchange(ref _state, (int)WorkItemQueueState.Paused, (int)WorkItemQueueState.Running);
         }
@@ -292,12 +312,16 @@ namespace NUnit.Framework.Internal.Execution
         /// </summary>
         internal void Save()
         {
-            Pause();
+            bool isRunning = State == WorkItemQueueState.Running;
+            if (isRunning)
+                Pause();
 
-            _savedQueues.Push(_innerQueue);
-            _innerQueue = new ConcurrentQueue<WorkItem>();
+            _savedState.Push(new SavedState(this));
 
-            Start();
+            InitializeQueues();
+
+            if (isRunning)
+                Start();
         }
 
         /// <summary>
@@ -305,25 +329,69 @@ namespace NUnit.Framework.Internal.Execution
         /// </summary>
         internal void Restore()
         {
-            Pause();
+            // TODO: Originally, the following Guard statement was used. In theory, no queues should be running
+            // when we are doing a restore. It appears, however, that we end the shift, pausing queues, buy that
+            // a thread may then sneak in and restart some of them. My tests pass without the guard but I'm still
+            // concerned to understand what is happening and why. I'm leaving this commented out so that somebody
+            // else can take a look at it later on.
+            //Guard.OperationValid(State != WorkItemQueueState.Running, $"Attempted to restore state of {Name} while queue was running.");
 
-            _innerQueue = _savedQueues.Pop();
+            var state = _savedState.Pop();
 
-            Start();
+            // If there are any queued items, copy to the next lower level
+            for (int i = 0; i < PRIORITY_LEVELS; i++)
+            {
+                while (_innerQueues[i].TryDequeue(out var work))
+                    state.InnerQueues[i].Enqueue(work);
+            }
+
+            _innerQueues = state.InnerQueues;
+            _addId += state.AddId;
+            _removeId += state.RemoveId;
+        }
+
+        #endregion
+
+        #region Internal Methods for Testing
+
+        internal string DumpContents()
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"Contents of {Name} at isolation level {_savedState.Count}");
+
+            if (IsEmpty)
+            {
+                sb.AppendLine("  <empty>");
+            }
+            else
+            {
+                for (int priority = 0; priority < PRIORITY_LEVELS; priority++)
+                {
+                    foreach (WorkItem work in _innerQueues[priority])
+                        sb.AppendLine($"pri-{priority}: {work.Name}");
+                }
+            }
+
+            int level = 0;
+            foreach (var state in _savedState)
+            {
+                sb.AppendLine($"Saved State {level++}");
+                bool isEmpty = true;
+                for (int priority = 0; priority < PRIORITY_LEVELS; priority++)
+                {
+                    foreach (WorkItem work in state.InnerQueues[priority])
+                    {
+                        sb.AppendLine($"pri-{priority}: {work.Name}");
+                        isEmpty = false;
+                    }
+                }
+                if (isEmpty)
+                    sb.AppendLine("  <empty>");
+            }
+
+            return sb.ToString();
         }
 
         #endregion
     }
-
-#if NET_2_0 || NET_3_5
-    internal static class ManualResetEventExtensions
-    {
-        public static bool Wait (this ManualResetEvent mre, int millisecondsTimeout)
-        {
-            return mre.WaitOne(millisecondsTimeout, false);
-        }
-    }
-#endif
-
 }
-#endif

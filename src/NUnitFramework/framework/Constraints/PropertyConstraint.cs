@@ -1,29 +1,8 @@
-// ***********************************************************************
-// Copyright (c) 2007 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
 using System.Reflection;
-using NUnit.Compatibility;
+using NUnit.Framework.Internal;
 
 namespace NUnit.Framework.Constraints
 {
@@ -33,8 +12,8 @@ namespace NUnit.Framework.Constraints
     /// </summary>
     public class PropertyConstraint : PrefixConstraint
     {
-        private readonly string name;
-        private object propValue;
+        private readonly string _name;
+        private object? _propValue;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="PropertyConstraint"/> class.
@@ -42,45 +21,63 @@ namespace NUnit.Framework.Constraints
         /// <param name="name">The name.</param>
         /// <param name="baseConstraint">The constraint to apply to the property.</param>
         public PropertyConstraint(string name, IConstraint baseConstraint)
-            : base(baseConstraint)
+            : base(baseConstraint, "property " + name)
         {
-            this.name = name;
-            this.DescriptionPrefix = "property " + name;
+            _name = name;
         }
 
         /// <summary>
         /// Test whether the constraint is satisfied by a given value
         /// </summary>
         /// <param name="actual">The value to be tested</param>
-        /// <returns>True for success, false for failure</returns>
         public override ConstraintResult ApplyTo<TActual>(TActual actual)
         {
             // TODO: Use an error result for null
-            Guard.ArgumentNotNull(actual, "actual");
+            Guard.ArgumentNotNull(actual, nameof(actual));
+            const BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
 
-            Type actualType = actual as Type;
-            if (actualType == null)
-                actualType = actual.GetType();
+            PropertyInfo? property = Reflect.GetUltimateShadowingProperty(typeof(TActual), _name, bindingFlags);
 
-            PropertyInfo property = actualType.GetProperty(name,
-                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            if (property is null && typeof(TActual).IsInterface)
+            {
+                foreach (var @interface in typeof(TActual).GetInterfaces())
+                {
+                    property = Reflect.GetUltimateShadowingProperty(@interface, _name, bindingFlags);
+                    if (property is not null)
+                        break;
+                }
+            }
 
-            // TODO: Use an error result here
-            if (property == null)
-                throw new ArgumentException(string.Format("Property {0} was not found", name), "name");
+            if (property is null)
+            {
+                if (actual is Type actualType)
+                {
+                    property = Reflect.GetUltimateShadowingProperty(actualType, _name, bindingFlags);
+                }
 
-            propValue = property.GetValue(actual, null);
-            var baseResult = BaseConstraint.ApplyTo(propValue);
-            return new ConstraintResult(this, baseResult.ActualValue, baseResult.IsSuccess);
+                if (property is null)
+                {
+                    actualType = actual.GetType();
+
+                    property = Reflect.GetUltimateShadowingProperty(actualType, _name, bindingFlags);
+
+                    // TODO: Use an error result here
+                    if (property is null)
+                        throw new ArgumentException($"Property {_name} was not found on {actualType}.", nameof(_name));
+                }
+            }
+
+            _propValue = property.GetValue(actual, null);
+            var baseResult = BaseConstraint.ApplyTo(_propValue);
+            return new PropertyConstraintResult(this, baseResult);
         }
 
         /// <summary>
         /// Returns the string representation of the constraint.
         /// </summary>
-        /// <returns></returns>
         protected override string GetStringRepresentation()
         {
-            return string.Format("<property {0} {1}>", name, BaseConstraint);
+            return $"<property {_name} {BaseConstraint}>";
         }
     }
 }

@@ -1,51 +1,34 @@
-// ***********************************************************************
-// Copyright (c) 2007-2016 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-//
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
-#if PARALLEL
-using System;
-using System.Collections;
 using System.Collections.Concurrent;
-using System.Globalization;
-using System.Runtime.Serialization;
 using System.Threading;
-#if NET_2_0 || NET_3_5
-using ManualResetEventSlim = System.Threading.ManualResetEvent;
-#endif
 using NUnit.Framework.Interfaces;
 
 namespace NUnit.Framework.Internal.Execution
 {
+    /// <summary>
+    /// Interface for ALL event types that can be queued for processing.
+    /// </summary>
+    /// <typeparam name="TListener"></typeparam>
+    public interface IEvent<in TListener>
+    {
+        /// <summary>
+        /// The Send method is implemented by derived classes to send the event to the specified listener.
+        /// </summary>
+        /// <param name="listener">The listener.</param>
+        void Send(TListener listener);
+    }
 
-#region Individual Event Classes
+    #region Individual Event Classes
 
     /// <summary>
-    /// NUnit.Core.Event is the abstract base for all stored events.
+    /// NUnit.Core.Event is the abstract base for all stored standard events.
     /// An Event is the stored representation of a call to the
     /// ITestListener interface and is used to record such calls
     /// or to queue them for forwarding on another thread or at
     /// a later time.
     /// </summary>
-    public abstract class Event
+    public abstract class Event : IEvent<ITestListener>
     {
         /// <summary>
         /// The Send method is implemented by derived classes to send the event to the specified listener.
@@ -132,24 +115,62 @@ namespace NUnit.Framework.Internal.Execution
         }
     }
 
+    /// <summary>
+    /// TestMessageEvent holds information needed to call the SendMessage method.
+    /// </summary>
+    public class TestMessageEvent : Event
+    {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="TestMessageEvent"/> class.
+        /// </summary>
+        /// <param name="testMessage">The test message object.</param>
+        public TestMessageEvent(TestMessage testMessage)
+        {
+            TestMessage = testMessage;
+        }
+
+        /// <summary>
+        /// Calls <see cref="Send(ITestListener)"/> on the specified listener.
+        /// </summary>
+        /// <param name="listener">The listener.</param>
+        public override void Send(ITestListener listener)
+        {
+            listener.SendMessage(TestMessage);
+        }
+
+        /// <summary>
+        /// Holds <see cref="TestMessage"/> object for sending to all listeners
+        /// </summary>
+        public TestMessage TestMessage { get; }
+    }
+
     #endregion
 
     /// <summary>
-    /// Implements a queue of work items each of which
+    /// Implements a queue of work items for the Event type each of which
     /// is queued as a WaitCallback.
     /// </summary>
-    public class EventQueue
+    public sealed class EventQueue : EventQueue<Event>
     {
-        private const int spinCount = 5;
+    }
 
-//        static readonly Logger log = InternalTrace.GetLogger("EventQueue");
+    /// <summary>
+    /// Implements a template for a queue of work items each of which
+    /// is queued as a WaitCallback.
+    /// It can handle any event types.
+    /// </summary>
+    public abstract class EventQueue<T>
+    {
+        private const int SpinCount = 5;
 
-        private readonly ConcurrentQueue<Event> _queue = new ConcurrentQueue<Event>();
+        //        static readonly Logger log = InternalTrace.GetLogger("EventQueue");
+
+        private readonly ConcurrentQueue<T> _queue = new();
 
         /* This event is used solely for the purpose of having an optimized sleep cycle when
          * we have to wait on an external event (Add or Remove for instance)
          */
-        private readonly ManualResetEventSlim _mreAdd = new ManualResetEventSlim(false);
+        private readonly ManualResetEventSlim _mreAdd = new();
 
         /* The whole idea is to use these two values in a transactional
          * way to track and manage the actual data inside the underlying lock-free collection
@@ -166,19 +187,13 @@ namespace NUnit.Framework.Internal.Execution
         /// <summary>
         /// Gets the count of items in the queue.
         /// </summary>
-        public int Count
-        {
-            get
-            {
-                return _queue.Count;
-            }
-        }
+        public int Count => _queue.Count;
 
         /// <summary>
         /// Enqueues the specified event
         /// </summary>
         /// <param name="e">The event to enqueue.</param>
-        public void Enqueue(Event e)
+        public void Enqueue(T e)
         {
             do
             {
@@ -195,18 +210,19 @@ namespace NUnit.Framework.Internal.Execution
                 _mreAdd.Set();
 
                 break;
-            } while (true);
+            }
+            while (true);
 
             // Setting this to anything other than 0 causes NUnit to be sensitive
-            // to the windows timer resolution - see issue #2217 
+            // to the windows timer resolution - see issue #2217
             Thread.Sleep(0);  // give EventPump thread a chance to process the event
         }
 
         /// <summary>
-        /// Removes the first element from the queue and returns it (or <c>null</c>).
+        /// Removes the first element from the queue and returns it (or <see langword="null"/>).
         /// </summary>
         /// <param name="blockWhenEmpty">
-        /// If <c>true</c> and the queue is empty, the calling thread is blocked until
+        /// If <see langword="true"/> and the queue is empty, the calling thread is blocked until
         /// either an element is enqueued, or <see cref="Stop"/> is called.
         /// </param>
         /// <returns>
@@ -216,13 +232,13 @@ namespace NUnit.Framework.Internal.Execution
         ///     <description>the first element.</description>
         ///   </item>
         ///   <item>
-        ///     <term>otherwise, if <paramref name="blockWhenEmpty"/>==<c>false</c>
+        ///     <term>otherwise, if <paramref name="blockWhenEmpty"/>==<see langword="false"/>
         ///       or <see cref="Stop"/> has been called</term>
-        ///     <description><c>null</c>.</description>
+        ///     <description><see langword="null"/>.</description>
         ///   </item>
         /// </list>
         /// </returns>
-        public Event Dequeue(bool blockWhenEmpty)
+        public T? Dequeue(bool blockWhenEmpty)
         {
             SpinWait sw = new SpinWait();
 
@@ -235,10 +251,10 @@ namespace NUnit.Framework.Internal.Execution
                 if (cachedRemoveId == cachedAddId)
                 {
                     if (!blockWhenEmpty || _stopped != 0)
-                        return null;
+                        return default(T);
 
                     // Spin a few times to see if something changes
-                    if (sw.Count <= spinCount)
+                    if (sw.Count <= SpinCount)
                     {
                         sw.SpinOnce();
                     }
@@ -266,17 +282,17 @@ namespace NUnit.Framework.Internal.Execution
                 if (Interlocked.CompareExchange(ref _removeId, cachedRemoveId + 1, cachedRemoveId) != cachedRemoveId)
                     continue;
 
-
                 // Dequeue our work item
-                Event e;
-                while (!_queue.TryDequeue (out e))
+                T? e;
+                while (!_queue.TryDequeue(out e))
                 {
                     if (!blockWhenEmpty || _stopped != 0)
-                        return null;
+                        return default(T);
                 }
 
                 return e;
-            } while (true);
+            }
+            while (true);
         }
 
         /// <summary>
@@ -289,5 +305,3 @@ namespace NUnit.Framework.Internal.Execution
         }
     }
 }
-
-#endif

@@ -1,25 +1,4 @@
-// ***********************************************************************
-// Copyright (c) 2015 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
 using NUnit.Framework.Interfaces;
@@ -29,24 +8,24 @@ using NUnit.Framework.Internal.Commands;
 namespace NUnit.Framework
 {
     /// <summary>
-    /// <see cref="RetryAttribute" /> is used on a test method to specify that it should
-    /// be rerun if it fails, up to a maximum number of times.
+    /// Specifies that a test method should be rerun on failure up to the specified
+    /// maximum number of times.
     /// </summary>
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
-    public class RetryAttribute : PropertyAttribute, IWrapSetUpTearDown
+    public class RetryAttribute : NUnitAttribute, IRepeatTest
     {
-        private int _tryCount;
+        private readonly int _tryCount;
 
         /// <summary>
         /// Construct a <see cref="RetryAttribute" />
         /// </summary>
         /// <param name="tryCount">The maximum number of times the test should be run if it fails</param>
-        public RetryAttribute(int tryCount) : base(tryCount)
+        public RetryAttribute(int tryCount)
         {
             _tryCount = tryCount;
         }
 
-        #region IWrapSetUpTearDown Members
+        #region IRepeatTest Members
 
         /// <summary>
         /// Wrap a command and return the result.
@@ -67,7 +46,7 @@ namespace NUnit.Framework
         /// </summary>
         public class RetryCommand : DelegatingTestCommand
         {
-            private int _tryCount;
+            private readonly int _tryCount;
 
             /// <summary>
             /// Initializes a new instance of the <see cref="RetryCommand"/> class.
@@ -91,14 +70,28 @@ namespace NUnit.Framework
 
                 while (count-- > 0)
                 {
-                    context.CurrentResult = innerCommand.Execute(context);
+                    try
+                    {
+                        context.CurrentResult = innerCommand.Execute(context);
+                    }
+                    // Commands are supposed to catch exceptions, but some don't
+                    // and we want to look at restructuring the API in the future.
+                    catch (Exception ex)
+                    {
+                        if (context.CurrentResult is null)
+                            context.CurrentResult = context.CurrentTest.MakeTestResult();
+                        context.CurrentResult.RecordException(ex);
+                    }
 
                     if (context.CurrentResult.ResultState != ResultState.Failure)
                         break;
 
                     // Clear result for retry
                     if (count > 0)
+                    {
                         context.CurrentResult = context.CurrentTest.MakeTestResult();
+                        context.CurrentRepeatCount++; // increment Retry count for next iteration. will only happen if we are guaranteed another iteration
+                    }
                 }
 
                 return context.CurrentResult;

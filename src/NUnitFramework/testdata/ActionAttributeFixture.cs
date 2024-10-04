@@ -1,30 +1,7 @@
-﻿// ***********************************************************************
-// Copyright (c) 2012 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Reflection;
 using NUnit.Framework;
 using NUnit.Framework.Interfaces;
 using NUnit.TestData.ActionAttributeTests;
@@ -60,9 +37,9 @@ namespace NUnit.TestData.ActionAttributeTests
     [TaggedAction("OnFixture")]
     public class ActionAttributeFixture : BaseActionAttributeFixture, IWithAction
     {
-        public static List<string> Events { get; private set; }
+        public static List<string> Events { get; }
 
-        List<string> IWithAction.Events { get { return Events; } }
+        List<string> IWithAction.Events => Events;
 
         static ActionAttributeFixture()
         {
@@ -77,21 +54,21 @@ namespace NUnit.TestData.ActionAttributeTests
         [SetUp]
         public void SetUp()
         {
-            Events.Add(string.Format("{0}.SetUpTearDown.Before.Test", TestContext.CurrentContext.Test.Name));
+            Events.Add($"{TestContext.CurrentContext.Test.Name}.SetUpTearDown.Before.Test");
         }
 
         [TearDown]
         public void TearDown()
         {
-            Events.Add(string.Format("{0}.SetUpTearDown.After.Test", TestContext.CurrentContext.Test.Name));
+            Events.Add($"{TestContext.CurrentContext.Test.Name}.SetUpTearDown.After.Test");
         }
 
-        [TestCase("One", TestName="CaseOne")]
-        [TestCase("Two", TestName="CaseTwo")]
+        [TestCase("One", TestName = "CaseOne")]
+        [TestCase("Two", TestName = "CaseTwo")]
         [TaggedAction("OnMethod", ActionTargets.Suite | ActionTargets.Test)] // Applies to both suite and test
         [TaggedAction("OnMethod", ActionTargets.Suite)] // Applies to parameterized suite
         [TaggedAction("OnMethod", ActionTargets.Test)] // Applies to each case
-        [TaggedAction("OnMethod")]                     // Ditto
+        [TaggedAction("OnMethod")] // Ditto
         public void ParameterizedTest(string message)
         {
             ((IWithAction)this).Events.Add("Case" + message);
@@ -133,10 +110,10 @@ namespace NUnit.TestData.ActionAttributeTests
     {
     }
 
-    [AttributeUsage(AttributeTargets.Assembly | AttributeTargets.Class | AttributeTargets.Interface | AttributeTargets.Method, AllowMultiple=true, Inherited=true)]
+    [AttributeUsage(AttributeTargets.Assembly | AttributeTargets.Class | AttributeTargets.Interface | AttributeTargets.Method, AllowMultiple = true, Inherited = true)]
     public class TaggedActionAttribute : TestActionAttribute
     {
-        private readonly string _tag = null;
+        private readonly string _tag;
         private readonly ActionTargets _targets = ActionTargets.Default;
 
         public TaggedActionAttribute(string tag)
@@ -160,16 +137,13 @@ namespace NUnit.TestData.ActionAttributeTests
             AddResult("After", test);
         }
 
-        public override ActionTargets Targets
-        {
-            get { return _targets; }
-        }
+        public override ActionTargets Targets => _targets;
 
         private void AddResult(string phase, ITest test)
         {
-            string message = string.Format("{0}.{1}.{2}.{3}", test.Name, _tag, phase, _targets);
+            string message = $"{test.Name}.{_tag}.{phase}.{_targets}";
 
-            if(ActionAttributeFixture.Events != null)
+            if (ActionAttributeFixture.Events is not null)
                 ActionAttributeFixture.Events.Add(message);
         }
     }

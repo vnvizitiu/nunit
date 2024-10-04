@@ -1,44 +1,23 @@
-﻿// ***********************************************************************
-// Copyright (c) 2008 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
-#if !NETSTANDARD1_3 && !NETSTANDARD1_6
 using System;
-using NUnit.Framework.Internal;
-using NUnit.Framework.Internal.Commands;
 using NUnit.Framework.Interfaces;
+using NUnit.Framework.Internal;
 
 namespace NUnit.Framework
 {
     /// <summary>
-    /// Used on a method, marks the test with a timeout value in milliseconds. 
-    /// The test will be run in a separate thread and is cancelled if the timeout 
-    /// is exceeded. Used on a class or assembly, sets the default timeout 
-    /// for all contained test methods.
+    /// Applies a timeout in milliseconds to a test.
+    /// When applied to a method, the test is cancelled if the timeout is exceeded.
+    /// When applied to a class or assembly, the default timeout is set for all contained test methods.
     /// </summary>
-    [AttributeUsage(AttributeTargets.Method | AttributeTargets.Class | AttributeTargets.Assembly, AllowMultiple = false, Inherited=false)]
+    [AttributeUsage(AttributeTargets.Method | AttributeTargets.Class | AttributeTargets.Assembly, AllowMultiple = false, Inherited = false)]
+#if !NETFRAMEWORK
+    [Obsolete(".NET No longer supports aborting threads as it is not a safe thing to do. Update your tests to use CancelAfterAttribute instead")]
+#endif
     public class TimeoutAttribute : PropertyAttribute, IApplyToContext
     {
-        private int _timeout;
+        private readonly int _timeout;
 
         /// <summary>
         /// Construct a TimeoutAttribute given a time in milliseconds
@@ -50,7 +29,7 @@ namespace NUnit.Framework
             _timeout = timeout;
         }
 
-        #region IApplyToContext Members
+        #region IApplyToContext
 
         void IApplyToContext.ApplyToContext(TestExecutionContext context)
         {
@@ -60,4 +39,3 @@ namespace NUnit.Framework
         #endregion
     }
 }
-#endif

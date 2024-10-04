@@ -1,29 +1,7 @@
-// ***********************************************************************
-// Copyright (c) 2007 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
 using System.Collections;
-using System.Globalization;
 using NUnit.Framework.Constraints;
 
 namespace NUnit.Framework.Internal
@@ -51,6 +29,10 @@ namespace NUnit.Framework.Internal
         /// </summary>
         public static readonly string Pfx_Actual = "  But was:  ";
         /// <summary>
+        /// Prefix used for the actual difference between actual and expected values if compared with a tolerance
+        /// </summary>
+        public static readonly string Pfx_Difference = "  Off by:   ";
+        /// <summary>
         /// Length of a message prefix
         /// </summary>
         public static readonly int PrefixLength = Pfx_Expected.Length;
@@ -58,16 +40,18 @@ namespace NUnit.Framework.Internal
         #endregion
 
         #region Instance Fields
-        private int maxLineLength = DEFAULT_LINE_LENGTH;
+        private int _maxLineLength = DEFAULT_LINE_LENGTH;
         private bool _sameValDiffTypes = false;
-        private string _expectedType, _actualType;
+        private string? _expectedType, _actualType;
         #endregion
 
         #region Constructors
         /// <summary>
         /// Construct a TextMessageWriter
         /// </summary>
-        public TextMessageWriter() { }
+        public TextMessageWriter()
+        {
+        }
 
         /// <summary>
         /// Construct a TextMessageWriter, specifying a user message
@@ -75,10 +59,10 @@ namespace NUnit.Framework.Internal
         /// </summary>
         /// <param name="userMessage"></param>
         /// <param name="args"></param>
-        public TextMessageWriter(string userMessage, params object[] args)
+        public TextMessageWriter(string? userMessage, params object?[]? args)
         {
-            if ( userMessage != null && userMessage != string.Empty)
-                this.WriteMessageLine(userMessage, args);
+            if (!string.IsNullOrEmpty(userMessage))
+                WriteMessageLine(userMessage, args);
         }
         #endregion
 
@@ -88,27 +72,28 @@ namespace NUnit.Framework.Internal
         /// </summary>
         public override int MaxLineLength
         {
-            get { return maxLineLength; }
-            set { maxLineLength = value; }
+            get => _maxLineLength;
+            set => _maxLineLength = value;
         }
         #endregion
 
         #region Public Methods - High Level
         /// <summary>
-        /// Method to write single line  message with optional args, usually
-        /// written to precede the general failure message, at a given 
+        /// Method to write single line message with optional args, usually
+        /// written to precede the general failure message, at a given
         /// indentation level.
         /// </summary>
         /// <param name="level">The indentation level of the message</param>
         /// <param name="message">The message to be written</param>
         /// <param name="args">Any arguments used in formatting the message</param>
-        public override void WriteMessageLine(int level, string message, params object[] args)
+        public override void WriteMessageLine(int level, string message, params object?[]? args)
         {
-            if (message != null)
+            if (message is not null)
             {
-                while (level-- >= 0) Write("  ");
+                while (level-- >= 0)
+                    Write("  ");
 
-                if (args != null && args.Length > 0)
+                if (args is not null && args.Length > 0)
                     message = string.Format(message, args);
 
                 WriteLine(MsgUtils.EscapeNullCharacters(message));
@@ -117,14 +102,15 @@ namespace NUnit.Framework.Internal
 
         /// <summary>
         /// Display Expected and Actual lines for a constraint. This
-        /// is called by MessageWriter's default implementation of 
-        /// WriteMessageTo and provides the generic two-line display. 
+        /// is called by MessageWriter's default implementation of
+        /// WriteMessageTo and provides the generic two-line display.
         /// </summary>
         /// <param name="result">The result of the constraint that failed</param>
         public override void DisplayDifferences(ConstraintResult result)
         {
             WriteExpectedLine(result);
             WriteActualLine(result);
+            WriteAdditionalLine(result);
         }
 
         /// <summary>
@@ -134,21 +120,13 @@ namespace NUnit.Framework.Internal
         /// <param name="actual">The actual value causing the failure</param>
         /// <param name="expectedType">Output of the unique type name for expected</param>
         /// <param name="actualType">Output of the unique type name for actual</param>
-        private void ResolveTypeNameDifference(object expected, object actual, out string expectedType, out string actualType) {
-            string[] expectedOriginalType = expected.GetType().ToString().Split('.');
-            string[] actualOriginalType = actual.GetType().ToString().Split('.');
-            int actualStart = 0, expectStart = 0;
-            for (int expectLen = expectedOriginalType.Length - 1,actualLen = actualOriginalType.Length - 1;
-                expectLen >= 0 && actualLen >= 0;
-                expectLen--, actualLen--) {
-                if (expectedOriginalType[expectLen] != actualOriginalType[actualLen]) {
-                    actualStart = actualLen;
-                    expectStart = expectLen;
-                    break;
-                }
-            }
-            expectedType = " ("+String.Join(".", expectedOriginalType, expectStart, expectedOriginalType.Length- expectStart)+")";
-            actualType = " (" + String.Join(".", actualOriginalType, actualStart, actualOriginalType.Length- actualStart) + ")";
+        private void ResolveTypeNameDifference(object expected, object actual, out string expectedType, out string actualType)
+        {
+            TypeNameDifferenceResolver resolver = new TypeNameDifferenceResolver();
+            resolver.ResolveTypeNameDifference(expected, actual, out expectedType, out actualType);
+
+            expectedType = $" ({expectedType})";
+            actualType = $" ({actualType})";
         }
 
         /// <summary>
@@ -159,9 +137,9 @@ namespace NUnit.Framework.Internal
         /// </summary>
         /// <param name="expected">The expected value</param>
         /// <param name="actual">The actual value causing the failure</param>
-        public override void DisplayDifferences(object expected, object actual)
+        public override void DisplayDifferences(object? expected, object? actual)
         {
-            DisplayDifferences(expected, actual,null);
+            DisplayDifferences(expected, actual, null);
         }
 
         /// <summary>
@@ -171,52 +149,63 @@ namespace NUnit.Framework.Internal
         /// <param name="expected">The expected value</param>
         /// <param name="actual">The actual value causing the failure</param>
         /// <param name="tolerance">The tolerance within which the test was made</param>
-        public override void DisplayDifferences(object expected, object actual, Tolerance tolerance)
+        public override void DisplayDifferences(object? expected, object? actual, Tolerance? tolerance)
         {
-            if (expected != null && actual != null && expected.GetType() != actual.GetType() && MsgUtils.FormatValue(expected) == MsgUtils.FormatValue(actual) )
+            if (expected is not null && actual is not null && expected.GetType() != actual.GetType() && MsgUtils.FormatValue(expected) == MsgUtils.FormatValue(actual))
             {
                 _sameValDiffTypes = true;
                 ResolveTypeNameDifference(expected, actual, out _expectedType, out _actualType);
             }
             WriteExpectedLine(expected, tolerance);
-            WriteActualLine(actual);    
+            WriteActualLine(actual);
+            if (tolerance is not null && expected is not null && actual is not null)
+            {
+                WriteDifferenceLine(expected, actual, tolerance);
+            }
         }
 
-        /// <summary>
-        /// Display the expected and actual string values on separate lines.
-        /// If the mismatch parameter is >=0, an additional line is displayed
-        /// line containing a caret that points to the mismatch point.
-        /// </summary>
-        /// <param name="expected">The expected string value</param>
-        /// <param name="actual">The actual string value</param>
-        /// <param name="mismatch">The point at which the strings don't match or -1</param>
-        /// <param name="ignoreCase">If true, case is ignored in string comparisons</param>
-        /// <param name="clipping">If true, clip the strings to fit the max line length</param>
+        /// <inheritdoc/>
         public override void DisplayStringDifferences(string expected, string actual, int mismatch, bool ignoreCase, bool clipping)
+        {
+            DisplayStringDifferences(expected, actual, mismatch, mismatch, ignoreCase, false, clipping);
+        }
+
+        /// <inheritdoc/>
+        public override void DisplayStringDifferences(string expected, string actual, int mismatchExpected, int mismatchActual, bool ignoreCase, bool ignoreWhiteSpace, bool clipping)
         {
             // Maximum string we can display without truncating
             int maxDisplayLength = MaxLineLength
-                - PrefixLength   // Allow for prefix
-                - 2;             // 2 quotation marks
+                - PrefixLength // Allow for prefix
+                - 2;           // 2 quotation marks
 
-            if ( clipping )
-                MsgUtils.ClipExpectedAndActual(ref expected, ref actual, maxDisplayLength, mismatch);
+            if (clipping)
+            {
+                if (ignoreWhiteSpace)
+                {
+                    expected = MsgUtils.ClipWhenNeeded(expected, expected.Length, maxDisplayLength, ref mismatchExpected);
+                    actual = MsgUtils.ClipWhenNeeded(actual, actual.Length, maxDisplayLength, ref mismatchActual);
+                }
+                else
+                {
+                    MsgUtils.ClipExpectedAndActual(ref expected, ref actual, maxDisplayLength, ref mismatchExpected, ref mismatchActual);
+                }
+            }
 
-            expected = MsgUtils.EscapeControlChars(expected);
-            actual = MsgUtils.EscapeControlChars(actual);
+            expected = MsgUtils.EscapeControlChars(expected, ref mismatchExpected);
+            actual = MsgUtils.EscapeControlChars(actual, ref mismatchActual);
 
-            // The mismatch position may have changed due to clipping or white space conversion
-            mismatch = MsgUtils.FindMismatchPosition(expected, actual, 0, ignoreCase);
-
-            Write( Pfx_Expected );
-            Write( MsgUtils.FormatValue(expected) );
-            if ( ignoreCase )
-                Write( ", ignoring case" );
+            Write(Pfx_Expected);
+            Write(MsgUtils.FormatValue(expected));
+            if (ignoreCase)
+                Write(", ignoring case");
+            if (ignoreWhiteSpace)
+                Write(", ignoring white-space");
             WriteLine();
-            WriteActualLine( actual );
-            //DisplayDifferences(expected, actual);
-            if (mismatch >= 0)
-                WriteCaretLine(mismatch);
+            if (mismatchExpected >= 0 && mismatchExpected != mismatchActual)
+                WriteCaretLine(mismatchExpected);
+            WriteActualLine(actual);
+            if (mismatchActual >= 0)
+                WriteCaretLine(mismatchActual);
         }
         #endregion
 
@@ -226,7 +215,7 @@ namespace NUnit.Framework.Internal
         /// Writes the text for an actual value.
         /// </summary>
         /// <param name="actual">The actual value.</param>
-        public override void WriteActualValue(object actual)
+        public override void WriteActualValue(object? actual)
         {
             WriteValue(actual);
         }
@@ -235,7 +224,7 @@ namespace NUnit.Framework.Internal
         /// Writes the text for a generalized value.
         /// </summary>
         /// <param name="val">The value.</param>
-        public override void WriteValue(object val)
+        public override void WriteValue(object? val)
         {
             Write(MsgUtils.FormatValue(val));
         }
@@ -267,27 +256,19 @@ namespace NUnit.Framework.Internal
 
         /// <summary>
         /// Write the generic 'Expected' line for a given value
-        /// </summary>
-        /// <param name="expected">The expected value</param>
-        private void WriteExpectedLine(object expected)
-        {
-            WriteExpectedLine(expected, null);
-        }
-
-        /// <summary>
-        /// Write the generic 'Expected' line for a given value
         /// and tolerance.
         /// </summary>
         /// <param name="expected">The expected value</param>
         /// <param name="tolerance">The tolerance within which the test was made</param>
-        private void WriteExpectedLine(object expected, Tolerance tolerance)
+        private void WriteExpectedLine(object? expected, Tolerance? tolerance)
         {
             Write(Pfx_Expected);
             Write(MsgUtils.FormatValue(expected));
-            if (_sameValDiffTypes) {
+            if (_sameValDiffTypes)
+            {
                 Write(_expectedType);
             }
-            if (tolerance != null && !tolerance.IsUnsetOrDefault)
+            if (tolerance is not null && tolerance.HasVariance)
             {
                 Write(" +/- ");
                 Write(MsgUtils.FormatValue(tolerance.Amount));
@@ -310,11 +291,16 @@ namespace NUnit.Framework.Internal
             //WriteLine(MsgUtils.FormatValue(result.ActualValue));
         }
 
+        private void WriteAdditionalLine(ConstraintResult result)
+        {
+            result.WriteAdditionalLinesTo(this);
+        }
+
         /// <summary>
         /// Write the generic 'Actual' line for a given value
         /// </summary>
         /// <param name="actual">The actual value causing a failure</param>
-        private void WriteActualLine(object actual)
+        private void WriteActualLine(object? actual)
         {
             Write(Pfx_Actual);
             WriteActualValue(actual);
@@ -323,6 +309,26 @@ namespace NUnit.Framework.Internal
                 Write(_actualType);
             }
             WriteLine();
+        }
+
+        private void WriteDifferenceLine(object? expected, object? actual, Tolerance tolerance)
+        {
+            // It only makes sense to display absolute/percent difference
+            if (tolerance.Mode != ToleranceMode.Linear && tolerance.Mode != ToleranceMode.Percent)
+                return;
+
+            string differenceString = tolerance.Amount is TimeSpan
+                ? MsgUtils.FormatValue(DateTimes.Difference(expected, actual)) // TimeSpan tolerance applied in linear mode only
+                : MsgUtils.FormatValue(Numerics.Difference(expected, actual, tolerance.Mode));
+
+            if (differenceString != double.NaN.ToString())
+            {
+                Write(Pfx_Difference);
+                Write(differenceString);
+                if (tolerance.Mode != ToleranceMode.Linear)
+                    Write(" {0}", tolerance.Mode);
+                WriteLine();
+            }
         }
 
         private void WriteCaretLine(int mismatch)

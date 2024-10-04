@@ -1,37 +1,15 @@
-// ***********************************************************************
-// Copyright (c) 2009 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
 using System.Runtime.InteropServices;
 
 namespace NUnit.Framework.Constraints
 {
-
     /// <summary>Helper routines for working with floating point numbers</summary>
     /// <remarks>
     ///   <para>
     ///     The floating point comparison code is based on this excellent article:
-    ///     http://www.cygnus-software.com/papers/comparingfloats/comparingfloats.htm
+    ///     https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/
     ///   </para>
     ///   <para>
     ///     "ULP" means Unit in the Last Place and in the context of this library refers to
@@ -45,9 +23,8 @@ namespace NUnit.Framework.Constraints
     ///     as low as 0.0000001 for small numbers or as high as 10.0 for large numbers.
     ///   </para>
     /// </remarks>
-    public class FloatingPointNumerics
+    internal static class FloatingPointNumerics
     {
-
         #region struct FloatIntUnion
 
         /// <summary>Union of a floating point variable and an integer</summary>
@@ -102,7 +79,7 @@ namespace NUnit.Framework.Constraints
         ///   <para>
         ///     Floating point values can only represent a finite subset of natural numbers.
         ///     For example, the values 2.00000000 and 2.00000024 can be stored in a float,
-        ///     but nothing inbetween them.
+        ///     but nothing between them.
         ///   </para>
         ///   <para>
         ///     This comparison will count how many possible floating point values are between
@@ -134,6 +111,13 @@ namespace NUnit.Framework.Constraints
 
             if (leftSignMask != rightSignMask) // Overflow possible, check each against zero
             {
+                // This check is specifically used to trap the case of 0 == -0
+                // In IEEE floating point maths, -0 is converted to Float.MinValue, which cannot be used with
+                // Math.Abs(...) below due to overflow issues. This should only match the 0 == -0 condition.
+                if (left == right)
+                {
+                    return true;
+                }
                 if (Math.Abs(leftUnion.Int) > maxUlps || Math.Abs(rightUnion.Int) > maxUlps)
                     return false;
             }
@@ -154,7 +138,7 @@ namespace NUnit.Framework.Constraints
         ///   <para>
         ///     Double precision floating point values can only represent a limited series of
         ///     natural numbers. For example, the values 2.0000000000000000 and 2.0000000000000004
-        ///     can be stored in a double, but nothing inbetween them.
+        ///     can be stored in a double, but nothing between them.
         ///   </para>
         ///   <para>
         ///     This comparison will count how many possible double precision floating point
@@ -186,80 +170,19 @@ namespace NUnit.Framework.Constraints
 
             if (leftSignMask != rightSignMask) // Overflow possible, check each against zero
             {
+                // This check is specifically used to trap the case of 0 == -0
+                // In IEEE floating point maths, -0 is converted to Double.MinValue, which cannot be used with
+                // Math.Abs(...) below due to overflow issues. This should only match the 0 == -0 condition.
+                if (left == right)
+                {
+                    return true;
+                }
                 if (Math.Abs(leftUnion.Long) > maxUlps || Math.Abs(rightUnion.Long) > maxUlps)
                     return false;
             }
 
             // Either they have the same sign or both are very close to zero
             return Math.Abs(leftUnion.Long - rightUnion.Long) <= maxUlps;
-        }
-
-        /// <summary>
-        ///   Reinterprets the memory contents of a floating point value as an integer value
-        /// </summary>
-        /// <param name="value">
-        ///   Floating point value whose memory contents to reinterpret
-        /// </param>
-        /// <returns>
-        ///   The memory contents of the floating point value interpreted as an integer
-        /// </returns>
-        public static int ReinterpretAsInt(float value)
-        {
-            FloatIntUnion union = new FloatIntUnion();
-            union.Float = value;
-            return union.Int;
-        }
-
-        /// <summary>
-        ///   Reinterprets the memory contents of a double precision floating point
-        ///   value as an integer value
-        /// </summary>
-        /// <param name="value">
-        ///   Double precision floating point value whose memory contents to reinterpret
-        /// </param>
-        /// <returns>
-        ///   The memory contents of the double precision floating point value
-        ///   interpreted as an integer
-        /// </returns>
-        public static long ReinterpretAsLong(double value)
-        {
-            DoubleLongUnion union = new DoubleLongUnion();
-            union.Double = value;
-            return union.Long;
-        }
-
-        /// <summary>
-        ///   Reinterprets the memory contents of an integer as a floating point value
-        /// </summary>
-        /// <param name="value">Integer value whose memory contents to reinterpret</param>
-        /// <returns>
-        ///   The memory contents of the integer value interpreted as a floating point value
-        /// </returns>
-        public static float ReinterpretAsFloat(int value)
-        {
-            FloatIntUnion union = new FloatIntUnion();
-            union.Int = value;
-            return union.Float;
-        }
-
-        /// <summary>
-        ///   Reinterprets the memory contents of an integer value as a double precision
-        ///   floating point value
-        /// </summary>
-        /// <param name="value">Integer whose memory contents to reinterpret</param>
-        /// <returns>
-        ///   The memory contents of the integer interpreted as a double precision
-        ///   floating point value
-        /// </returns>
-        public static double ReinterpretAsDouble(long value)
-        {
-            DoubleLongUnion union = new DoubleLongUnion();
-            union.Long = value;
-            return union.Double;
-        }
-
-        private FloatingPointNumerics()
-        {
         }
     }
 }

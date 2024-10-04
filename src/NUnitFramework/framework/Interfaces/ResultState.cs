@@ -1,26 +1,7 @@
-// ***********************************************************************
-// Copyright (c) 2007-2014 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
+using System;
+using System.Collections.Generic;
 using System.Text;
 
 namespace NUnit.Framework.Interfaces
@@ -32,7 +13,7 @@ namespace NUnit.Framework.Interfaces
     /// skipped or was inconclusive. The Label provides a more
     /// detailed breakdown for use by client runners.
     /// </summary>
-    public class ResultState
+    public class ResultState : IEquatable<ResultState>
     {
         #region Constructors
 
@@ -40,7 +21,7 @@ namespace NUnit.Framework.Interfaces
         /// Initializes a new instance of the <see cref="ResultState"/> class.
         /// </summary>
         /// <param name="status">The TestStatus.</param>
-        public ResultState(TestStatus status) : this (status, string.Empty, FailureSite.Test)
+        public ResultState(TestStatus status) : this(status, string.Empty, FailureSite.Test)
         {
         }
 
@@ -49,7 +30,7 @@ namespace NUnit.Framework.Interfaces
         /// </summary>
         /// <param name="status">The TestStatus.</param>
         /// <param name="label">The label.</param>
-        public ResultState(TestStatus status, string label) : this (status, label, FailureSite.Test)
+        public ResultState(TestStatus status, string? label) : this(status, label, FailureSite.Test)
         {
         }
 
@@ -68,10 +49,10 @@ namespace NUnit.Framework.Interfaces
         /// <param name="status">The TestStatus.</param>
         /// <param name="label">The label.</param>
         /// <param name="site">The stage at which the result was produced</param>
-        public ResultState(TestStatus status, string label, FailureSite site)
+        public ResultState(TestStatus status, string? label, FailureSite site)
         {
             Status = status;
-            Label = label == null ? string.Empty : label;
+            Label = label ?? string.Empty;
             Site = site;
         }
 
@@ -82,72 +63,82 @@ namespace NUnit.Framework.Interfaces
         /// <summary>
         /// The result is inconclusive
         /// </summary>
-        public readonly static ResultState Inconclusive = new ResultState(TestStatus.Inconclusive);
-        
+        public static readonly ResultState Inconclusive = new(TestStatus.Inconclusive);
+
         /// <summary>
-        /// The test has been skipped. 
+        /// The test has been skipped.
         /// </summary>
-        public readonly static ResultState Skipped = new ResultState(TestStatus.Skipped);
+        public static readonly ResultState Skipped = new(TestStatus.Skipped);
 
         /// <summary>
         /// The test has been ignored.
         /// </summary>
-        public readonly static ResultState Ignored = new ResultState(TestStatus.Skipped, "Ignored");
+        public static readonly ResultState Ignored = new(TestStatus.Skipped, "Ignored");
 
         /// <summary>
         /// The test was skipped because it is explicit
         /// </summary>
-        public readonly static ResultState Explicit = new ResultState(TestStatus.Skipped, "Explicit");
+        public static readonly ResultState Explicit = new(TestStatus.Skipped, "Explicit");
 
         /// <summary>
         /// The test succeeded
         /// </summary>
-        public readonly static ResultState Success = new ResultState(TestStatus.Passed);
+        public static readonly ResultState Success = new(TestStatus.Passed);
 
         /// <summary>
         /// The test issued a warning
         /// </summary>
-        public readonly static ResultState Warning = new ResultState(TestStatus.Warning);
+        public static readonly ResultState Warning = new(TestStatus.Warning);
 
         /// <summary>
         /// The test failed
         /// </summary>
-        public readonly static ResultState Failure = new ResultState(TestStatus.Failed);
+        public static readonly ResultState Failure = new(TestStatus.Failed);
 
         /// <summary>
         /// The test encountered an unexpected exception
         /// </summary>
-        public readonly static ResultState Error = new ResultState(TestStatus.Failed, "Error");
+        public static readonly ResultState Error = new(TestStatus.Failed, "Error");
 
         /// <summary>
         /// The test was cancelled by the user
         /// </summary>
-        public readonly static ResultState Cancelled = new ResultState(TestStatus.Failed, "Cancelled");
+        public static readonly ResultState Cancelled = new(TestStatus.Failed, "Cancelled");
 
         /// <summary>
         /// The test was not runnable.
         /// </summary>
-        public readonly static ResultState NotRunnable = new ResultState(TestStatus.Failed, "Invalid");
+        public static readonly ResultState NotRunnable = new(TestStatus.Failed, "Invalid");
 
         /// <summary>
         /// A suite failed because one or more child tests failed or had errors
         /// </summary>
-        public readonly static ResultState ChildFailure = ResultState.Failure.WithSite(FailureSite.Child);
+        public static readonly ResultState ChildFailure = Failure.WithSite(FailureSite.Child);
+
+        /// <summary>
+        /// A suite failed because one or more child tests had warnings
+        /// </summary>
+        public static readonly ResultState ChildWarning = Warning.WithSite(FailureSite.Child);
+
+        /// <summary>
+        /// A suite is marked ignored because one or more child tests were ignored
+        /// </summary>
+        public static readonly ResultState ChildIgnored = Ignored.WithSite(FailureSite.Child);
 
         /// <summary>
         /// A suite failed in its OneTimeSetUp
         /// </summary>
-        public readonly static ResultState SetUpFailure = ResultState.Failure.WithSite(FailureSite.SetUp);
+        public static readonly ResultState SetUpFailure = Failure.WithSite(FailureSite.SetUp);
 
         /// <summary>
         /// A suite had an unexpected exception in its OneTimeSetUp
         /// </summary>
-        public readonly static ResultState SetUpError = ResultState.Error.WithSite(FailureSite.SetUp);
+        public static readonly ResultState SetUpError = Error.WithSite(FailureSite.SetUp);
 
         /// <summary>
         /// A suite had an unexpected exception in its OneTimeDown
         /// </summary>
-        public readonly static ResultState TearDownError = ResultState.Error.WithSite(FailureSite.TearDown);
+        public static readonly ResultState TearDownError = Error.WithSite(FailureSite.TearDown);
 
         #endregion
 
@@ -157,19 +148,19 @@ namespace NUnit.Framework.Interfaces
         /// Gets the TestStatus for the test.
         /// </summary>
         /// <value>The status.</value>
-        public TestStatus Status { get; private set; }
+        public TestStatus Status { get; }
 
         /// <summary>
         /// Gets the label under which this test result is
-        /// categorized, if any.
+        /// categorized, or <see cref="string.Empty"/> if none.
         /// </summary>
-        public string Label { get; private set; }
+        public string Label { get; }
 
         /// <summary>
         /// Gets the stage of test execution in which
         /// the failure or other result took place.
         /// </summary>
-        public FailureSite Site { get; private set; }
+        public FailureSite Site { get; }
 
         /// <summary>
         /// Get a new ResultState, which is the same as the current
@@ -179,7 +170,7 @@ namespace NUnit.Framework.Interfaces
         /// <returns>A new ResultState</returns>
         public ResultState WithSite(FailureSite site)
         {
-            return new ResultState(this.Status, this.Label, site);
+            return new ResultState(Status, Label, site);
         }
 
         /// <summary>
@@ -196,49 +187,65 @@ namespace NUnit.Framework.Interfaces
 
         #endregion
 
-        #region Equals Override
+        #region Equality
 
-        /// <summary>
-        /// Determines whether the specified <see cref="System.Object" />, is equal to this instance.
-        /// </summary>
-        /// <param name="obj">The <see cref="System.Object" /> to compare with this instance.</param>
-        /// <returns>
-        ///   <c>true</c> if the specified <see cref="System.Object" /> is equal to this instance; otherwise, <c>false</c>.
-        /// </returns>
-        public override bool Equals(object obj)
+        /// <summary>Determines whether the specified object is equal to the current object.</summary>
+        /// <param name="obj">The object to compare with the current object.</param>
+        public override bool Equals(object? obj)
         {
-            var other = obj as ResultState;
-            if (other == null) return false;
-
-            return Status.Equals(other.Status) && Label.Equals(other.Label) && Site.Equals(other.Site);
+            return Equals(obj as ResultState);
         }
 
-        /// <summary>
-        /// Returns a hash code for this instance.
-        /// </summary>
-        /// <returns>
-        /// A hash code for this instance, suitable for use in hashing algorithms and data structures like a hash table. 
-        /// </returns>
+        /// <summary>Indicates whether the current object is equal to another object of the same type.</summary>
+        /// <param name="other">An object to compare with this object.</param>
+        public bool Equals(ResultState? other)
+        {
+            return other is not null &&
+                   Status == other.Status &&
+                   Label == other.Label &&
+                   Site == other.Site;
+        }
+
+        /// <summary>Serves as the default hash function.</summary>
         public override int GetHashCode()
         {
-            return (int)Status << 8 + (int)Site ^ Label.GetHashCode(); ;
+            var hashCode = -665355758;
+            hashCode = hashCode * -1521134295 + Status.GetHashCode();
+            hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(Label);
+            hashCode = hashCode * -1521134295 + Site.GetHashCode();
+            return hashCode;
         }
+
+        #endregion
+
+        #region Operator Overloads
+
+        /// <summary>
+        /// Overload == operator for ResultStates
+        /// </summary>
+        public static bool operator ==(ResultState? left, ResultState? right)
+            => left?.Equals(right) ?? right is null;
+
+        /// <summary>
+        /// Overload != operator for ResultStates
+        /// </summary>
+        public static bool operator !=(ResultState? left, ResultState? right) => !(left == right);
 
         #endregion
 
         #region ToString Override
 
         /// <summary>
-        /// Returns a <see cref="System.String"/> that represents this instance.
+        /// Returns a <see cref="string"/> that represents this instance.
         /// </summary>
         /// <returns>
-        /// A <see cref="System.String"/> that represents this instance.
+        /// A <see cref="string"/> that represents this instance.
         /// </returns>
         public override string ToString()
         {
             var sb = new StringBuilder(Status.ToString());
 
-            if (Label != null && Label.Length > 0)
+            if (Label.Length > 0)
                 sb.AppendFormat(":{0}", Label);
             if (Site != FailureSite.Test)
                 sb.AppendFormat("({0})", Site.ToString());

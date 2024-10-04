@@ -5,10 +5,10 @@ NUnitAttribute
 		TestCaseActionAttribute       : 
 		TestSuiteActionAttribute      : 
 	DataAttribute
-		ValuesAttribute               : IParameterDataSource
-			RandomAttribute           : IParameterDataSource
-			RangeAttribute
-		ValueSourceAttribute          : IParameterDataSource
+	ValuesAttribute                   : IParameterDataSource
+	RandomAttribute                   : IParameterDataSource
+	RangeAttribute                    : IParameterDataSource
+	ValueSourceAttribute              : IParameterDataSource
 	DatapointAttribute
 	DatapointSourceAttribute
 		DatapointsAttribute
@@ -19,8 +19,6 @@ NUnitAttribute
 	SetUpFixtureAttribute         
 	SuiteAttribute                
 	TearDownAttribute             
-	TestFixtureSetUpAttribute      
-	TestFixtureTearDownAttribute   
 	CategoryAttribute			      : IApplyToTest
 	ExplicitAttribute	              : IApplyToTest
 	IgnoreAttribute			          : IApplyToTest
@@ -31,8 +29,6 @@ NUnitAttribute
 		DescriptionAttribute
 		MaxTimeAttribute              : ICommandDecorator
 		RepeatAttribute			      : ICommandDecorator
-		RequiresMTAAttribute 
-		RequiresSTAAttribute 
 		RequiresThreadAttribute 
 		SetCultureAttribute           : ICommandDecorator
 		SetUICultureAttribute         : ICommandDecorator

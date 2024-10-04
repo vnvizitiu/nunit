@@ -1,32 +1,12 @@
-// ***********************************************************************
-// Copyright (c) 2007 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-//
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Text;
-using System.Collections.Generic;
-using NUnit.Compatibility;
+using NUnit.Framework.Internal;
 
 namespace NUnit.Framework.Constraints
 {
@@ -35,11 +15,15 @@ namespace NUnit.Framework.Constraints
     /// </summary>
     public class CollectionOrderedConstraint : CollectionConstraint
     {
-        private List<OrderingStep> _steps;
+        private readonly List<OrderingStep> _steps = new();
         // The step we are currently building
         private OrderingStep _activeStep;
+        // If not ordered, index where ordering breaks
+        private int _breakingIndex;
+        // If not ordered, value on which ordering breaks
+        private object? _breakingValue;
 
-        enum OrderDirection
+        private enum OrderDirection
         {
             Unspecified,
             Ascending,
@@ -51,8 +35,6 @@ namespace NUnit.Framework.Constraints
         /// </summary>
         public CollectionOrderedConstraint()
         {
-            _steps = new List<OrderingStep>();
-
             // Ensure there is an active specification
             CreateNextStep(null);
         }
@@ -63,7 +45,7 @@ namespace NUnit.Framework.Constraints
         /// trailing "Constraint" removed. Derived classes may set
         /// this to another name in their constructors.
         /// </summary>
-        public override string DisplayName { get { return "Ordered"; } }
+        public override string DisplayName => "Ordered";
 
         ///<summary>
         /// If used performs a default ascending comparison
@@ -98,7 +80,7 @@ namespace NUnit.Framework.Constraints
         /// </summary>
         public CollectionOrderedConstraint Using(IComparer comparer)
         {
-            if (_activeStep.ComparerName != null)
+            if (_activeStep.ComparerName is not null)
                 throw new InvalidOperationException("Only one Using modifier may be used");
             _activeStep.Comparer = ComparisonAdapter.For(comparer);
             _activeStep.ComparerName = comparer.GetType().FullName;
@@ -110,7 +92,7 @@ namespace NUnit.Framework.Constraints
         /// </summary>
         public CollectionOrderedConstraint Using<T>(IComparer<T> comparer)
         {
-            if (_activeStep.ComparerName != null)
+            if (_activeStep.ComparerName is not null)
                 throw new InvalidOperationException("Only one Using modifier may be used");
             _activeStep.Comparer = ComparisonAdapter.For(comparer);
             _activeStep.ComparerName = comparer.GetType().FullName;
@@ -122,7 +104,7 @@ namespace NUnit.Framework.Constraints
         /// </summary>
         public CollectionOrderedConstraint Using<T>(Comparison<T> comparer)
         {
-            if (_activeStep.ComparerName != null)
+            if (_activeStep.ComparerName is not null)
                 throw new InvalidOperationException("Only one Using modifier may be used");
             _activeStep.Comparer = ComparisonAdapter.For(comparer);
             _activeStep.ComparerName = comparer.GetType().FullName;
@@ -135,7 +117,7 @@ namespace NUnit.Framework.Constraints
         /// </summary>
         public CollectionOrderedConstraint By(string propertyName)
         {
-            if (_activeStep.PropertyName == null)
+            if (_activeStep.PropertyName is null)
                 _activeStep.PropertyName = propertyName;
             else
                 CreateNextStep(propertyName);
@@ -168,9 +150,10 @@ namespace NUnit.Framework.Constraints
                 int index = 0;
                 foreach (var step in _steps)
                 {
-                    if (index++ != 0) description += " then";
+                    if (index++ != 0)
+                        description += " then";
 
-                    if (step.PropertyName != null)
+                    if (step.PropertyName is not null)
                         description += " by " + MsgUtils.FormatValue(step.PropertyName);
 
                     if (step.Direction == OrderDirection.Descending)
@@ -182,48 +165,65 @@ namespace NUnit.Framework.Constraints
         }
 
         /// <summary>
+        /// Test whether the constraint is satisfied by a given value
+        /// </summary>
+        /// <param name="actual">The value to be tested</param>
+        /// <returns>True for success, false for failure</returns>
+        public override ConstraintResult ApplyTo<TActual>(TActual actual)
+        {
+            IEnumerable enumerable = ConstraintUtils.RequireActual<IEnumerable>(actual, nameof(actual));
+
+            if (!Matches(enumerable))
+            {
+                return new CollectionOrderedConstraintResult(this, enumerable, _breakingIndex, _breakingValue);
+            }
+
+            return new CollectionOrderedConstraintResult(this, enumerable);
+        }
+
+        /// <summary>
         /// Test whether the collection is ordered
         /// </summary>
-        /// <param name="actual"></param>
-        /// <returns></returns>
         protected override bool Matches(IEnumerable actual)
         {
-            object previous = null;
-            int index = 0;
+            object? previous = null;
+            _breakingIndex = 0;
             foreach (object current in actual)
             {
-                if (current == null)
-                    throw new ArgumentNullException(nameof(actual), "Null value at index " + index.ToString());
+                _breakingValue = current;
 
-                if (previous != null)
+                if (previous is not null)
                 {
-                    if (_steps[0].PropertyName != null)
+                    if (_steps[0].PropertyName is not null)
                     {
+                        if (current is null)
+                            throw new ArgumentNullException(nameof(actual), $"Null value at index {_breakingIndex}");
+
                         foreach (var step in _steps)
                         {
-                            string propertyName = step.PropertyName;
+                            string propertyName = step.PropertyName!;
 
-                            PropertyInfo previousProp = previous.GetType().GetProperty(propertyName);
-                            if (previousProp == null)
-                                throw new ArgumentException($"Property {propertyName} not found at index {index - 1}", nameof(actual));
-                            var previousValue = previousProp.GetValue(previous, null);
+                            object? previousValue = ExtractValue(actual, previous, propertyName, _breakingIndex - 1);
 
-                            PropertyInfo prop = current.GetType().GetProperty(propertyName);
-                            if (prop == null)
-                                throw new ArgumentException($"Property {propertyName} not found at index {index}", nameof(actual));
-                            var currentValue = prop.GetValue(current, null);
+                            object? currentValue = ExtractValue(actual, current, propertyName, _breakingIndex);
 
                             int comparisonResult = step.Comparer.Compare(previousValue, currentValue);
 
                             if (comparisonResult < 0)
+                            {
                                 if (step.Direction == OrderDirection.Descending)
                                     return false;
-                                else break;
+                                else
+                                    break;
+                            }
 
                             if (comparisonResult > 0)
+                            {
                                 if (step.Direction != OrderDirection.Descending)
                                     return false;
-                                else break;
+                                else
+                                    break;
+                            }
                         }
                     }
                     else
@@ -238,9 +238,10 @@ namespace NUnit.Framework.Constraints
                 }
 
                 previous = current;
-                index++;
+                _breakingIndex++;
             }
 
+            _breakingValue = null;
             return true;
         }
 
@@ -257,11 +258,11 @@ namespace NUnit.Framework.Constraints
                 // For now, just using the first step
                 // TODO: Revise format and tests that depend on it
                 var step = _steps[0];
-                if (step.PropertyName != null)
+                if (step.PropertyName is not null)
                     sb.Append("by " + step.PropertyName);
                 if (step.Direction == OrderDirection.Descending)
                     sb.Append(" descending");
-                if (step.ComparerName != null)
+                if (step.ComparerName is not null)
                     sb.Append(" " + step.ComparerName);
             }
 
@@ -270,10 +271,28 @@ namespace NUnit.Framework.Constraints
             return sb.ToString();
         }
 
-        private void CreateNextStep(string propertyName)
+        [MemberNotNull(nameof(_activeStep))]
+        private void CreateNextStep(string? propertyName)
         {
             _activeStep = new OrderingStep(propertyName);
             _steps.Add(_activeStep);
+        }
+
+        private object? ExtractValue(IEnumerable actual, object item, string propertyName, int index)
+        {
+            PropertyInfo? property = item.GetType().GetProperty(propertyName);
+            if (property is not null)
+            {
+                return property.GetValue(item, null);
+            }
+
+            FieldInfo? field = item.GetType().GetField(propertyName);
+            if (field is not null)
+            {
+                return field.GetValue(item);
+            }
+
+            throw new ArgumentException($"No property or field with name {propertyName} was found at index {index}", nameof(actual));
         }
 
         #region Internal OrderingStep Class
@@ -281,23 +300,76 @@ namespace NUnit.Framework.Constraints
         /// <summary>
         /// An OrderingStep represents one stage of the sort
         /// </summary>
-        private class OrderingStep
+        private sealed class OrderingStep
         {
-            public OrderingStep(string propertyName)
+            public OrderingStep(string? propertyName)
             {
                 PropertyName = propertyName;
                 Comparer = ComparisonAdapter.Default;
             }
 
-            public string PropertyName { get; set; }
+            public string? PropertyName { get; set; }
 
             public OrderDirection Direction { get; set; }
 
             public ComparisonAdapter Comparer { get; set; }
 
-            public string ComparerName { get; set; }
+            public string? ComparerName { get; set; }
         }
 
         #endregion
+
+        #region Private CollectionOrderedConstraintResult Class
+
+        private sealed class CollectionOrderedConstraintResult : ConstraintResult
+        {
+            private readonly int _breakingIndex;
+            private readonly object? _breakingValue;
+
+            /// <summary>
+            /// Constructor for success result.
+            /// </summary>
+            /// <param name="constraint">The Constraint to which this result applies.</param>
+            /// <param name="actualValue">The actual value to which the Constraint was applied.</param>
+            public CollectionOrderedConstraintResult(IConstraint constraint, IEnumerable actualValue)
+                : base(constraint, actualValue, ConstraintStatus.Success)
+            {
+            }
+
+            /// <summary>
+            /// Constructor for failure result.
+            /// </summary>
+            /// <param name="constraint">The Constraint to which this result applies.</param>
+            /// <param name="actualValue">The actual value to which the Constraint was applied.</param>
+            /// <param name="breakingIndex">Index at which collection order breaks.</param>
+            /// <param name="breakingValue">Value at which collection order breaks.</param>
+            public CollectionOrderedConstraintResult(IConstraint constraint, IEnumerable actualValue, int breakingIndex, object? breakingValue)
+                : base(constraint, actualValue, ConstraintStatus.Failure)
+            {
+                _breakingIndex = breakingIndex;
+                _breakingValue = breakingValue;
+            }
+
+            public override void WriteActualValueTo(MessageWriter writer)
+            {
+                // Choose startIndex in such way that '_breakingIndex' is always visible in message.
+                int startIndex = Math.Max(0, _breakingIndex - MsgUtils.DefaultMaxItems + 2);
+                var enumerable = (IEnumerable?)ActualValue;
+                var actualValueMessage = enumerable is null ? "null" : MsgUtils.FormatCollection(enumerable, startIndex);
+                writer.Write(actualValueMessage);
+            }
+
+            public override void WriteAdditionalLinesTo(MessageWriter writer)
+            {
+                if (Status == ConstraintStatus.Failure)
+                {
+                    var nonMatchingStr = $"  Ordering breaks at index [{_breakingIndex}]:  "
+                        + MsgUtils.FormatValue(_breakingValue);
+                    writer.WriteLine(nonMatchingStr);
+                }
+            }
+        }
+
+        #endregion Private CollectionOrderedConstraintResult Class
     }
 }

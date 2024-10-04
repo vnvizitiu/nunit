@@ -1,28 +1,8 @@
-// ***********************************************************************
-// Copyright (c) 2009-2015 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
 using NUnit.Framework.Internal.Builders;
@@ -30,31 +10,32 @@ using NUnit.Framework.Internal.Builders;
 namespace NUnit.Framework
 {
     /// <summary>
-    /// TestFixtureAttribute is used to mark a class that represents a TestFixture.
+    /// Marks the class as a TestFixture.
     /// </summary>
-    [AttributeUsage(AttributeTargets.Class, AllowMultiple=true, Inherited=true)]
-    public class TestFixtureAttribute : NUnitAttribute, IFixtureBuilder, ITestFixtureData
+    [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = true)]
+    public class TestFixtureAttribute : NUnitAttribute, IFixtureBuilder2, ITestFixtureData
     {
-        private readonly NUnitTestFixtureBuilder _builder = new NUnitTestFixtureBuilder();
+        private readonly NUnitTestFixtureBuilder _builder = new();
 
         #region Constructors
 
         /// <summary>
         /// Default constructor
         /// </summary>
-        public TestFixtureAttribute() : this( new object[0] ) { }
-        
+        public TestFixtureAttribute() : this(Internal.TestParameters.NoArguments)
+        {
+        }
+
         /// <summary>
-        /// Construct with a object[] representing a set of arguments. 
-        /// In .NET 2.0, the arguments may later be separated into
-        /// type arguments and constructor arguments.
+        /// Construct with a object[] representing a set of arguments.
+        /// The arguments may later be separated into type arguments and constructor arguments.
         /// </summary>
         /// <param name="arguments"></param>
-        public TestFixtureAttribute(params object[] arguments)
+        public TestFixtureAttribute(params object?[]? arguments)
         {
             RunState = RunState.Runnable;
-            Arguments = arguments ?? new object[] { null };
-            TypeArgs = new Type[0];
+            Arguments = arguments ?? new object?[] { null };
+            TypeArgs = Array.Empty<Type>();
             Properties = new PropertyBag();
         }
 
@@ -66,7 +47,7 @@ namespace NUnit.Framework
         /// Gets or sets the name of the test.
         /// </summary>
         /// <value>The name of the test.</value>
-        public string TestName { get; set; }
+        public string? TestName { get; set; }
 
         /// <summary>
         /// Gets or sets the RunState of this test fixture.
@@ -76,12 +57,12 @@ namespace NUnit.Framework
         /// <summary>
         /// The arguments originally provided to the attribute
         /// </summary>
-        public object[] Arguments { get; private set; }
+        public object?[] Arguments { get; }
 
         /// <summary>
         /// Properties pertaining to this fixture
         /// </summary>
-        public IPropertyBag Properties { get; private set; }
+        public IPropertyBag Properties { get; }
 
         #endregion
 
@@ -101,53 +82,75 @@ namespace NUnit.Framework
         /// <summary>
         /// Descriptive text for this fixture
         /// </summary>
-        public string Description
+        [DisallowNull]
+        public string? Description
         {
-            get { return Properties.Get(PropertyNames.Description) as string; }
-            set { Properties.Set(PropertyNames.Description, value); }
+            get => Properties.Get(PropertyNames.Description) as string;
+            set
+            {
+                Guard.ArgumentNotNull(value, nameof(value));
+                Properties.Set(PropertyNames.Description, value);
+            }
         }
 
         /// <summary>
         /// The author of this fixture
         /// </summary>
-        public string Author
+        [DisallowNull]
+        public string? Author
         {
-            get { return Properties.Get(PropertyNames.Author) as string; }
-            set { Properties.Set(PropertyNames.Author, value); }
+            get => Properties.Get(PropertyNames.Author) as string;
+            set
+            {
+                Guard.ArgumentNotNull(value, nameof(value));
+                Properties.Set(PropertyNames.Author, value);
+            }
         }
 
         /// <summary>
         /// The type that this fixture is testing
         /// </summary>
-        public Type TestOf 
+        [DisallowNull]
+        public Type? TestOf
         {
-            get { return _testOf;  }
+            get => _testOf;
             set
             {
+                Guard.ArgumentNotNull(value, nameof(value));
                 _testOf = value;
-                Properties.Set(PropertyNames.TestOf, value.FullName);
+                Properties.Set(PropertyNames.TestOf, value.FullName());
             }
         }
-        private Type _testOf;
+        private Type? _testOf;
 
         /// <summary>
         /// Gets or sets the ignore reason. May set RunState as a side effect.
         /// </summary>
         /// <value>The ignore reason.</value>
-        public string Ignore
+        [DisallowNull]
+        public string? Ignore
         {
-            get { return IgnoreReason;  }
-            set { IgnoreReason = value; }
+            get => IgnoreReason;
+            set
+            {
+                Guard.ArgumentNotNull(value, nameof(value));
+                IgnoreReason = value;
+            }
         }
 
         /// <summary>
         /// Gets or sets the reason for not running the fixture.
         /// </summary>
         /// <value>The reason.</value>
-        public string Reason
+        [DisallowNull]
+        public string? Reason
         {
-            get { return this.Properties.Get(PropertyNames.SkipReason) as string; }
-            set { this.Properties.Set(PropertyNames.SkipReason, value); }
+            get => Properties.Get(PropertyNames.SkipReason) as string;
+            set
+            {
+                Guard.ArgumentNotNull(value, nameof(value));
+                Properties.Set(PropertyNames.SkipReason, value);
+            }
         }
 
         /// <summary>
@@ -155,11 +158,13 @@ namespace NUnit.Framework
         /// non-empty value, the test is marked as ignored.
         /// </summary>
         /// <value>The ignore reason.</value>
-        public string IgnoreReason
+        [DisallowNull]
+        public string? IgnoreReason
         {
-            get { return Reason; }
+            get => Reason;
             set
             {
+                Guard.ArgumentNotNull(value, nameof(value));
                 RunState = RunState.Ignored;
                 Reason = value;
             }
@@ -169,25 +174,25 @@ namespace NUnit.Framework
         /// Gets or sets a value indicating whether this <see cref="NUnit.Framework.TestFixtureAttribute"/> is explicit.
         /// </summary>
         /// <value>
-        /// <c>true</c> if explicit; otherwise, <c>false</c>.
+        /// <see langword="true"/> if explicit; otherwise, <see langword="false"/>.
         /// </value>
         public bool Explicit
         {
-            get { return RunState == RunState.Explicit; }
-            set { RunState = value ? RunState.Explicit : RunState.Runnable; }
+            get => RunState == RunState.Explicit;
+            set => RunState = value ? RunState.Explicit : RunState.Runnable;
         }
 
         /// <summary>
         /// Gets and sets the category for this fixture.
         /// May be a comma-separated list of categories.
         /// </summary>
-        public string Category
+        [DisallowNull]
+        public string? Category
         {
-            get 
-            { 
+            get
+            {
                 //return Properties.Get(PropertyNames.Category) as string;
-                var catList = Properties[PropertyNames.Category];
-                if (catList == null)
+                if (!Properties.TryGet(PropertyNames.Category, out var catList))
                     return null;
 
                 switch (catList.Count)
@@ -207,24 +212,41 @@ namespace NUnit.Framework
             }
             set
             {
-                foreach (string cat in value.Split(new char[] { ',' }))
+                Guard.ArgumentNotNull(value, nameof(value));
+
+                foreach (string cat in value.Tokenize(','))
                     Properties.Add(PropertyNames.Category, cat);
             }
         }
- 
+
         #endregion
 
         #region IFixtureBuilder Members
 
         /// <summary>
-        /// Build a fixture from type provided. Normally called for a Type
-        /// on which the attribute has been placed.
+        /// Builds a single test fixture from the specified type.
         /// </summary>
-        /// <param name="typeInfo">The type info of the fixture to be used.</param>
-        /// <returns>A an IEnumerable holding one TestFixture object.</returns>
         public IEnumerable<TestSuite> BuildFrom(ITypeInfo typeInfo)
         {
-            yield return _builder.BuildFrom(typeInfo, this);
+            return BuildFrom(typeInfo, PreFilter.Empty);
+        }
+
+        #endregion
+
+        #region IFixtureBuilder2 Members
+
+        /// <summary>
+        /// Builds a single test fixture from the specified type.
+        /// </summary>
+        /// <param name="typeInfo">The type info of the fixture to be used.</param>
+        /// <param name="filter">Filter used to select methods as tests.</param>
+        public IEnumerable<TestSuite> BuildFrom(ITypeInfo typeInfo, IPreFilter filter)
+        {
+            var fixture = _builder.BuildFrom(typeInfo, filter, this);
+            fixture.ApplyAttributesToTest(typeInfo.Type.Assembly.GetAttributes<FixtureLifeCycleAttribute>());
+            fixture.ApplyAttributesToTest(typeInfo.Type);
+
+            yield return fixture;
         }
 
         #endregion

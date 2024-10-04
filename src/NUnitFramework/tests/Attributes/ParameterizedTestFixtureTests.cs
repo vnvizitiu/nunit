@@ -1,42 +1,23 @@
-﻿// ***********************************************************************
-// Copyright (c) 2009 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
-using NUnit.Framework;
+using System.Linq;
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
-using NUnit.TestUtilities;
+using NUnit.Framework.Tests.TestUtilities;
+using NUnit.TestData;
 
-namespace NUnit.Framework.Attributes
+namespace NUnit.Framework.Tests.Attributes
 {
     [TestFixture(45, 45, 90)]
     [TestFixture(null, null, null)]
     public class NullableParameterizedTestFixture
     {
-        int? _one;
-        int? _two;
-        int? _expected;
+        private readonly int? _one;
+        private readonly int? _two;
+        private readonly int? _expected;
 
         public NullableParameterizedTestFixture(int? one, int? two, int? expected)
         {
@@ -48,7 +29,7 @@ namespace NUnit.Framework.Attributes
         [Test]
         public void TestAddition()
         {
-            if(_one.HasValue && _two.HasValue && _expected.HasValue)
+            if (_one.HasValue && _two.HasValue && _expected.HasValue)
             {
                 Assert.That(_one.Value + _two.Value, Is.EqualTo(_expected.Value));
             }
@@ -64,111 +45,70 @@ namespace NUnit.Framework.Attributes
     [TestFixture("zip", "zip")]
     [TestFixture(42, 42, 99)]
     [TestFixture(null, null, "null test")]
-    [TestFixture((string)null, (string)null, "typed null test")]
+    [TestFixture(default(string), default(string), "typed null test")]
     public class ParameterizedTestFixture
     {
-        private string eq1;
-        private string eq2;
-        private string neq;
-        
-        public ParameterizedTestFixture(string eq1, string eq2, string neq)
+        private readonly string? _eq1;
+        private readonly string? _eq2;
+        private readonly string? _neq;
+
+        public ParameterizedTestFixture(string? eq1, string? eq2, string? neq)
         {
-            this.eq1 = eq1;
-            this.eq2 = eq2;
-            this.neq = neq;
+            _eq1 = eq1;
+            _eq2 = eq2;
+            _neq = neq;
         }
 
-        public ParameterizedTestFixture(string eq1, string eq2)
-            : this(eq1, eq2, null) { }
+        public ParameterizedTestFixture(string? eq1, string? eq2)
+            : this(eq1, eq2, null)
+        {
+        }
 
         public ParameterizedTestFixture(int eq1, int eq2, int neq)
         {
-            this.eq1 = eq1.ToString();
-            this.eq2 = eq2.ToString();
-            this.neq = neq.ToString();
+            _eq1 = eq1.ToString();
+            _eq2 = eq2.ToString();
+            _neq = neq.ToString();
         }
 
         [Test]
         public void TestEquality()
         {
-            Assert.AreEqual(eq1, eq2);
-            if (eq1 != null && eq2 != null)
-                Assert.AreEqual(eq1.GetHashCode(), eq2.GetHashCode());
+            Assert.That(_eq2, Is.EqualTo(_eq1));
+            if (_eq1 is not null && _eq2 is not null)
+                Assert.That(_eq2.GetHashCode(), Is.EqualTo(_eq1.GetHashCode()));
         }
 
         [Test]
         public void TestInequality()
         {
-            Assert.AreNotEqual(eq1, neq);
-            if (eq1 != null && neq != null)
-                Assert.AreNotEqual(eq1.GetHashCode(), neq.GetHashCode());
+            Assert.That(_neq, Is.Not.EqualTo(_eq1));
+            if (_eq1 is not null && _neq is not null)
+                Assert.That(_neq.GetHashCode(), Is.Not.EqualTo(_eq1.GetHashCode()));
         }
     }
-
-#if DYNAMIC_DATA
-    [TestFixture(42)]
-    public class ParameterizedTestFixtureWithDataSources
-    {
-        private int answer;
-
-        object[] myData = { new int[] { 6, 7 }, new int[] { 3, 14 } };
-
-        public ParameterizedTestFixtureWithDataSources(int val)
-        {
-            this.answer = val;
-        }
-
-        [Test, TestCaseSource("myData")]
-        public void CanAccessTestCaseSource(int x, int y)
-        {
-            Assert.That(x * y, Is.EqualTo(answer));
-        }
-
-        IEnumerable GenerateData()
-        {
-            for(int i = 1; i <= answer; i++)
-                if ( answer%i == 0 )
-                    yield return new int[] { i, answer/i  };
-        }
-
-        [Test, TestCaseSource("GenerateData")]
-        public void CanGenerateDataFromParameter(int x, int y)
-        {
-            Assert.That(x * y, Is.EqualTo(answer));
-        }
-
-        int[] intvals = new int[] { 1, 2, 3 };
-
-        [Test]
-        public void CanAccessValueSource(
-            [ValueSource("intvals")] int x)
-        {
-            Assert.That(answer % x == 0);
-        }
-    }
-#endif
 
     public class ParameterizedTestFixtureNamingTests
     {
-        TestSuite fixture;
+        private TestSuite _fixture;
 
         [SetUp]
         public void MakeFixture()
         {
-            fixture = TestBuilder.MakeFixture(typeof(NUnit.TestData.ParameterizedTestFixture));
+            _fixture = TestBuilder.MakeFixture(typeof(NUnit.TestData.ParameterizedTestFixture));
         }
 
         [Test]
         public void TopLevelSuiteIsNamedCorrectly()
         {
-            Assert.That(fixture.Name, Is.EqualTo("ParameterizedTestFixture"));
-            Assert.That(fixture.FullName, Is.EqualTo("NUnit.TestData.ParameterizedTestFixture"));
+            Assert.That(_fixture.Name, Is.EqualTo("ParameterizedTestFixture"));
+            Assert.That(_fixture.FullName, Is.EqualTo("NUnit.TestData.ParameterizedTestFixture"));
         }
 
         [Test]
         public void SuiteHasCorrectNumberOfInstances()
         {
-            Assert.That(fixture.Tests.Count, Is.EqualTo(2));
+            Assert.That(_fixture.Tests, Has.Count.EqualTo(2));
         }
 
         [Test]
@@ -176,37 +116,97 @@ namespace NUnit.Framework.Attributes
         {
             var names = new List<string>();
             var fullnames = new List<string>();
-            foreach (Test test in fixture.Tests)
+            foreach (Test test in _fixture.Tests)
             {
                 names.Add(test.Name);
                 fullnames.Add(test.FullName);
             }
 
-            Assert.That(names, Is.EquivalentTo(new string[] {
-                "ParameterizedTestFixture(1)", "ParameterizedTestFixture(2)" }));
-            Assert.That(fullnames, Is.EquivalentTo(new string[] {
-                "NUnit.TestData.ParameterizedTestFixture(1)", "NUnit.TestData.ParameterizedTestFixture(2)" }));
+            Assert.That(names, Is.EquivalentTo(new[]
+            {
+                "ParameterizedTestFixture(1)", "ParameterizedTestFixture(2)"
+            }));
+            Assert.That(fullnames, Is.EquivalentTo(new[]
+            {
+                "NUnit.TestData.ParameterizedTestFixture(1)", "NUnit.TestData.ParameterizedTestFixture(2)"
+            }));
         }
 
         [Test]
         public void MethodWithoutParamsIsNamedCorrectly()
         {
-            TestSuite instance = (TestSuite)fixture.Tests[0];
-            Test method = TestFinder.Find("MethodWithoutParams", instance, false);
-            Assert.That(method, Is.Not.Null );
+            TestSuite instance = (TestSuite)_fixture.Tests[0];
+            Test? method = TestFinder.Find("MethodWithoutParams", instance, false);
+            Assert.That(method, Is.Not.Null);
             Assert.That(method.FullName, Is.EqualTo(instance.FullName + ".MethodWithoutParams"));
         }
 
         [Test]
         public void MethodWithParamsIsNamedCorrectly()
         {
-            TestSuite instance = (TestSuite)fixture.Tests[0];
-            TestSuite method = (TestSuite)TestFinder.Find("MethodWithParams", instance, false);
+            TestSuite instance = (TestSuite)_fixture.Tests[0];
+            TestSuite? method = (TestSuite?)TestFinder.Find("MethodWithParams", instance, false);
             Assert.That(method, Is.Not.Null);
-            
+
             Test testcase = (Test)method.Tests[0];
             Assert.That(testcase.Name, Is.EqualTo("MethodWithParams(10,20)"));
             Assert.That(testcase.FullName, Is.EqualTo(instance.FullName + ".MethodWithParams(10,20)"));
+        }
+    }
+
+    public class AnotherParameterizedTestFixtureNamingTests
+    {
+        private TestSuite _fixture;
+
+        [OneTimeSetUp]
+        public void MakeFixture()
+        {
+            _fixture = TestBuilder.MakeFixture(typeof(AnotherParameterizedTestFixture));
+        }
+
+        [Test]
+        public void TopLevelSuiteIsNamedCorrectly()
+        {
+            Assert.That(_fixture.Name, Is.EqualTo(nameof(AnotherParameterizedTestFixture)));
+            Assert.That(_fixture.FullName, Is.EqualTo($"NUnit.TestData.{nameof(AnotherParameterizedTestFixture)}"));
+        }
+
+        [Test]
+        public void SuiteHasCorrectNumberOfInstances()
+        {
+            Assert.That(_fixture.Tests, Has.Count.EqualTo(2));
+        }
+
+        [Test]
+        public void FixtureInstancesAreNamedCorrectly()
+        {
+            var names = new List<string>();
+            var fullnames = new List<string>();
+            foreach (Test test in _fixture.Tests)
+            {
+                names.Add(test.Name);
+                fullnames.Add(test.FullName);
+            }
+
+            const string fixtureName1 = $"{nameof(AnotherParameterizedTestFixture)}({AnotherParameterizedTestFixture.DisplayParameterValue1})";
+            const string fixtureName2 = $"{nameof(AnotherParameterizedTestFixture)}({AnotherParameterizedTestFixture.DisplayParameterValue2})";
+
+            Assert.That(names, Is.EquivalentTo(new[] { fixtureName1, fixtureName2 }));
+            Assert.That(fullnames, Is.EquivalentTo(new[] { $"NUnit.TestData.{fixtureName1}", $"NUnit.TestData.{fixtureName2}" }));
+        }
+
+        [Test]
+        public void MethodWithParamsIsNamedCorrectly()
+        {
+            TestSuite instance = (TestSuite)_fixture.Tests[0];
+            TestSuite? method = (TestSuite?)TestFinder.Find(nameof(AnotherParameterizedTestFixture.TestCase), instance, false);
+            Assert.That(method, Is.Not.Null);
+
+            const string testName = $"{nameof(AnotherParameterizedTestFixture.TestCase)}({AnotherParameterizedTestFixture.DisplayParameterValue2})";
+
+            Test testcase = (Test)method.Tests[0];
+            Assert.That(testcase.Name, Is.EqualTo(testName));
+            Assert.That(testcase.FullName, Is.EqualTo($"{instance.FullName}.{testName}"));
         }
     }
 
@@ -216,14 +216,33 @@ namespace NUnit.Framework.Attributes
         public void CanSpecifyCategory()
         {
             Test fixture = TestBuilder.MakeFixture(typeof(NUnit.TestData.TestFixtureWithSingleCategory));
-            Assert.AreEqual("XYZ", fixture.Properties.Get(PropertyNames.Category));
+            Assert.That(fixture.Properties.Get(PropertyNames.Category), Is.EqualTo("XYZ"));
         }
- 
+
         [Test]
         public void CanSpecifyMultipleCategories()
         {
             Test fixture = TestBuilder.MakeFixture(typeof(NUnit.TestData.TestFixtureWithMultipleCategories));
-            Assert.AreEqual(new string[] { "X", "Y", "Z" }, fixture.Properties[PropertyNames.Category]);
+            Assert.That(fixture.Properties[PropertyNames.Category], Is.EqualTo(new[] { "X", "Y", "Z" }));
+        }
+
+        [Test]
+        public void NullArgumentForOrdinaryValueTypeParameterDoesNotThrowNullReferenceException()
+        {
+            Test fixture = TestBuilder.MakeFixture(typeof(NUnit.TestData.TestFixtureWithNullArgumentForOrdinaryValueTypeParameter));
+            Assert.That(fixture.RunState, Is.EqualTo(RunState.NotRunnable));
+            Assert.That(fixture.Properties.Get(PropertyNames.SkipReason), Is.EqualTo("No suitable constructor was found"));
+        }
+
+        [Test]
+        public void NullArgumentForGenericParameterDoesNotThrowNullReferenceException()
+        {
+            Test parameterizedFixture = TestBuilder.MakeFixture(typeof(NUnit.TestData.TestFixtureWithNullArgumentForGenericParameter<>));
+            ITest fixture = parameterizedFixture.Tests.Single();
+
+            Assert.That(fixture.RunState, Is.EqualTo(RunState.NotRunnable));
+            Assert.That(fixture.Properties.Get(PropertyNames.SkipReason), Is.EqualTo(
+                "Fixture type contains generic parameters. You must either provide Type arguments or specify constructor arguments that allow NUnit to deduce the Type arguments."));
         }
     }
 
@@ -241,7 +260,57 @@ namespace NUnit.Framework.Attributes
         [Test]
         public void MakeSureTypeIsInSystemNamespace()
         {
-            Assert.AreEqual("System", _someType.Namespace);
+            Assert.That(_someType.Namespace, Is.EqualTo("System"));
+        }
+    }
+
+    [TestFixture("Zero")]
+    [TestFixture("One", 1)]
+    [TestFixture("Many", 1, 2, 3, 4)]
+    [TestFixture(1.5, 8.2)]
+    [TestFixtureSource(nameof(SourceData))]
+    public class ParameterizedTestFixtureWithParamsArgument
+    {
+        private static IEnumerable SourceData()
+        {
+            yield return new object[] { "Many", 1, 2, 3, 4 };
+            yield return new object[] { new double[] { 1.5, 8.2 } };
+        }
+
+        public ParameterizedTestFixtureWithParamsArgument(string name, params int[] parameterValues)
+        {
+            Name = name;
+            ParameterValues = parameterValues;
+        }
+
+        public ParameterizedTestFixtureWithParamsArgument(params double[] parameterDoubleValues)
+        {
+            ParameterDoubleValues = parameterDoubleValues;
+        }
+
+        public string? Name { get; }
+        public int[]? ParameterValues { get; }
+        public double[]? ParameterDoubleValues { get; }
+
+        [Test]
+        public void CheckParametersPassedInAsExpected()
+        {
+            if (Name == "Zero")
+            {
+                Assert.That(ParameterValues, Is.Empty);
+            }
+            else if (Name == "One")
+            {
+                Assert.That(ParameterValues, Is.EqualTo(new[] { 1 }));
+            }
+            else if (Name == "Many")
+            {
+                Assert.That(ParameterValues, Is.EqualTo(new[] { 1, 2, 3, 4 }));
+            }
+            else if (Name is null)
+            {
+                Assert.That(ParameterDoubleValues, Is.EqualTo(new object[] { 1.5, 8.2 }));
+            }
         }
     }
 }

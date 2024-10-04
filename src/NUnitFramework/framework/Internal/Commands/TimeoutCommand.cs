@@ -1,65 +1,60 @@
-﻿// ***********************************************************************
-// Copyright (c) 2017 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-//
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
-using System;
-using System.Collections.Generic;
+#if THREAD_ABORT
 using System.Threading;
+#else
+using System;
+using System.Threading.Tasks;
+#endif
+using NUnit.Framework.Interfaces;
+using NUnit.Framework.Internal.Abstractions;
 
 namespace NUnit.Framework.Internal.Commands
 {
-    using Execution;
-    using Interfaces;
-
     /// <summary>
-    /// TimeoutCommand creates a timer in order to cancel
+    /// <see cref="TimeoutCommand"/> creates a timer in order to cancel
     /// a test if it exceeds a specified time and adjusts
     /// the test result if it did time out.
     /// </summary>
     public class TimeoutCommand : BeforeAndAfterTestCommand
     {
-        Timer _commandTimer;
-        private bool _commandTimedOut = false;
+        private readonly int _timeout;
+        private readonly IDebugger _debugger;
+#if THREAD_ABORT
+        private Timer? _commandTimer;
+        private bool _commandTimedOut;
+#endif
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TimeoutCommand"/> class.
         /// </summary>
         /// <param name="innerCommand">The inner command</param>
         /// <param name="timeout">Timeout value</param>
-        public TimeoutCommand(TestCommand innerCommand, int timeout)
-            : base(innerCommand)
+        /// <param name="debugger">An <see cref="IDebugger" /> instance</param>
+        internal TimeoutCommand(TestCommand innerCommand, int timeout, IDebugger debugger) : base(innerCommand)
         {
-            Guard.ArgumentValid(innerCommand.Test is TestMethod, "TimeoutCommand may only apply to a TestMethod", "innerCommand");
-            Guard.ArgumentValid(timeout > 0, "Timeout value must be greater than zero", "timeout");
+            _timeout = timeout;
+            _debugger = debugger;
 
-            BeforeTest = (context) =>
+            Guard.ArgumentValid(innerCommand.Test is TestMethod, "TimeoutCommand may only apply to a TestMethod", nameof(innerCommand));
+            Guard.ArgumentValid(timeout > 0, "Timeout value must be greater than zero", nameof(timeout));
+            Guard.ArgumentNotNull(debugger, nameof(debugger));
+
+#if THREAD_ABORT
+            BeforeTest = _ =>
             {
                 var testThread = Thread.CurrentThread;
                 var nativeThreadId = ThreadUtility.GetCurrentThreadNativeId();
 
                 // Create a timer to cancel the current thread
                 _commandTimer = new Timer(
-                    (o) =>
+                    o =>
                     {
+                        if (_debugger.IsAttached)
+                        {
+                            return;
+                        }
+
                         _commandTimedOut = true;
                         ThreadUtility.Abort(testThread, nativeThreadId);
                         // No join here, since the thread doesn't really terminate
@@ -71,15 +66,58 @@ namespace NUnit.Framework.Internal.Commands
 
             AfterTest = (context) =>
             {
-                _commandTimer.Dispose();
+                _commandTimer?.Dispose();
 
                 // If the timer cancelled the current thread, change the result
                 if (_commandTimedOut)
                 {
-                    context.CurrentResult.SetResult(ResultState.Failure,
-                        string.Format("Test exceeded Timeout value of {0}ms", timeout));
+                    var message = $"Test exceeded Timeout value of {timeout}ms";
+
+                    context.CurrentResult.SetResult(
+                        ResultState.Failure,
+                        message);
                 }
             };
+#else
+            BeforeTest = _ => { };
+            AfterTest = _ => { };
+#endif
         }
+
+#if !THREAD_ABORT
+        /// <summary>
+        /// Runs the test, saving a TestResult in the supplied TestExecutionContext.
+        /// </summary>
+        /// <param name="context">The context in which the test should run.</param>
+        /// <returns>A TestResult</returns>
+        public override TestResult Execute(TestExecutionContext context)
+        {
+            try
+            {
+                using (new TestExecutionContext.IsolatedContext())
+                {
+                    var testExecution = Task.Run(() => innerCommand.Execute(TestExecutionContext.CurrentContext));
+                    var timedOut = Task.WaitAny(new Task[] { testExecution }, _timeout) == -1;
+
+                    if (timedOut && !_debugger.IsAttached)
+                    {
+                        context.CurrentResult.SetResult(
+                            ResultState.Failure,
+                            $"Test exceeded Timeout value of {_timeout}ms");
+                    }
+                    else
+                    {
+                        context.CurrentResult = testExecution.GetAwaiter().GetResult();
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                context.CurrentResult.RecordException(exception, FailureSite.Test);
+            }
+
+            return context.CurrentResult;
+        }
+#endif
     }
 }

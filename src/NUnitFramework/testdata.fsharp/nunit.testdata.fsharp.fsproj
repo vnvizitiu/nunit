@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>$(NUnitRuntimeFrameworks)</TargetFrameworks>
+    <Deterministic>false</Deterministic>
+    <DisableImplicitFSharpCoreReference>true</DisableImplicitFSharpCoreReference>
+    <RestoreIgnoreFailedSources>true</RestoreIgnoreFailedSources>
+    <NoWarn>$(NoWarn);NU1604</NoWarn>
+    <Optimize>false</Optimize>
+    <IsTestProject>false</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="AsyncExecutionApiAdapter.Fixture-based.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FSharp.Core" />
+    <PackageReference Update="System.ValueTuple" />
+    <ProjectReference Include="..\framework\nunit.framework.csproj" />
+  </ItemGroup>
+
+</Project>

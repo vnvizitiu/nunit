@@ -1,31 +1,9 @@
-// ***********************************************************************
-// Copyright (c) 2008-2014 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework.Interfaces;
-using NUnit.Framework.Internal.Commands;
 
 namespace NUnit.Framework.Internal.Builders
 {
@@ -43,14 +21,13 @@ namespace NUnit.Framework.Internal.Builders
     /// </summary>
     public class DefaultTestCaseBuilder : ITestCaseBuilder
     {
-        private NUnitTestCaseBuilder _nunitTestCaseBuilder = new NUnitTestCaseBuilder();
+        private readonly NUnitTestCaseBuilder _nunitTestCaseBuilder = new();
 
-        #region ITestCaseBuilder Methods
         /// <summary>
         /// Determines if the method can be used to build an NUnit test
         /// test method of some kind. The method must normally be marked
         /// with an identifying attribute for this to be true.
-        /// 
+        ///
         /// Note that this method does not check that the signature
         /// of the method for validity. If we did that here, any
         /// test methods with invalid signatures would be passed
@@ -59,35 +36,29 @@ namespace NUnit.Framework.Internal.Builders
         /// in BuildFrom rather than here.
         /// </summary>
         /// <param name="method">An IMethodInfo for the method being used as a test method</param>
-        /// <returns>True if the builder can create a test case from this method</returns>
         public bool CanBuildFrom(IMethodInfo method)
         {
-            return method.IsDefined<ITestBuilder>(false)
-                || method.IsDefined<ISimpleTestBuilder>(false);
+            return method.IsDefined<ITestBuilder>(true)
+                || method.IsDefined<ISimpleTestBuilder>(true);
         }
 
         /// <summary>
-        /// Build a Test from the provided MethodInfo. Depending on
-        /// whether the method takes arguments and on the availability
-        /// of test case data, this method may return a single test
-        /// or a group of tests contained in a ParameterizedMethodSuite.
+        /// Builds a single test from the specified method and context,
+        /// possibly containing child test cases.
         /// </summary>
         /// <param name="method">The method for which a test is to be built</param>
-        /// <returns>A Test representing one or more method invocations</returns>
         public Test BuildFrom(IMethodInfo method)
         {
             return BuildFrom(method, null);
         }
 
-        #endregion
-
-        #region ITestCaseBuilder2 Members
+        #region ITestCaseBuilder Members
 
         /// <summary>
         /// Determines if the method can be used to build an NUnit test
         /// test method of some kind. The method must normally be marked
         /// with an identifying attribute for this to be true.
-        /// 
+        ///
         /// Note that this method does not check that the signature
         /// of the method for validity. If we did that here, any
         /// test methods with invalid signatures would be passed
@@ -97,57 +68,50 @@ namespace NUnit.Framework.Internal.Builders
         /// </summary>
         /// <param name="method">An IMethodInfo for the method being used as a test method</param>
         /// <param name="parentSuite">The test suite being built, to which the new test would be added</param>
-        /// <returns>True if the builder can create a test case from this method</returns>
-        public bool CanBuildFrom(IMethodInfo method, Test parentSuite)
+        public bool CanBuildFrom(IMethodInfo method, Test? parentSuite)
         {
             return CanBuildFrom(method);
         }
 
         /// <summary>
-        /// Build a Test from the provided MethodInfo. Depending on
-        /// whether the method takes arguments and on the availability
-        /// of test case data, this method may return a single test
-        /// or a group of tests contained in a ParameterizedMethodSuite.
+        /// Builds a single test from the specified method and context,
+        /// possibly containing child test cases.
         /// </summary>
         /// <param name="method">The method for which a test is to be built</param>
         /// <param name="parentSuite">The test fixture being populated, or null</param>
-        /// <returns>A Test representing one or more method invocations</returns>
-        public Test BuildFrom(IMethodInfo method, Test parentSuite)
+        public Test BuildFrom(IMethodInfo method, Test? parentSuite)
         {
             var tests = new List<TestMethod>();
 
-            List<ITestBuilder> builders = new List<ITestBuilder>(
-                method.GetCustomAttributes<ITestBuilder>(false));
-
-            // See if we need a CombinatorialAttribute added
-            bool needCombinatorial = true;
-            foreach (var attr in builders)
+            try
             {
-                if (attr is CombiningStrategyAttribute)
-                    needCombinatorial = false;
+                var metadata = MethodInfoCache.Get(method);
+
+                List<ITestBuilder> builders = new(metadata.TestBuilderAttributes);
+
+                // See if we need to add a CombinatorialAttribute for parameterized data
+                if (method.MethodInfo.GetParameters().Any(param => param.HasAttribute<IParameterDataSource>(false))
+                    && !builders.Any(builder => builder is CombiningStrategyAttribute))
+                {
+                    builders.Add(new CombinatorialAttribute());
+                }
+
+                foreach (var attr in builders)
+                {
+                    foreach (var test in attr.BuildFrom(method, parentSuite))
+                        tests.Add(test);
+                }
+
+                return builders.Count > 0 && method.GetParameters().Length > 0 || tests.Count > 0
+                    ? BuildParameterizedMethodSuite(method, tests)
+                    : BuildSingleTestMethod(method, parentSuite);
             }
-
-            // This check must be done before CombinatorialAttribute gets added to the builders collection
-            var hasBuildersSpecified = builders.Count > 0;
-
-            // We could check to see if here are any data attributes specified
-            // on the parameters but that's what CombinatorialAttribute does
-            // and it simply won't return any cases if it finds nothing.
-            // TODO: We need to add some other ITestBuilder than a combinatorial attribute
-            // because we want the attribute to generate an error if it's present on
-            // a generic method.
-            if (needCombinatorial)
-                builders.Add(new CombinatorialAttribute());
-
-            foreach (var attr in builders)
+            catch (Exception ex)
             {
-                foreach (var test in attr.BuildFrom(method, parentSuite))
-                    tests.Add(test); 
+                var testMethod = new TestMethod(method, parentSuite);
+                testMethod.MakeInvalid(ex, "Failure building Test");
+                return testMethod;
             }
-
-            return hasBuildersSpecified && method.GetParameters().Length > 0 || tests.Count > 0
-                ? BuildParameterizedMethodSuite(method, tests)
-                : BuildSingleTestMethod(method, parentSuite);
         }
 
         #endregion
@@ -159,7 +123,6 @@ namespace NUnit.Framework.Internal.Builders
         /// </summary>
         /// <param name="method">The method for which a test is to be built.</param>
         /// <param name="tests">The list of test cases to include.</param>
-        /// <returns>A ParameterizedMethodSuite populated with test cases</returns>
         private Test BuildParameterizedMethodSuite(IMethodInfo method, IEnumerable<TestMethod> tests)
         {
             ParameterizedMethodSuite methodSuite = new ParameterizedMethodSuite(method);
@@ -176,8 +139,7 @@ namespace NUnit.Framework.Internal.Builders
         /// </summary>
         /// <param name="method">The MethodInfo for which a test is to be built</param>
         /// <param name="suite">The test suite for which the method is being built</param>
-        /// <returns>A TestMethod.</returns>
-        private Test BuildSingleTestMethod(IMethodInfo method, Test suite)
+        private Test BuildSingleTestMethod(IMethodInfo method, Test? suite)
         {
             var builders = method.GetCustomAttributes<ISimpleTestBuilder>(false);
             return builders.Length > 0

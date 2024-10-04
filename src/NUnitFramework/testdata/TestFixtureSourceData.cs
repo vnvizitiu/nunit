@@ -1,86 +1,76 @@
-﻿// ***********************************************************************
-// Copyright (c) 2015 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System.Collections;
 using NUnit.Framework;
+using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using NUnit.TestData.TestUtilities;
 
 namespace NUnit.TestData.TestFixtureSourceData
 {
     public abstract class TestFixtureSourceTest
     {
-        private string Arg;
-        private string Expected;
+        private readonly string _arg;
+        private readonly string _expected;
 
         public TestFixtureSourceTest(string arg, string expected)
         {
-            Arg = arg;
-            Expected = expected;
+            _arg = arg;
+            _expected = expected;
         }
 
         [Test]
         public void CheckSource()
         {
-            Assert.That(Arg, Is.EqualTo(Expected));
+            Assert.That(_arg, Is.EqualTo(_expected));
         }
     }
 
     public abstract class TestFixtureSourceDivideTest
     {
-        private int X;
-        private int Y;
-        private int Z;
+        private readonly int _x;
+        private readonly int _y;
+        private readonly int _z;
 
         public TestFixtureSourceDivideTest(int x, int y, int z)
         {
-            X = x;
-            Y = y;
-            Z = z;
+            _x = x;
+            _y = y;
+            _z = z;
         }
 
         [Test]
         public void CheckSource()
         {
-            Assert.That(X / Y, Is.EqualTo(Z));
+            Assert.That(_x / _y, Is.EqualTo(_z));
         }
     }
 
-    [TestFixtureSource("StaticField")]
+    [TestFixtureSource(nameof(StaticField))]
     public class StaticField_SameClass : TestFixtureSourceTest
     {
-        public StaticField_SameClass(string arg) : base(arg, "StaticFieldInClass") { }
+        public StaticField_SameClass(string arg) : base(arg, "StaticFieldInClass")
+        {
+        }
 
-#pragma warning disable 414
-        static object[] StaticField = new object[] { "StaticFieldInClass" };
-#pragma warning restore 414
+        private static readonly object[] StaticField = new object[] { "StaticFieldInClass" };
     }
 
-    [TestFixtureSource("StaticProperty")]
+    [TestFixtureSource(nameof(StaticProperty))]
     public class StaticProperty_SameClass : TestFixtureSourceTest
     {
-        public StaticProperty_SameClass(string arg) : base(arg, "StaticPropertyInClass") { }
+        public StaticProperty_SameClass(string arg) : base(arg, "StaticPropertyInClass")
+        {
+        }
 
-        public StaticProperty_SameClass(string arg, string expected) : base(arg, expected) { }
+        public StaticProperty_SameClass(string arg, string expected) : base(arg, expected)
+        {
+        }
 
         public static object[] StaticProperty
         {
@@ -88,50 +78,102 @@ namespace NUnit.TestData.TestFixtureSourceData
         }
     }
 
-    [TestFixtureSource("StaticProperty")]
-    public class StaticProperty_InheritedClass : StaticProperty_SameClass 
+    [TestFixtureSource(nameof(StaticProperty))]
+    public class StaticProperty_InheritedClass : StaticProperty_SameClass
     {
-        public StaticProperty_InheritedClass (string arg) : base(arg, "StaticPropertyInClass") { }
+        public StaticProperty_InheritedClass(string arg) : base(arg, "StaticPropertyInClass")
+        {
+        }
     }
 
-    [TestFixtureSource("StaticMethod")]
+    [TestFixtureSource(nameof(StaticMethod))]
     public class StaticMethod_SameClass : TestFixtureSourceTest
     {
-        public StaticMethod_SameClass(string arg) : base(arg, "StaticMethodInClass") { }
+        public StaticMethod_SameClass(string arg) : base(arg, "StaticMethodInClass")
+        {
+        }
 
-        static object[] StaticMethod()
+        private static object[] StaticMethod()
         {
             return new object[] { new object[] { "StaticMethodInClass" } };
         }
     }
 
-    [TestFixtureSource("InstanceField")]
-    public class InstanceField_SameClass : TestFixtureSourceTest
+    [TestFixtureSource(nameof(StaticAsyncMethod))]
+    public class StaticAsyncMethod_SameClass : TestFixtureSourceTest
     {
-        public InstanceField_SameClass(string arg) : base(arg, "InstanceFieldInClass") { }
-
-#pragma warning disable 414
-        object[] InstanceField = new object[] { "InstanceFieldInClass" };
-#pragma warning restore 414
-    }
-
-    [TestFixtureSource("InstanceProperty")]
-    public class InstanceProperty_SameClass : TestFixtureSourceTest
-    {
-        public InstanceProperty_SameClass(string arg) : base(arg, "InstancePropertyInClass") { }
-
-        object[] InstanceProperty
+        public StaticAsyncMethod_SameClass(string arg) : base(arg, nameof(StaticAsyncMethod))
         {
-            get { return new object[] { new object[] { "InstancePropertyInClass" } }; }
+        }
+
+        private static Task<object[]> StaticAsyncMethod()
+        {
+            return Task.FromResult(new object[] { new object[] { nameof(StaticAsyncMethod) } });
         }
     }
 
-    [TestFixtureSource("InstanceMethod")]
+    [TestFixtureSource(nameof(StaticAsyncEnumerableMethod))]
+    public class StaticAsyncEnumerableMethod_SameClass : TestFixtureSourceTest
+    {
+        public StaticAsyncEnumerableMethod_SameClass(string arg) : base(arg, nameof(StaticAsyncEnumerableMethod))
+        {
+        }
+
+        private static IAsyncEnumerable<object> StaticAsyncEnumerableMethod()
+        {
+            var result = new object[] { new object[] { nameof(StaticAsyncEnumerableMethod) } };
+            return result.AsAsyncEnumerable();
+        }
+    }
+
+    [TestFixtureSource(nameof(StaticAsyncEnumerableMethodReturningTask))]
+    public class StaticAsyncEnumerableMethodReturningTask_SameClass : TestFixtureSourceTest
+    {
+        public StaticAsyncEnumerableMethodReturningTask_SameClass(string arg) : base(arg, nameof(StaticAsyncEnumerableMethodReturningTask))
+        {
+        }
+
+        private static Task<IAsyncEnumerable<object>> StaticAsyncEnumerableMethodReturningTask()
+        {
+            var result = new object[] { new object[] { nameof(StaticAsyncEnumerableMethodReturningTask) } };
+            return Task.FromResult(result.AsAsyncEnumerable());
+        }
+    }
+
+    [TestFixtureSource(nameof(InstanceField))]
+    public class InstanceField_SameClass : TestFixtureSourceTest
+    {
+        public InstanceField_SameClass(string arg) : base(arg, "InstanceFieldInClass")
+        {
+        }
+
+#pragma warning disable IDE1006 // Naming Styles
+        private readonly object[] InstanceField = new object[] { "InstanceFieldInClass" };
+#pragma warning restore IDE1006 // Naming Styles
+    }
+
+    [TestFixtureSource(nameof(InstanceProperty))]
+    public class InstanceProperty_SameClass : TestFixtureSourceTest
+    {
+        public InstanceProperty_SameClass(string arg) : base(arg, "InstancePropertyInClass")
+        {
+        }
+
+        private object[] InstanceProperty =>
+            new object[]
+            {
+                new object[] { "InstancePropertyInClass" }
+            };
+    }
+
+    [TestFixtureSource(nameof(InstanceMethod))]
     public class InstanceMethod_SameClass : TestFixtureSourceTest
     {
-        public InstanceMethod_SameClass(string arg) : base(arg, "InstanceMethodInClass") { }
+        public InstanceMethod_SameClass(string arg) : base(arg, "InstanceMethodInClass")
+        {
+        }
 
-        object[] InstanceMethod()
+        private object[] InstanceMethod()
         {
             return new object[] { new object[] { "InstanceMethodInClass" } };
         }
@@ -140,33 +182,43 @@ namespace NUnit.TestData.TestFixtureSourceData
     [TestFixtureSource(typeof(SourceData), "StaticField")]
     public class StaticField_DifferentClass : TestFixtureSourceTest
     {
-        public StaticField_DifferentClass(string arg) : base(arg, "StaticField") { }
+        public StaticField_DifferentClass(string arg) : base(arg, "StaticField")
+        {
+        }
     }
 
     [TestFixtureSource(typeof(SourceData), "StaticProperty")]
     public class StaticProperty_DifferentClass : TestFixtureSourceTest
     {
-        public StaticProperty_DifferentClass(string arg) : base(arg, "StaticProperty") { }
+        public StaticProperty_DifferentClass(string arg) : base(arg, "StaticProperty")
+        {
+        }
     }
 
     [TestFixtureSource(typeof(SourceData), "StaticMethod")]
     public class StaticMethod_DifferentClass : TestFixtureSourceTest
     {
-        public StaticMethod_DifferentClass(string arg) : base(arg, "StaticMethod") { }
+        public StaticMethod_DifferentClass(string arg) : base(arg, "StaticMethod")
+        {
+        }
     }
 
     [TestFixtureSource(typeof(SourceData_IEnumerable))]
     public class IEnumerableSource : TestFixtureSourceTest
     {
-        public IEnumerableSource(string arg) : base(arg, "SourceData_IEnumerable") { }
+        public IEnumerableSource(string arg) : base(arg, nameof(SourceData_IEnumerable))
+        {
+        }
     }
 
-    [TestFixtureSource("MyData")]
+    [TestFixtureSource(nameof(MyData))]
     public class SourceReturnsObjectArray : TestFixtureSourceDivideTest
     {
-        public SourceReturnsObjectArray(int x, int y, int z) : base(x, y, z) { }
+        public SourceReturnsObjectArray(int x, int y, int z) : base(x, y, z)
+        {
+        }
 
-        static IEnumerable MyData()
+        private static IEnumerable MyData()
         {
             yield return new object[] { 12, 4, 3 };
             yield return new object[] { 12, 3, 4 };
@@ -174,12 +226,14 @@ namespace NUnit.TestData.TestFixtureSourceData
         }
     }
 
-    [TestFixtureSource("MyData")]
+    [TestFixtureSource(nameof(MyData))]
     public class SourceReturnsFixtureParameters : TestFixtureSourceDivideTest
     {
-        public SourceReturnsFixtureParameters(int x, int y, int z) : base(x, y, z) { }
+        public SourceReturnsFixtureParameters(int x, int y, int z) : base(x, y, z)
+        {
+        }
 
-        static IEnumerable MyData()
+        private static IEnumerable MyData()
         {
             yield return new TestFixtureParameters(12, 4, 3);
             yield return new TestFixtureParameters(12, 3, 4);
@@ -188,12 +242,14 @@ namespace NUnit.TestData.TestFixtureSourceData
     }
 
     [TestFixture]
-    [TestFixtureSource("MyData")]
+    [TestFixtureSource(nameof(MyData))]
     public class ExtraTestFixtureAttributeIsIgnored : TestFixtureSourceDivideTest
     {
-        public ExtraTestFixtureAttributeIsIgnored(int x, int y, int z) : base(x, y, z) { }
+        public ExtraTestFixtureAttributeIsIgnored(int x, int y, int z) : base(x, y, z)
+        {
+        }
 
-        static IEnumerable MyData()
+        private static IEnumerable MyData()
         {
             yield return new object[] { 12, 4, 3 };
             yield return new object[] { 12, 3, 4 };
@@ -202,33 +258,63 @@ namespace NUnit.TestData.TestFixtureSourceData
     }
 
     [TestFixture]
-    [TestFixtureSource("MyData")]
-    [TestFixtureSource("MoreData", Category = "Extra")]
+    [TestFixtureSource(nameof(MyData))]
+    [TestFixtureSource(nameof(MoreData), Category = "Extra")]
     [TestFixture(12, 12, 1)]
     public class TestFixtureMayUseMultipleSourceAttributes : TestFixtureSourceDivideTest
     {
-        public TestFixtureMayUseMultipleSourceAttributes(int n, int d, int q) : base(n, d, q) { }
+        public TestFixtureMayUseMultipleSourceAttributes(int n, int d, int q) : base(n, d, q)
+        {
+        }
 
-        static IEnumerable MyData()
+        private static IEnumerable MyData()
         {
             yield return new object[] { 12, 4, 3 };
             yield return new object[] { 12, 3, 4 };
             yield return new object[] { 12, 6, 2 };
         }
 
-#pragma warning disable 414
-        static object[] MoreData = new object[] {
+        private static readonly object[] MoreData = new object[]
+        {
             new object[] { 12, 1, 12 },
-            new object[] { 12, 2, 6 } };
-#pragma warning restore 414
+            new object[] { 12, 2, 6 }
+        };
     }
 
-    [TestFixtureSource("IgnoredData")]
+    [TestFixture]
+    [TestFixtureSource(nameof(MyData))]
+    public class TestFixtureSourceMayUseParamsArguments
+    {
+        public TestFixtureSourceMayUseParamsArguments(params int[] parameters)
+        {
+            Parameters = parameters;
+        }
+
+        public int[] Parameters { get; }
+
+        [Test]
+        public void Test()
+        {
+            Assert.That(Parameters, Is.Not.Null);
+            for (int i = 0; i < Parameters.Length; i++)
+                Assert.That(Parameters[i], Is.EqualTo(i + 1));
+        }
+        private static IEnumerable MyData()
+        {
+            yield return new object[] { 1, 2, 3 };
+            yield return new object[] { };
+            yield return new object[] { new int[] { 1, 2, 3, 4 } };
+        }
+    }
+
+    [TestFixtureSource(nameof(IgnoredData))]
     public class IndividualInstancesMayBeIgnored : TestFixtureSourceTest
     {
-        public IndividualInstancesMayBeIgnored(string arg) : base(arg, "IgnoredData") { }
+        public IndividualInstancesMayBeIgnored(string arg) : base(arg, "IgnoredData")
+        {
+        }
 
-        static IEnumerable IgnoredData()
+        private static IEnumerable IgnoredData()
         {
             yield return new TestFixtureData("GoodData");
             yield return new TestFixtureData("IgnoredData").Ignore("There must be a reason");
@@ -236,18 +322,48 @@ namespace NUnit.TestData.TestFixtureSourceData
         }
     }
 
-    [TestFixtureSource("ExplicitData")]
+    [TestFixtureSource(nameof(ExplicitData))]
     public class IndividualInstancesMayBeExplicit : TestFixtureSourceTest
     {
-        public IndividualInstancesMayBeExplicit(string arg) : base(arg, "ExplicitData") { }
+        public IndividualInstancesMayBeExplicit(string arg) : base(arg, "ExplicitData")
+        {
+        }
 
-        static IEnumerable ExplicitData()
+        private static IEnumerable ExplicitData()
         {
             yield return new TestFixtureData("GoodData");
             yield return new TestFixtureData("ExplicitData").Explicit("Runs long");
             yield return new TestFixtureData("MoreExplicitData").Explicit();
         }
     }
+
+    #region Test name tests
+
+    [TestFixtureSource(nameof(IndividualInstanceNameTestDataSource))]
+    public sealed class IndividualInstanceNameTestDataFixture
+    {
+        public IndividualInstanceNameTestDataFixture(params object[] args)
+        {
+        }
+
+        [Test]
+        public void Test()
+        {
+        }
+
+        public static IEnumerable<TestFixtureData> IndividualInstanceNameTestDataSource() =>
+            from spec in TestDataSpec.Specs
+            select new TestFixtureData(spec.Arguments)
+            {
+                Properties = // SetProperty does not exist
+                    {
+                        ["ExpectedTestName"] = { spec.GetFixtureName(nameof(IndividualInstanceNameTestDataFixture)) }
+                    }
+            }
+                .SetArgDisplayNames(spec.ArgDisplayNames);
+    }
+
+    #endregion
 
     [TestFixture]
     public abstract class Issue1118_Root
@@ -305,9 +421,91 @@ namespace NUnit.TestData.TestFixtureSourceData
         }
     }
 
+    public class GenericFixtureSource
+    {
+        public static readonly Type[] Source = new Type[]
+        {
+            typeof(short),
+            typeof(int),
+            typeof(long)
+        };
+    }
+
+    [TestFixtureSource(typeof(GenericFixtureSource), nameof(GenericFixtureSource.Source))]
+    public class GenericFixtureSourceWithProperArgsProvided<T>
+    {
+        [Test]
+        public void SomeTest()
+        {
+        }
+    }
+
+    public class GenericFixtureWithTypeAndConstructorArgsSource
+    {
+        public static readonly ITestFixtureData[] Source =
+        {
+            new TypedTestFixture<int>(5),
+            new TypedTestFixture<object>(new object())
+        };
+
+        public class TypedTestFixture<T> : Framework.Internal.TestParameters, ITestFixtureData
+        {
+            public TypedTestFixture(params object[] arguments)
+                : base(arguments)
+            {
+                TypeArgs = new[] { typeof(T) };
+            }
+
+            public Type[] TypeArgs { get; }
+        }
+    }
+
+    [TestFixtureSource(typeof(GenericFixtureWithTypeAndConstructorArgsSource), nameof(GenericFixtureWithTypeAndConstructorArgsSource.Source))]
+    public class GenericFixtureSourceWithTypeAndConstructorArgs<T>
+    {
+        private readonly T _arg;
+
+        public GenericFixtureSourceWithTypeAndConstructorArgs(T arg)
+        {
+            _arg = arg;
+        }
+
+        [Test]
+        public void SomeTest()
+        {
+            Assert.That(!EqualityComparer<T>.Default.Equals(_arg, default(T)), "constructor argument was not injected");
+        }
+    }
+
+    public class GenericFixtureWithConstructorArgsSource
+    {
+        public static readonly TestFixtureData[] Source =
+        {
+            new TestFixtureData(5),
+            new TestFixtureData(new object())
+        };
+    }
+
+    [TestFixtureSource(typeof(GenericFixtureWithConstructorArgsSource), nameof(GenericFixtureWithConstructorArgsSource.Source))]
+    public class GenericFixtureSourceWithConstructorArgs<T>
+    {
+        private readonly T _arg;
+
+        public GenericFixtureSourceWithConstructorArgs(T arg)
+        {
+            _arg = arg;
+        }
+
+        [Test]
+        public void SomeTest()
+        {
+            Assert.That(!EqualityComparer<T>.Default.Equals(_arg, default(T)), "constructor argument was not injected");
+        }
+    }
+
     #region Source Data Classes
 
-    class SourceData_IEnumerable : IEnumerable
+    internal class SourceData_IEnumerable : IEnumerable
     {
         public SourceData_IEnumerable()
         {
@@ -315,61 +513,118 @@ namespace NUnit.TestData.TestFixtureSourceData
 
         public IEnumerator GetEnumerator()
         {
-            yield return "SourceData_IEnumerable";
+            yield return nameof(SourceData_IEnumerable);
         }
     }
 
-    class SourceData
+    internal class SourceData
     {
-        public static object[] InheritedStaticProperty
-        {
-            get { return new object[] { new object[] { "StaticProperty" } }; }
-        }
+        private static readonly object[] StaticField = new object[] { nameof(StaticField) };
 
-#pragma warning disable 414
-        static object[] StaticField = new object[] { "StaticField" };
-#pragma warning restore 414
+        private static object[] StaticProperty =>
+            new object[]
+            {
+                new object[] { nameof(StaticProperty) }
+            };
 
-        static object[] StaticProperty
+        private static object[] StaticMethod()
         {
-            get { return new object[] { new object[] { "StaticProperty" } }; }
-        }
-
-        static object[] StaticMethod()
-        {
-            return new object[] { new object[] { "StaticMethod" } };
+            return new object[] { new object[] { nameof(StaticMethod) } };
         }
     }
 
     #endregion
+
+    [TestFixtureSource(nameof(DataSource))]
+    public abstract class DataSourcePrivateFieldInBaseClass
+    {
+        private static readonly int[] DataSource = { 3, 5 };
+
+        protected DataSourcePrivateFieldInBaseClass(int data)
+        {
+            Data = data;
+        }
+
+        protected int Data { get; }
+    }
+
+    public class DerivedClassUsingBaseClassDataSource : DataSourcePrivateFieldInBaseClass
+    {
+        public DerivedClassUsingBaseClassDataSource(int data) : base(data)
+        {
+        }
+
+        [Test]
+        public void IsOdd()
+        {
+            Assert.That(Data % 2 == 1);
+        }
+    }
+
+    public class BaseClassUsingDerivedClassDataSource : DataSourcePrivateFieldInBaseClass
+    {
+        private static readonly int[] DataSource = { 2, 4 };
+
+        public BaseClassUsingDerivedClassDataSource(int data) : base(data)
+        {
+        }
+
+        [Test]
+        public void IsEven()
+        {
+            Assert.That(Data % 2 == 0);
+        }
+    }
 }
 
-[TestFixtureSource("MyData")]
+[TestFixtureSource(nameof(MyData))]
 public class NoNamespaceTestFixtureSourceWithTwoValues
 {
-    public NoNamespaceTestFixtureSourceWithTwoValues(int i) { }
+    public NoNamespaceTestFixtureSourceWithTwoValues(int i)
+    {
+    }
 
     [Test]
     public void Test()
     {
     }
 
-#pragma warning disable 414
-    static object[] MyData = { 1, 2 };
-#pragma warning restore 414
+    private static readonly object[] MyData = { 1, 2 };
 }
 
-[TestFixtureSource("MyData")]
+[TestFixtureSource(nameof(MyData))]
 public class NoNamespaceTestFixtureSourceWithSingleValue
 {
-    public NoNamespaceTestFixtureSourceWithSingleValue(int i) { }
+    public NoNamespaceTestFixtureSourceWithSingleValue(int i)
+    {
+    }
 
     [Test]
     public void Test()
     {
     }
 
-#pragma warning disable 414
-    static object[] MyData = { 1 };
-#pragma warning restore 414
+    private static readonly object[] MyData = { 1 };
+}
+
+[TestFixtureSource(nameof(Data))]
+[Parallelizable(ParallelScope.All)]
+public class TextFixtureSourceWithParallelizableAttribute
+{
+    public TextFixtureSourceWithParallelizableAttribute(string arg)
+    {
+    }
+
+    private static IEnumerable Data()
+    {
+        yield return new TestFixtureData("a");
+        yield return new TestFixtureData("b");
+        yield return new TestFixtureData("c");
+    }
+
+    [Test]
+    public void Test()
+    {
+        Thread.Sleep(1000);
+    }
 }

@@ -1,27 +1,5 @@
-// ***********************************************************************
-// Copyright (c) 2007 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
-#if !NETSTANDARD1_3 && !NETSTANDARD1_6
 using System;
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
@@ -29,18 +7,21 @@ using NUnit.Framework.Internal;
 namespace NUnit.Framework
 {
     /// <summary>
-    /// Summary description for SetCultureAttribute.
+    /// Sets the current Culture on an assembly, test fixture or test method for
+    /// the duration of a test. The culture remains set until the test or fixture
+    /// completes and is then reset to its original value.
     /// </summary>
-    [AttributeUsage(AttributeTargets.Class|AttributeTargets.Method|AttributeTargets.Assembly, AllowMultiple=false, Inherited=true)]
+    /// <seealso cref="SetUICultureAttribute"/>
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method | AttributeTargets.Assembly, AllowMultiple = false, Inherited = true)]
     public class SetCultureAttribute : PropertyAttribute, IApplyToContext
     {
-        private string _culture;
+        private readonly string _culture;
 
         /// <summary>
         /// Construct given the name of a culture
         /// </summary>
         /// <param name="culture"></param>
-        public SetCultureAttribute( string culture ) : base( PropertyNames.SetCulture, culture ) 
+        public SetCultureAttribute(string culture) : base(PropertyNames.SetCulture, culture)
         {
             _culture = culture;
         }
@@ -55,4 +36,3 @@ namespace NUnit.Framework
         #endregion
     }
 }
-#endif

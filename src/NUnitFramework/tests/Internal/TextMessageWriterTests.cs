@@ -1,43 +1,28 @@
-// ***********************************************************************
-// Copyright (c) 2007 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
-using System.Threading;
-using System.Globalization;
+using NUnit.Framework.Constraints;
+using NUnit.Framework.Internal;
 
-namespace NUnit.Framework.Internal
+namespace NUnit.Framework.Tests.Internal
 {
     [TestFixture]
     public class TextMessageWriterTests
     {
         private static readonly string NL = Environment.NewLine;
 
-        private TextMessageWriter writer;
+        private TextMessageWriter _writer;
 
         [SetUp]
         public void SetUp()
         {
-            writer = new TextMessageWriter();
+            _writer = new TextMessageWriter();
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            _writer.Dispose();
         }
 
         [Test]
@@ -46,8 +31,8 @@ namespace NUnit.Framework.Internal
             string s72 = "abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
             string exp = "abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXY...";
 
-            writer.DisplayStringDifferences(s72, "abcde", 5, false, true);
-            string message = writer.ToString();
+            _writer.DisplayStringDifferences(s72, "abcde", 5, 5, false, false, true);
+            string message = _writer.ToString();
             Assert.That(message, Is.EqualTo(
                 TextMessageWriter.Pfx_Expected + Q(exp) + NL +
                 TextMessageWriter.Pfx_Actual + Q("abcde") + NL +
@@ -59,12 +44,28 @@ namespace NUnit.Framework.Internal
         {
             string s72 = "abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
 
-            writer.DisplayStringDifferences(s72, "abcde", 5, false, false);
-            string message = writer.ToString();
+            _writer.DisplayStringDifferences(s72, "abcde", 5, 5, false, false, false);
+            string message = _writer.ToString();
             Assert.That(message, Is.EqualTo(
                 TextMessageWriter.Pfx_Expected + Q(s72) + NL +
                 TextMessageWriter.Pfx_Actual + Q("abcde") + NL +
                 "  ----------------^" + NL));
+        }
+
+        [Test]
+        public void DisplayStringDifferences_IgnoreWhiteSpace()
+        {
+            string expected = "abc def";
+            string actual = "a b c d e g";
+
+            _writer.DisplayStringDifferences(expected, actual, 6, 10, false, true, false);
+            string message = _writer.ToString();
+            string expectedMessage =
+                TextMessageWriter.Pfx_Expected + Q(expected) + ", ignoring white-space" + NL +
+                "  -----------------^" + NL +
+                TextMessageWriter.Pfx_Actual + Q(actual) + NL +
+                "  ---------------------^" + NL;
+            Assert.That(message, Is.EqualTo(expectedMessage));
         }
 
         [Test]
@@ -75,8 +76,8 @@ namespace NUnit.Framework.Internal
             expected = message = "here's an embedded zero \0, in me";
             expected = "  " + expected.Replace("\0", "\\0") + NL;
 
-            writer.WriteMessageLine(0, message, null);
-            message = writer.ToString();
+            _writer.WriteMessageLine(0, message, null);
+            message = _writer.ToString();
 
             Assert.That(message, Is.EqualTo(expected));
         }
@@ -90,8 +91,8 @@ namespace NUnit.Framework.Internal
             arg0 = "\0";
             expected = "  " + string.Format(message, arg0).Replace("\0", "\\0") + NL;
 
-            writer.WriteMessageLine(0, message, arg0);
-            message = writer.ToString();
+            _writer.WriteMessageLine(0, message, arg0);
+            message = _writer.ToString();
 
             Assert.That(message, Is.EqualTo(expected));
         }
@@ -103,11 +104,47 @@ namespace NUnit.Framework.Internal
 
             expected = message = "Here we have embedded control characters \b\f in the string!";
 
-            writer.WriteMessageLine(0, message, null);
-            message = writer.ToString();
+            _writer.WriteMessageLine(0, message, null);
+            message = _writer.ToString();
             expected = "  " + expected.Replace("\0", "\\0") + NL;
 
             Assert.That(message, Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void WriteMessageLine_DisplayDifference_WhenActual_IsNull()
+        {
+            string message;
+            var mockTolerance = new Tolerance("00:00:10");
+
+            _writer.DisplayDifferences("2023-01-01 13:00:00", null, mockTolerance);
+            message = _writer.ToString();
+
+            Assert.That(message, Does.Not.Contain("Off by"));
+        }
+
+        [Test]
+        public void WriteMessageLine_DisplayDifference_WhenExpected_IsNull()
+        {
+            string message;
+            var mockTolerance = new Tolerance("00:00:10");
+
+            _writer.DisplayDifferences(null, "2023-01-01 13:00:00", mockTolerance);
+            message = _writer.ToString();
+
+            Assert.That(message, Does.Not.Contain("Off by"));
+        }
+
+        [Test]
+        public void WriteMessageLine_DisplayDifference_WhenActual_IsNotNull()
+        {
+            string message;
+            var mockTolerance = new Tolerance("00:00:10");
+
+            _writer.DisplayDifferences("2023-01-01 13:00:00", "2023-01-01 13:00:12", mockTolerance);
+            message = _writer.ToString();
+
+            Assert.That(message, Does.Not.Contain("Off by"));
         }
 
         private string Q(string s)

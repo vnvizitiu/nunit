@@ -1,28 +1,9 @@
-﻿// ***********************************************************************
-// Copyright (c) 2010 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
 using NUnit.Framework.Interfaces;
+using NUnit.Framework.Internal.Builders;
+using NUnit.Framework.Internal.Extensions;
 
 namespace NUnit.Framework.Internal.Commands
 {
@@ -32,8 +13,8 @@ namespace NUnit.Framework.Internal.Commands
     /// </summary>
     public class TestMethodCommand : TestCommand
     {
-        private readonly TestMethod testMethod;
-        private readonly object[] arguments;
+        private readonly TestMethod _testMethod;
+        private readonly object?[] _arguments;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TestMethodCommand"/> class.
@@ -41,8 +22,8 @@ namespace NUnit.Framework.Internal.Commands
         /// <param name="testMethod">The test.</param>
         public TestMethodCommand(TestMethod testMethod) : base(testMethod)
         {
-            this.testMethod = testMethod;
-            this.arguments = testMethod.Arguments;
+            _testMethod = testMethod;
+            _arguments = testMethod.Arguments;
         }
 
         /// <summary>
@@ -61,12 +42,15 @@ namespace NUnit.Framework.Internal.Commands
             // make it impossible to write a wrapper command to
             // implement ExpectedException, among other things.
 
-            object result = RunTestMethod(context);
+            var result = RunTestMethod(context);
 
-            if (testMethod.HasExpectedResult)
-                NUnit.Framework.Assert.AreEqual(testMethod.ExpectedResult, result);
+            if (_testMethod.HasExpectedResult)
+                Assert.That(result, Is.EqualTo(_testMethod.ExpectedResult));
 
-            context.CurrentResult.SetResult(ResultState.Success);
+            if (context.MultipleAssertLevel > 0)
+                context.CurrentResult.SetResult(ResultState.Error, $"Test completed with {context.MultipleAssertLevel} active assertion scopes.");
+            else
+                context.CurrentResult.SetResult(ResultState.Success);
 
             if (context.CurrentResult.AssertionResults.Count > 0)
                 context.CurrentResult.RecordTestCompletion();
@@ -74,39 +58,34 @@ namespace NUnit.Framework.Internal.Commands
             return context.CurrentResult;
         }
 
-        private object RunTestMethod(TestExecutionContext context)
+        private object? RunTestMethod(TestExecutionContext context)
         {
-#if ASYNC
-            if (AsyncInvocationRegion.IsAsyncOperation(testMethod.Method.MethodInfo))
-                return RunAsyncTestMethod(context);
-            else
-#endif
-                return RunNonAsyncTestMethod(context);
-        }
+            var methodInfo = MethodInfoCache.Get(_testMethod.Method);
 
-#if ASYNC
-        private object RunAsyncTestMethod(TestExecutionContext context)
-        {
-            using (AsyncInvocationRegion region = AsyncInvocationRegion.Create(testMethod.Method.MethodInfo))
+            bool lastParameterAcceptsCancellationToken = methodInfo.Parameters.LastParameterAcceptsCancellationToken();
+
+            if (methodInfo.IsAsyncOperation)
             {
-                object result = Reflect.InvokeMethod(testMethod.Method.MethodInfo, context.TestObject, arguments);
-
-                try
-                {
-                    return region.WaitForPendingOperationsToComplete(result);
-                }
-                catch (Exception e)
-                {
-                    throw new NUnitException("Rethrown", e);
-                }
+                return AsyncToSyncAdapter.Await(() => InvokeTestMethod(context, lastParameterAcceptsCancellationToken));
             }
-        }
-#endif
 
-        private object RunNonAsyncTestMethod(TestExecutionContext context)
+            return InvokeTestMethod(context, lastParameterAcceptsCancellationToken);
+        }
+
+        private object? InvokeTestMethod(TestExecutionContext context, bool lastParameterAcceptsCancellationToken)
         {
-            //return Reflect.InvokeMethod(testMethod.Method.MethodInfo, context.TestObject, arguments);
-            return testMethod.Method.Invoke(context.TestObject, arguments);
+            object?[] arguments = _arguments;
+
+            if (lastParameterAcceptsCancellationToken &&
+                !arguments.LastArgumentIsCancellationToken())
+            {
+                // Add our CancellationToken as an extra argument to the test method
+                arguments = new object?[_arguments.Length + 1];
+                Array.Copy(_arguments, arguments, _arguments.Length);
+                arguments[_arguments.Length] = context.CancellationToken;
+            }
+
+            return _testMethod.Method.Invoke(context.TestObject, arguments);
         }
     }
 }

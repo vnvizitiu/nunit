@@ -1,30 +1,11 @@
-// ***********************************************************************
-// Copyright (c) 2012 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-//
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using NUnit.Framework.Constraints;
 
-namespace NUnit.Framework.Constraints
+namespace NUnit.Framework.Tests.Constraints
 {
     /// <summary>
     /// Summary description for MsgUtilTests.
@@ -33,7 +14,9 @@ namespace NUnit.Framework.Constraints
     public static class MsgUtilTests
     {
         #region FormatValue
-        class CustomFormattableType { }
+        private class CustomFormattableType
+        {
+        }
 
         [Test]
         public static void FormatValue_ContextualCustomFormatterInvoked_FactoryArg()
@@ -47,7 +30,7 @@ namespace NUnit.Framework.Constraints
         public static void FormatValue_ContextualCustomFormatterNotInvokedForNull()
         {
             // If this factory is actually called with null, it will throw
-            TestContext.AddFormatter(next => val => (val.GetType() == typeof(CustomFormattableType)) ? val.ToString() : next(val));
+            TestContext.AddFormatter(next => val => (val.GetType() == typeof(CustomFormattableType)) ? val.ToString()! : next(val));
 
             Assert.That(MsgUtils.FormatValue(null), Is.EqualTo("null"));
         }
@@ -106,7 +89,7 @@ namespace NUnit.Framework.Constraints
         public static void FormatValue_DoubleIsWrittenToSeventeenDigits()
         {
             string s = MsgUtils.FormatValue(0.33333333333333333333333333333333333333333333d);
-            Assert.That(s.Length, Is.EqualTo(20)); // add 3 for leading 0, decimal and trailing d
+            Assert.That(s, Has.Length.EqualTo(20)); // add 3 for leading 0, decimal and trailing d
         }
 
         [Test]
@@ -141,18 +124,24 @@ namespace NUnit.Framework.Constraints
             Assert.That(MsgUtils.FormatValue(c), Is.EqualTo(expected));
         }
 
-        [TestCase(null, null, "[null, null]")]
-        [TestCase(null, "Second", "[null, \"Second\"]")]
         [TestCase("First", null, "[\"First\", null]")]
         [TestCase("First", "Second", "[\"First\", \"Second\"]")]
         [TestCase(123, 'h', "[123, 'h']")]
-        public static void FormatValue_KeyValuePairTest(object key, object value, string expectedResult)
+        public static void FormatValue_KeyValuePairTest(object key, object? value, string expectedResult)
         {
-            string s = MsgUtils.FormatValue(new KeyValuePair<object, object>(key, value));
+            string s = MsgUtils.FormatValue(new KeyValuePair<object, object?>(key, value));
             Assert.That(s, Is.EqualTo(expectedResult));
         }
 
-#if NET_4_5
+        [TestCase("First", null, "[\"First\", null]")]
+        [TestCase("First", "Second", "[\"First\", \"Second\"]")]
+        [TestCase(123, 'h', "[123, 'h']")]
+        public static void FormatValue_DirectoryEntryTest(object key, object? value, string expectedResult)
+        {
+            string s = MsgUtils.FormatValue(new DictionaryEntry(key, value));
+            Assert.That(s, Is.EqualTo(expectedResult));
+        }
+
         [Test]
         public static void FormatValue_EmptyValueTupleTest()
         {
@@ -170,21 +159,22 @@ namespace NUnit.Framework.Constraints
         [Test]
         public static void FormatValue_TwoElementsValueTupleTest()
         {
-            string s = MsgUtils.FormatValue(ValueTuple.Create("Hello", 123));
+            string s = MsgUtils.FormatValue(("Hello", 123));
             Assert.That(s, Is.EqualTo("(\"Hello\", 123)"));
         }
 
         [Test]
         public static void FormatValue_ThreeElementsValueTupleTest()
         {
-            string s = MsgUtils.FormatValue(ValueTuple.Create("Hello", 123, 'a'));
+            string s = MsgUtils.FormatValue(("Hello", 123, 'a'));
             Assert.That(s, Is.EqualTo("(\"Hello\", 123, 'a')"));
         }
 
         [Test]
         public static void FormatValue_EightElementsValueTupleTest()
         {
-            var tuple = ValueTuple.Create(1, 2, 3, 4, 5, 6, 7, 8);
+            var tuple = (1, 2, 3, 4, 5, 6, 7, 8);
+
             string s = MsgUtils.FormatValue(tuple);
             Assert.That(s, Is.EqualTo("(1, 2, 3, 4, 5, 6, 7, 8)"));
         }
@@ -192,7 +182,8 @@ namespace NUnit.Framework.Constraints
         [Test]
         public static void FormatValue_EightElementsValueTupleNestedTest()
         {
-            var tuple = ValueTuple.Create(1, 2, 3, 4, 5, 6, 7, ValueTuple.Create(8, "9"));
+            var tuple = (1, 2, 3, 4, 5, 6, 7, (8, "9"));
+
             string s = MsgUtils.FormatValue(tuple);
             Assert.That(s, Is.EqualTo("(1, 2, 3, 4, 5, 6, 7, (8, \"9\"))"));
         }
@@ -200,14 +191,59 @@ namespace NUnit.Framework.Constraints
         [Test]
         public static void FormatValue_FifteenElementsValueTupleTest()
         {
-            var tupleLastElements = ValueTuple.Create(8, 9, 10, 11, "12", 13, 14, "15");
-            var tuple = new ValueTuple<int, int, int, int, int, int, int, ValueTuple<int, int, int, int, string, int, int, ValueTuple<string>>>
+            var tuple = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, "12", 13, 14, "15");
+
+            string s = MsgUtils.FormatValue(tuple);
+            Assert.That(s, Is.EqualTo("(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, \"12\", 13, 14, \"15\")"));
+        }
+
+        [Test]
+        public static void FormatValue_OneElementTupleTest()
+        {
+            string s = MsgUtils.FormatValue(Tuple.Create("Hello"));
+            Assert.That(s, Is.EqualTo("(\"Hello\")"));
+        }
+
+        [Test]
+        public static void FormatValue_TwoElementsTupleTest()
+        {
+            string s = MsgUtils.FormatValue(Tuple.Create("Hello", 123));
+            Assert.That(s, Is.EqualTo("(\"Hello\", 123)"));
+        }
+
+        [Test]
+        public static void FormatValue_ThreeElementsTupleTest()
+        {
+            string s = MsgUtils.FormatValue(Tuple.Create("Hello", 123, 'a'));
+            Assert.That(s, Is.EqualTo("(\"Hello\", 123, 'a')"));
+        }
+
+        [Test]
+        public static void FormatValue_EightElementsTupleTest()
+        {
+            var tuple = Tuple.Create(1, 2, 3, 4, 5, 6, 7, 8);
+            string s = MsgUtils.FormatValue(tuple);
+            Assert.That(s, Is.EqualTo("(1, 2, 3, 4, 5, 6, 7, 8)"));
+        }
+
+        [Test]
+        public static void FormatValue_EightElementsTupleNestedTest()
+        {
+            var tuple = Tuple.Create(1, 2, 3, 4, 5, 6, 7, Tuple.Create(8, "9"));
+            string s = MsgUtils.FormatValue(tuple);
+            Assert.That(s, Is.EqualTo("(1, 2, 3, 4, 5, 6, 7, (8, \"9\"))"));
+        }
+
+        [Test]
+        public static void FormatValue_FifteenElementsTupleTest()
+        {
+            var tupleLastElements = Tuple.Create(8, 9, 10, 11, "12", 13, 14, "15");
+            var tuple = new Tuple<int, int, int, int, int, int, int, Tuple<int, int, int, int, string, int, int, Tuple<string>>>
                 (1, 2, 3, 4, 5, 6, 7, tupleLastElements);
 
             string s = MsgUtils.FormatValue(tuple);
             Assert.That(s, Is.EqualTo("(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, \"12\", 13, 14, \"15\")"));
         }
-#endif
 
         #endregion
 
@@ -236,9 +272,17 @@ namespace NUnit.Framework.Constraints
         [TestCase("\x0085", "\\x0085", Description = "Next line character")]
         [TestCase("\x2028", "\\x2028", Description = "Line separator character")]
         [TestCase("\x2029", "\\x2029", Description = "Paragraph separator character")]
-        public static void EscapeControlCharsTest(string input, string expected)
+        public static void EscapeControlCharsTest(string? input, string? expected)
         {
-            Assert.That( MsgUtils.EscapeControlChars(input), Is.EqualTo(expected) );
+            Assert.That(MsgUtils.EscapeControlChars(input), Is.EqualTo(expected));
+        }
+
+        [TestCase("Hello\r\nWorld", 4, "Hello\\r\\nWorld", 4)]
+        [TestCase("Hello\r\nWorld", 7, "Hello\\r\\nWorld", 9)]
+        public static void EscapeControlCharsWithIndexTest(string? input, int index, string? expected, int expectedIndex)
+        {
+            Assert.That(MsgUtils.EscapeControlChars(input, ref index), Is.EqualTo(expected));
+            Assert.That(index, Is.EqualTo(expectedIndex));
         }
 
         [Test]
@@ -268,12 +312,12 @@ namespace NUnit.Framework.Constraints
         #endregion
         #region ClipString
 
-        private const string s52 = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        private const string S52 = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-        [TestCase(s52, 52, 0, s52, TestName="NoClippingNeeded")]
-        [TestCase(s52, 29, 0, "abcdefghijklmnopqrstuvwxyz...", TestName="ClipAtEnd")]
-        [TestCase(s52, 29, 26, "...ABCDEFGHIJKLMNOPQRSTUVWXYZ", TestName="ClipAtStart")]
-        [TestCase(s52, 28, 26, "...ABCDEFGHIJKLMNOPQRSTUV...", TestName="ClipAtStartAndEnd")]
+        [TestCase(S52, 52, 0, S52, TestName = "NoClippingNeeded")]
+        [TestCase(S52, 26, 0, "abcdefghijklmnopqrstuvwxyz...", TestName = "ClipAtEnd")]
+        [TestCase(S52, 26, 26, "...ABCDEFGHIJKLMNOPQRSTUVWXYZ", TestName = "ClipAtStart")]
+        [TestCase(S52, 22, 26, "...ABCDEFGHIJKLMNOPQRSTUV...", TestName = "ClipAtStartAndEnd")]
         public static void TestClipString(string input, int max, int start, string result)
         {
             System.Console.WriteLine("input=  \"{0}\"", input);
@@ -281,51 +325,112 @@ namespace NUnit.Framework.Constraints
             Assert.That(MsgUtils.ClipString(input, max, start), Is.EqualTo(result));
         }
 
-#endregion
+        #endregion
+        #region ClipWhenNeeded
 
-#region ClipExpectedAndActual
+        [Test]
+        public static void ClipWhenNeeded_StringFitsInLine()
+        {
+            int mismatchedLocation = 5;
+            string clipped = MsgUtils.ClipWhenNeeded(S52, S52.Length, 52, ref mismatchedLocation);
+            Assert.That(clipped, Is.EqualTo(S52));
+            Assert.That(mismatchedLocation, Is.EqualTo(5));
+        }
+
+        [Test]
+        public static void ClipWhenNeeded_StringDoesNotFitInLineMismatchLocationEarly()
+        {
+            int mismatchedLocation = 10;
+            string clipped = MsgUtils.ClipWhenNeeded(S52, S52.Length, 29, ref mismatchedLocation);
+            Assert.That(clipped, Is.EqualTo("abcdefghijklmnopqrstuvwxyz..."));
+            Assert.That(mismatchedLocation, Is.EqualTo(10));
+        }
+
+        [Test]
+        public static void ClipWhenNeeded_StringDoesNotFitInLineMismatchLocationInTheMiddle()
+        {
+            int mismatchedLocation = 26;
+            string clipped = MsgUtils.ClipWhenNeeded(S52, S52.Length, 29, ref mismatchedLocation);
+            Assert.That(clipped, Is.EqualTo("...pqrstuvwxyzABCDEFGHIJKL..."));
+            Assert.That(mismatchedLocation, Is.EqualTo(26 - (26 - 23 / 2) + 3));
+        }
+
+        [Test]
+        public static void ClipWhenNeeded_StringDoesNotFitInLineMismatchLocationAlmostAtEnd()
+        {
+            int mismatchedLocation = 50;
+            string clipped = MsgUtils.ClipWhenNeeded(S52, S52.Length, 29, ref mismatchedLocation);
+            Assert.That(clipped, Is.EqualTo("...ABCDEFGHIJKLMNOPQRSTUVWXYZ"));
+            Assert.That(mismatchedLocation, Is.EqualTo(50 - (29 - 3) + 3));
+        }
+
+        #endregion
+        #region ClipExpectedAndActual
 
         [Test]
         public static void ClipExpectedAndActual_StringsFitInLine()
         {
-            string eClip = s52;
+            string eClip = S52;
             string aClip = "abcde";
-            MsgUtils.ClipExpectedAndActual(ref eClip, ref aClip, 52, 5);
-            Assert.That(eClip, Is.EqualTo(s52));
+            int mismatchExpected = 5;
+            int mismatchActual = 5;
+            MsgUtils.ClipExpectedAndActual(ref eClip, ref aClip, 52, ref mismatchExpected, ref mismatchActual);
+            Assert.That(eClip, Is.EqualTo(S52));
             Assert.That(aClip, Is.EqualTo("abcde"));
+            Assert.That(mismatchExpected, Is.EqualTo(5));
+            Assert.That(mismatchActual, Is.EqualTo(5));
 
-            eClip = s52;
+            eClip = S52;
             aClip = "abcdefghijklmno?qrstuvwxyz";
-            MsgUtils.ClipExpectedAndActual(ref eClip, ref aClip, 52, 15);
-            Assert.That(eClip, Is.EqualTo(s52));
+            mismatchExpected = mismatchActual = 15;
+            MsgUtils.ClipExpectedAndActual(ref eClip, ref aClip, 52, ref mismatchExpected, ref mismatchActual);
+            Assert.That(eClip, Is.EqualTo(S52));
             Assert.That(aClip, Is.EqualTo("abcdefghijklmno?qrstuvwxyz"));
+            Assert.That(mismatchExpected, Is.EqualTo(15));
+            Assert.That(mismatchActual, Is.EqualTo(15));
         }
 
         [Test]
         public static void ClipExpectedAndActual_StringTailsFitInLine()
         {
-            string s1 = s52;
-            string s2 = s52.Replace('Z', '?');
-            MsgUtils.ClipExpectedAndActual(ref s1, ref s2, 29, 51);
+            string s1 = S52;
+            string s2 = S52.Replace('Z', '?');
+            int mismatchExpected = 51;
+            int mismatchActual = 51;
+            MsgUtils.ClipExpectedAndActual(ref s1, ref s2, 29, ref mismatchExpected, ref mismatchActual);
             Assert.That(s1, Is.EqualTo("...ABCDEFGHIJKLMNOPQRSTUVWXYZ"));
+            Assert.That(mismatchExpected, Is.EqualTo(51 - 26 + 3));
+            Assert.That(mismatchActual, Is.EqualTo(51 - 26 + 3));
+        }
+
+        [Test]
+        public static void ClipExpectedAndActual_StringsHeadFitsInLine()
+        {
+            string s1 = S52;
+            string s2 = "abcdefghij";
+            int mismatchExpected = 10;
+            int mismatchActual = 10;
+            MsgUtils.ClipExpectedAndActual(ref s1, ref s2, 29, ref mismatchExpected, ref mismatchActual);
+            Assert.That(s1, Is.EqualTo("abcdefghijklmnopqrstuvwxyz..."));
+            Assert.That(s2, Is.EqualTo("abcdefghij"));
+            Assert.That(mismatchExpected, Is.EqualTo(10));
+            Assert.That(mismatchActual, Is.EqualTo(10));
         }
 
         [Test]
         public static void ClipExpectedAndActual_StringsDoNotFitInLine()
         {
-            string s1 = s52;
-            string s2 = "abcdefghij";
-            MsgUtils.ClipExpectedAndActual(ref s1, ref s2, 29, 10);
-            Assert.That(s1, Is.EqualTo("abcdefghijklmnopqrstuvwxyz..."));
-            Assert.That(s2, Is.EqualTo("abcdefghij"));
-
-            s1 = s52;
-            s2 = "abcdefghijklmno?qrstuvwxyz";
-            MsgUtils.ClipExpectedAndActual(ref s1, ref s2, 25, 15);
-            Assert.That(s1, Is.EqualTo("...efghijklmnopqrstuvw..."));
-            Assert.That(s2, Is.EqualTo("...efghijklmno?qrstuvwxyz"));
+            string s1 = S52;
+            string s2 = "abcdefghijklmno?qrstuvwxyz";
+            int mismatchExpected = 15;
+            int mismatchActual = 15;
+            MsgUtils.ClipExpectedAndActual(ref s1, ref s2, 17, ref mismatchExpected, ref mismatchActual);
+            Assert.That(s1, Is.EqualTo("...klmnopqrstu..."));
+            Assert.That(s2, Is.EqualTo("...klmno?qrstu..."));
+            Assert.That(mismatchExpected, Is.EqualTo(8));
+            Assert.That(mismatchActual, Is.EqualTo(8));
         }
 
-#endregion
+        #endregion
     }
 }

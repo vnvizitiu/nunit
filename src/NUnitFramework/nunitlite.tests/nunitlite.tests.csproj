@@ -1,0 +1,32 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>NUnitLite.Tests</RootNamespace>
+    <TargetFrameworks>$(NUnitRuntimeFrameworks)</TargetFrameworks>
+    <Nullable>disable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>1591</NoWarn>
+    <Title>NUnitLite Runner Tests</Title>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\mock-assembly\mock-assembly.csproj" />
+    <ProjectReference Include="..\nunitlite\nunitlite.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Fakes.cs" Link="TestUtilities\Fakes.cs" />
+    <Compile Include="..\SchemaTestUtils.cs" Link="TestUtilities\SchemaTestUtils.cs" />
+    <Compile Include="..\TestBuilder.cs" Link="TestUtilities\TestBuilder.cs" />
+    <Compile Include="..\TestFile.cs" Link="TestUtilities\TestFile.cs" />
+
+    <EmbeddedResource Include="TestListFile.txt" />
+    <EmbeddedResource Include="TestListFile2.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NUnit.Analyzers" />
+  </ItemGroup>
+
+</Project>

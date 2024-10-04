@@ -1,96 +1,142 @@
-﻿// ***********************************************************************
-// Copyright (c) 2010 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
+
+using NUnit.Framework.Internal.Extensions;
 
 namespace NUnit.Framework.Constraints
 {
-    /// <summary>
-    /// CollectionTally counts (tallies) the number of
-    /// occurrences of each object in one or more enumerations.
-    /// </summary>
-    public class CollectionTally
+    /// <summary><see cref="CollectionTally"/> counts (tallies) the number of occurrences
+    /// of each object in one or more enumerations.</summary>
+    public sealed class CollectionTally
     {
-        // Internal list used to track occurrences
-        private readonly List<object> list = new List<object>();
-
-        private readonly NUnitEqualityComparer comparer;
-
-        /// <summary>
-        /// Construct a CollectionTally object from a comparer and a collection
-        /// </summary>
-        public CollectionTally(NUnitEqualityComparer comparer, IEnumerable c)
+        /// <summary>The result of a <see cref="CollectionTally"/>.</summary>
+        [DebuggerDisplay("Missing = {MissingItems.Count}, Extra = {ExtraItems.Count}")]
+        public sealed class CollectionTallyResult
         {
-            this.comparer = comparer;
+            /// <summary>Items that were not in the expected collection.</summary>
+            public List<object> ExtraItems { get; }
 
-            foreach (object o in c)
-                list.Add(o);
+            /// <summary>Items that were not accounted for in the expected collection.</summary>
+            public List<object> MissingItems { get; }
+
+            /// <summary>Initializes a new instance of the <see cref="CollectionTallyResult"/> class with the given fields.</summary>
+            public CollectionTallyResult(List<object> missingItems, List<object> extraItems)
+            {
+                MissingItems = missingItems;
+                ExtraItems = extraItems;
+            }
         }
 
-        /// <summary>
-        /// The number of objects remaining in the tally
-        /// </summary>
-        public int Count
+        private readonly NUnitEqualityComparer _comparer;
+
+        private readonly bool _isSortable;
+        private bool _sorted = false;
+
+        /// <summary>The result of the comparison between the two collections.</summary>
+        public CollectionTallyResult Result
         {
-            get { return list.Count; }
+            get
+            {
+                var missingItems = new List<object>(_missingItems.Count);
+                foreach (var o in _missingItems)
+                    missingItems.Add(o);
+
+                var extraItems = new List<object>(_extraItems.Count);
+                if (_sorted)
+                {
+                    for (int index = _extraItems.Count - 1; index >= 0; index--)
+                        extraItems.Add(_extraItems[index]);
+                }
+                else
+                {
+                    extraItems.AddRange(_extraItems);
+                }
+
+                return new CollectionTallyResult(missingItems, extraItems);
+            }
+        }
+
+        private readonly List<object> _missingItems = new();
+
+        private readonly List<object> _extraItems = new();
+
+        /// <summary>Construct a CollectionTally object from a comparer and a collection.</summary>
+        /// <param name="comparer">The comparer to use for equality.</param>
+        /// <param name="c">The expected collection to compare against.</param>
+        public CollectionTally(NUnitEqualityComparer comparer, IEnumerable c)
+        {
+            _comparer = comparer;
+
+            _missingItems = ToList(c);
+
+            if (c.IsSortable())
+            {
+                _missingItems.Sort();
+                _isSortable = true;
+            }
         }
 
         private bool ItemsEqual(object expected, object actual)
         {
             Tolerance tolerance = Tolerance.Default;
-            return comparer.AreEqual(expected, actual, ref tolerance);
+            return _comparer.AreEqual(expected, actual, ref tolerance);
         }
 
-        /// <summary>
-        /// Try to remove an object from the tally
-        /// </summary>
-        /// <param name="o">The object to remove</param>
-        /// <returns>True if successful, false if the object was not found</returns>
-        public bool TryRemove(object o)
+        /// <summary>Try to remove an object from the tally.</summary>
+        /// <param name="o">The object to remove.</param>
+        public void TryRemove(object o)
         {
-            for (int index = 0; index < list.Count; index++)
-                if (ItemsEqual(list[index], o))
+            for (int index = _missingItems.Count - 1; index >= 0; index--)
+            {
+                if (ItemsEqual(_missingItems[index], o))
                 {
-                    list.RemoveAt(index);
-                    return true;
+                    _missingItems.RemoveAt(index);
+                    return;
                 }
+            }
 
-            return false;
+            _extraItems.Add(o);
         }
 
-        /// <summary>
-        /// Try to remove a set of objects from the tally
-        /// </summary>
-        /// <param name="c">The objects to remove</param>
-        /// <returns>True if successful, false if any object was not found</returns>
-        public bool TryRemove(IEnumerable c)
+        /// <summary>Try to remove a set of objects from the tally.</summary>
+        /// <param name="c">The objects to remove.</param>
+        public void TryRemove(IEnumerable c)
         {
-            foreach (object o in c)
-                if (!TryRemove(o))
-                    return false;
+            if (_isSortable && c.IsSortable())
+            {
+                var remove = ToList(c);
+                remove.Sort();
 
-            return true;
+                _sorted = true;
+
+                // Reverse so that we match removing from the end,
+                // see issue #2598 - Is.Not.EquivalentTo is extremely slow
+                for (int index = remove.Count - 1; index >= 0; index--)
+                    TryRemove(remove[index]);
+            }
+            else
+            {
+                TryRemoveSlow(c);
+            }
+
+            void TryRemoveSlow(IEnumerable c)
+            {
+                foreach (object o in c)
+                    TryRemove(o);
+            }
+        }
+
+        private static List<object> ToList(IEnumerable items)
+        {
+            var list = items is ICollection ic ? new List<object>(ic.Count) : new List<object>();
+
+            foreach (object o in items)
+                list.Add(o);
+
+            return list;
         }
     }
 }

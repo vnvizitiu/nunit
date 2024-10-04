@@ -1,84 +1,82 @@
-﻿// ***********************************************************************
-// Copyright (c) 2009 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-//
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
 using System.IO;
+using System.Buffers;
 
 namespace NUnit.Framework.Constraints.Comparers
 {
     /// <summary>
     /// Comparator for two <see cref="Stream"/>s.
     /// </summary>
-    internal class StreamsComparer : IChainComparer
+    internal static class StreamsComparer
     {
-        private static readonly int BUFFER_SIZE = 4096;
+        private const int BUFFER_SIZE = 4096;
 
-        private readonly NUnitEqualityComparer _equalityComparer;
-
-        internal StreamsComparer(NUnitEqualityComparer equalityComparer)
+        public static EqualMethodResult Equal(object x, object y, ref Tolerance tolerance, ComparisonState state, NUnitEqualityComparer equalityComparer)
         {
-            _equalityComparer = equalityComparer;
-        }
+            if (x is not Stream xStream || y is not Stream yStream)
+                return EqualMethodResult.TypesNotSupported;
 
-        public bool? Equal(object x, object y, ref Tolerance tolerance)
-        {
-            if (!(x is Stream) || !(y is Stream))
-                return null;
+            if (tolerance.HasVariance)
+                return EqualMethodResult.ToleranceNotSupported;
 
-            Stream xStream = (Stream)x;
-            Stream yStream = (Stream)y;
-
-            if (xStream == yStream) return true;
+            if (xStream == yStream)
+                return EqualMethodResult.ComparedEqual;
 
             if (!xStream.CanRead)
                 throw new ArgumentException("Stream is not readable", "expected");
             if (!yStream.CanRead)
                 throw new ArgumentException("Stream is not readable", "actual");
-            if (!xStream.CanSeek)
-                throw new ArgumentException("Stream is not seekable", "expected");
-            if (!yStream.CanSeek)
-                throw new ArgumentException("Stream is not seekable", "actual");
 
-            if (xStream.Length != yStream.Length) return false;
+            bool bothSeekable = xStream.CanSeek && yStream.CanSeek;
 
-            byte[] bufferExpected = new byte[BUFFER_SIZE];
-            byte[] bufferActual = new byte[BUFFER_SIZE];
+            if (bothSeekable)
+            {
+                if (xStream.Length != yStream.Length)
+                    return EqualMethodResult.ComparedNotEqual;
+
+                if (xStream.Length == 0)
+                    return EqualMethodResult.ComparedEqual;
+            }
 
             BinaryReader binaryReaderExpected = new BinaryReader(xStream);
             BinaryReader binaryReaderActual = new BinaryReader(yStream);
 
-            long expectedPosition = xStream.Position;
-            long actualPosition = yStream.Position;
+            long expectedPosition = bothSeekable ? xStream.Position : default;
+            long actualPosition = bothSeekable ? yStream.Position : default;
+
+            byte[]? bufferExpected = null;
+            byte[]? bufferActual = null;
 
             try
             {
-                binaryReaderExpected.BaseStream.Seek(0, SeekOrigin.Begin);
-                binaryReaderActual.BaseStream.Seek(0, SeekOrigin.Begin);
+                bufferExpected = ArrayPool<byte>.Shared.Rent(BUFFER_SIZE);
+                bufferActual = ArrayPool<byte>.Shared.Rent(BUFFER_SIZE);
 
-                for (long readByte = 0; readByte < xStream.Length; readByte += BUFFER_SIZE)
+                if (xStream.CanSeek)
                 {
-                    binaryReaderExpected.Read(bufferExpected, 0, BUFFER_SIZE);
-                    binaryReaderActual.Read(bufferActual, 0, BUFFER_SIZE);
+                    binaryReaderExpected.BaseStream.Seek(0, SeekOrigin.Begin);
+                }
+                if (yStream.CanSeek)
+                {
+                    binaryReaderActual.BaseStream.Seek(0, SeekOrigin.Begin);
+                }
+
+                int readExpected = 1;
+                int readActual = 1;
+                long readByte = 0;
+
+                while (readExpected > 0 && readActual > 0)
+                {
+                    readExpected = binaryReaderExpected.Read(bufferExpected, 0, BUFFER_SIZE);
+                    readActual = binaryReaderActual.Read(bufferActual, 0, BUFFER_SIZE);
+
+                    if (MemoryExtensions.SequenceEqual<byte>(bufferExpected.AsSpan(0, readExpected), bufferActual.AsSpan(0, readActual)))
+                    {
+                        readByte += readActual;
+                        continue;
+                    }
 
                     for (int count = 0; count < BUFFER_SIZE; ++count)
                     {
@@ -90,19 +88,31 @@ namespace NUnit.Framework.Constraints.Comparers
                             fp.ExpectedValue = bufferExpected[count];
                             fp.ActualHasData = true;
                             fp.ActualValue = bufferActual[count];
-                            _equalityComparer.FailurePoints.Insert(0, fp);
-                            return false;
+                            equalityComparer.FailurePoints.Insert(0, fp);
+                            return EqualMethodResult.ComparedNotEqual;
                         }
                     }
                 }
             }
             finally
             {
-                xStream.Position = expectedPosition;
-                yStream.Position = actualPosition;
+                if (xStream.CanSeek)
+                {
+                    xStream.Position = expectedPosition;
+                }
+                if (yStream.CanSeek)
+                {
+                    yStream.Position = actualPosition;
+                }
+
+                if (bufferExpected is not null)
+                    ArrayPool<byte>.Shared.Return(bufferExpected);
+
+                if (bufferActual is not null)
+                    ArrayPool<byte>.Shared.Return(bufferActual);
             }
 
-            return true;
+            return EqualMethodResult.ComparedEqual;
         }
     }
 }

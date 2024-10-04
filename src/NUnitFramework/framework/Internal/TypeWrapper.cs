@@ -1,31 +1,8 @@
-﻿// ***********************************************************************
-// Copyright (c) 2015 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using NUnit.Compatibility;
 using NUnit.Framework.Interfaces;
 
 namespace NUnit.Framework.Internal
@@ -41,7 +18,7 @@ namespace NUnit.Framework.Internal
         /// </summary>
         public TypeWrapper(Type type)
         {
-            Guard.ArgumentNotNull(type, "Type");
+            Guard.ArgumentNotNull(type, nameof(Type));
 
             Type = type;
         }
@@ -54,65 +31,47 @@ namespace NUnit.Framework.Internal
         /// <summary>
         /// Gets the base type of this type as an ITypeInfo
         /// </summary>
-        public ITypeInfo BaseType 
+        public ITypeInfo? BaseType
         {
-            get 
+            get
             {
-                var baseType = Type.GetTypeInfo().BaseType;
+                var baseType = Type.BaseType;
 
-                return baseType != null
+                return baseType is not null
                     ? new TypeWrapper(baseType)
-                    : null; 
+                    : null;
             }
         }
 
         /// <summary>
         /// Gets the Name of the Type
         /// </summary>
-        public string Name
-        {
-            get { return Type.Name; }
-        }
+        public string Name => Type.Name;
 
         /// <summary>
         /// Gets the FullName of the Type
         /// </summary>
-        public string FullName
-        {
-            get { return Type.FullName;  }
-        }
+        public string FullName => Type.FullName();
 
         /// <summary>
         /// Gets the assembly in which the type is declared
         /// </summary>
-        public Assembly Assembly
-        {
-            get { return Type.GetTypeInfo().Assembly; }
-        }
+        public Assembly Assembly => Type.Assembly;
 
         /// <summary>
         /// Gets the namespace of the Type
         /// </summary>
-        public string Namespace
-        {
-            get { return Type.Namespace; }
-        }
+        public string? Namespace => Type.Namespace;
 
         /// <summary>
         /// Gets a value indicating whether the type is abstract.
         /// </summary>
-        public bool IsAbstract
-        {
-            get { return Type.GetTypeInfo().IsAbstract; }
-        }
+        public bool IsAbstract => Type.IsAbstract;
 
         /// <summary>
         /// Gets a value indicating whether the Type is a generic Type
         /// </summary>
-        public bool IsGenericType
-        {
-            get { return Type.GetTypeInfo().IsGenericType; }
-        }
+        public bool IsGenericType => Type.IsGenericType;
 
         /// <summary>
         /// Returns true if the Type wrapped is T
@@ -125,34 +84,22 @@ namespace NUnit.Framework.Internal
         /// <summary>
         /// Gets a value indicating whether the Type has generic parameters that have not been replaced by specific Types.
         /// </summary>
-        public bool ContainsGenericParameters
-        {
-            get { return Type.GetTypeInfo().ContainsGenericParameters; }
-        }
+        public bool ContainsGenericParameters => Type.ContainsGenericParameters;
 
         /// <summary>
         /// Gets a value indicating whether the Type is a generic Type definition
         /// </summary>
-        public bool IsGenericTypeDefinition
-        {
-            get { return Type.GetTypeInfo().IsGenericTypeDefinition; }
-        }
+        public bool IsGenericTypeDefinition => Type.IsGenericTypeDefinition;
 
         /// <summary>
         /// Gets a value indicating whether the type is sealed.
         /// </summary>
-        public bool IsSealed
-        {
-            get { return Type.GetTypeInfo().IsSealed; }
-        }
+        public bool IsSealed => Type.IsSealed;
 
         /// <summary>
         /// Gets a value indicating whether this type represents a static class.
         /// </summary>
-        public bool IsStaticClass
-        {
-            get { return Type.GetTypeInfo().IsSealed && Type.GetTypeInfo().IsAbstract; }
-        }
+        public bool IsStaticClass => Type.IsStatic();
 
         /// <summary>
         /// Get the display name for this type
@@ -165,7 +112,7 @@ namespace NUnit.Framework.Internal
         /// <summary>
         /// Get the display name for an object of this type, constructed with the specified args.
         /// </summary>
-        public string GetDisplayName(object[] args)
+        public string GetDisplayName(object?[]? args)
         {
             return TypeHelper.GetDisplayName(Type, args);
         }
@@ -189,13 +136,10 @@ namespace NUnit.Framework.Internal
         /// <summary>
         /// Returns an array of custom attributes of the specified type applied to this type
         /// </summary>
-        public T[] GetCustomAttributes<T>(bool inherit) where T : class
+        public T[] GetCustomAttributes<T>(bool inherit)
+            where T : class
         {
-#if NETSTANDARD1_3 || NETSTANDARD1_6
-            return Type.GetTypeInfo().GetAttributes<T>(inherit).ToArray();
-#else
-            return (T[])Type.GetCustomAttributes(typeof(T), inherit);
-#endif
+            return Type.GetAttributes<T>(inherit);
         }
 
         /// <summary>
@@ -205,12 +149,9 @@ namespace NUnit.Framework.Internal
         /// <param name="inherit"></param>
         /// <returns></returns>
         public bool IsDefined<T>(bool inherit)
+            where T : class
         {
-#if NETSTANDARD1_3 || NETSTANDARD1_6
-            return Type.GetTypeInfo().GetCustomAttributes(inherit).Any(a => typeof(T).IsAssignableFrom(a.GetType()));
-#else
-            return Type.GetTypeInfo().IsDefined(typeof(T), inherit);
-#endif
+            return Type.HasAttribute<T>(inherit);
         }
 
         /// <summary>
@@ -241,11 +182,9 @@ namespace NUnit.Framework.Internal
         /// <summary>
         /// Gets the public constructor taking the specified argument Types
         /// </summary>
-        public ConstructorInfo GetConstructor(Type[] argTypes)
+        public ConstructorInfo? GetConstructor(Type[] argTypes)
         {
-            return Type.GetConstructors()
-                .Where(c => c.GetParameters().ParametersMatch(argTypes))
-                .FirstOrDefault();
+            return Type.GetConstructor(argTypes);
         }
 
         /// <summary>
@@ -253,13 +192,13 @@ namespace NUnit.Framework.Internal
         /// </summary>
         public bool HasConstructor(Type[] argTypes)
         {
-            return GetConstructor(argTypes) != null;
+            return GetConstructor(argTypes) is not null;
         }
 
         /// <summary>
         /// Construct an object of this Type, using the specified arguments.
         /// </summary>
-        public object Construct(object[] args)
+        public object Construct(object?[]? args)
         {
             return Reflect.Construct(Type, args);
         }
@@ -270,6 +209,35 @@ namespace NUnit.Framework.Internal
         public override string ToString()
         {
             return Type.ToString();
+        }
+
+        /// <summary>
+        /// Returns all methods declared by this type that have the specified attribute, optionally
+        /// including base classes. Methods from a base class are always returned before methods from a class that
+        /// inherits from it.
+        /// </summary>
+        /// <param name="inherit">Specifies whether to search the fixture type inheritance chain.</param>
+        public IMethodInfo[] GetMethodsWithAttribute<T>(bool inherit)
+            where T : class
+        {
+            if (!inherit)
+            {
+                return Type
+                    .GetMethods(Reflect.AllMembers | BindingFlags.DeclaredOnly)
+                    .Where(method => method.IsDefined(typeof(T), inherit: false))
+                    .Select(method => new MethodWrapper(Type, method))
+                    .ToArray();
+            }
+
+            var methodsByDeclaringType = Type
+                .GetMethods(Reflect.AllMembers | BindingFlags.FlattenHierarchy) // FlattenHierarchy is complex to replicate by looping over base types with DeclaredOnly.
+                .Where(method => method.IsDefined(typeof(T), inherit: true))
+                .ToLookup(method => method.DeclaringType);
+
+            return Type.TypeAndBaseTypes()
+                .Reverse()
+                .SelectMany(declaringType => methodsByDeclaringType[declaringType].Select(method => new MethodWrapper(declaringType, method)))
+                .ToArray();
         }
     }
 }

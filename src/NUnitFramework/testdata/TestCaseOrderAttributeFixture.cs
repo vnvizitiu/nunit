@@ -1,11 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
+
 using NUnit.Framework;
 
 namespace NUnit.TestData
 {
     [TestFixture]
+    [Order(3)]
     public class TestCaseOrderAttributeFixture
     {
         [Test]
@@ -39,6 +39,28 @@ namespace NUnit.TestData
         public void A_NoOrderTestLowLetter()
         {
             Assert.Pass("A_NoOrderTestLowLetter");
+        }
+    }
+
+    [TestFixture]
+    [Order(1)]
+    public class AnotherTestCaseOrderAttributeFixture
+    {
+        [Test]
+        public void DummyTest()
+        {
+            Assert.Pass("DummyTest");
+        }
+    }
+
+    [TestFixture]
+    [Order(2)]
+    public class ThirdTestCaseOrderAttributeFixture
+    {
+        [Test]
+        public void DummyTest()
+        {
+            Assert.Pass("DummyTest");
         }
     }
 }

@@ -1,27 +1,5 @@
-// ***********************************************************************
-// Copyright (c) 2006-2016 Charlie Poole, Rob Prouse
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ***********************************************************************
+// Copyright (c) Charlie Poole, Rob Prouse and Contributors. MIT License - see LICENSE.txt
 
-#if PARALLEL
 using System;
 using System.Threading;
 using NUnit.Framework.Interfaces;
@@ -51,49 +29,72 @@ namespace NUnit.Framework.Internal.Execution
     }
 
     /// <summary>
-    /// EventPump pulls events out of an EventQueue and sends
-    /// them to a listener. It is used to send events back to
+    /// EventPump pulls Event instances out of an EventQueue and sends
+    /// them to a ITestListener. It is used to send these events back to
     /// the client without using the CallContext of the test
     /// runner thread.
     /// </summary>
-    public class EventPump : IDisposable
+    public sealed class EventPump : EventPump<Event, ITestListener>, IDisposable
     {
-        static readonly Logger log = InternalTrace.GetLogger("EventPump");
+        /// <summary>
+        /// Constructor for standard EventPump
+        /// </summary>
+        /// <param name="eventListener">The EventListener to receive events</param>
+        /// <param name="events">The event queue to pull events from</param>
+        public EventPump(ITestListener eventListener, EventQueue<Event> events)
+            : base(eventListener, events, "Standard")
+        {
+        }
+    }
+
+    /// <summary>
+    /// EventPump base class pulls events of any type out of an EventQueue and sends
+    /// them to any listener. It is used to send events back to
+    /// the client without using the CallContext of the test
+    /// runner thread.
+    /// </summary>
+    public abstract class EventPump<TEvent, TListener> : IDisposable
+        where TEvent : IEvent<TListener>
+    {
+        private static readonly Logger Log = InternalTrace.GetLogger("EventPump");
 
         #region Instance Variables
 
         /// <summary>
         /// The downstream listener to which we send events
         /// </summary>
-        private readonly ITestListener _eventListener;
+        private readonly TListener _eventListener;
 
         /// <summary>
         /// The queue that holds our events
         /// </summary>
-        private readonly EventQueue _events;
+        private readonly EventQueue<TEvent> _events;
 
         /// <summary>
         /// Thread to do the pumping
         /// </summary>
-        private Thread _pumpThread;
+        private Thread? _pumpThread;
 
         /// <summary>
-        /// The current state of the eventpump
+        /// The current state of the event pump
         /// </summary>
         private int _pumpState = (int)EventPumpState.Stopped;
 
         #endregion
 
         #region Constructor
+
         /// <summary>
         /// Constructor
         /// </summary>
         /// <param name="eventListener">The EventListener to receive events</param>
         /// <param name="events">The event queue to pull events from</param>
-        public EventPump( ITestListener eventListener, EventQueue events)
+        /// <param name="name">Name of the thread and pump</param>
+        protected EventPump(TListener eventListener, EventQueue<TEvent> events, string name = "Standard")
         {
             _eventListener = eventListener;
             _events = events;
+            Name = name;
         }
 
         #endregion
@@ -103,19 +104,13 @@ namespace NUnit.Framework.Internal.Execution
         /// <summary>
         /// Gets or sets the current state of the pump
         /// </summary>
-        public EventPumpState PumpState
-        {
-            get
-            {
-                return (EventPumpState)_pumpState;
-            }
-        }
+        public EventPumpState PumpState => (EventPumpState)_pumpState;
 
         /// <summary>
         /// Gets or sets the name of this EventPump
         /// (used only internally and for testing).
         /// </summary>
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         #endregion
 
@@ -135,13 +130,13 @@ namespace NUnit.Framework.Internal.Execution
         /// </summary>
         public void Start()
         {
-            if ( Interlocked.CompareExchange (ref _pumpState, (int)EventPumpState.Pumping, (int)EventPumpState.Stopped) == (int)EventPumpState.Stopped)  // Ignore if already started
+            if (Interlocked.CompareExchange(ref _pumpState, (int)EventPumpState.Pumping, (int)EventPumpState.Stopped) == (int)EventPumpState.Stopped) // Ignore if already started
             {
-                _pumpThread = new Thread (PumpThreadProc)
-                    {
-                    Name = "EventPumpThread" + Name,
+                _pumpThread = new Thread(PumpThreadProc)
+                {
+                    Name = $"{Name}EventPumpThread",
                     Priority = ThreadPriority.Highest
-                    };
+                };
 
                 _pumpThread.Start();
             }
@@ -152,10 +147,10 @@ namespace NUnit.Framework.Internal.Execution
         /// </summary>
         public void Stop()
         {
-            if (Interlocked.CompareExchange (ref _pumpState, (int)EventPumpState.Stopping, (int)EventPumpState.Pumping) == (int)EventPumpState.Pumping)
+            if (Interlocked.CompareExchange(ref _pumpState, (int)EventPumpState.Stopping, (int)EventPumpState.Pumping) == (int)EventPumpState.Pumping)
             {
                 _events.Stop();
-                _pumpThread.Join();
+                _pumpThread?.Join();
             }
         }
         #endregion
@@ -170,38 +165,41 @@ namespace NUnit.Framework.Internal.Execution
         /// </summary>
         private void PumpThreadProc()
         {
+            Log.Debug($"Starting {Name}");
+
             //ITestListener hostListeners = CoreExtensions.Host.Listeners;
             try
             {
                 while (true)
                 {
-                    Event e = _events.Dequeue( PumpState == EventPumpState.Pumping );
-                    if ( e == null )
+                    var e = _events.Dequeue(PumpState == EventPumpState.Pumping);
+                    if (e is null)
                         break;
-                    try 
+                    try
                     {
                         e.Send(_eventListener);
                         //e.Send(hostListeners);
                     }
                     catch (Exception ex)
                     {
-                        log.Error( "Exception in event handler\r\n {0}", ex );
+                        Log.Error("Exception in event handler {0}", ExceptionHelper.BuildStackTrace(ex));
                     }
                 }
+
+                Log.Debug("EventPump Terminating");
             }
             catch (Exception ex)
             {
-                log.Error( "Exception in pump thread", ex );
+                Log.Error("Exception in pump thread {0}", ExceptionHelper.BuildStackTrace(ex));
             }
             finally
             {
                 _pumpState = (int)EventPumpState.Stopped;
                 //pumpThread = null;
                 if (_events.Count > 0)
-                    log.Error("Event pump thread exiting with {0} events remaining");
+                    Log.Error("Event pump thread exiting with {0} events remaining");
             }
         }
         #endregion
     }
 }
-#endif
